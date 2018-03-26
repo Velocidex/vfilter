@@ -2,22 +2,21 @@ package vfilter
 
 import (
 	"context"
-	"reflect"
 	"testing"
 )
 
 type execPluginTest struct {
 	query  string
-	result []Row
+	result []Dict
 }
 
 var execPluginTests = []execPluginTest{
 
 	execPluginTest{
 		query: "select * from test_plugin() where foo.bar < 2",
-		result: []Row{
-			Row{
-				"foo": Row{
+		result: []Dict{
+			Dict{
+				"foo": Dict{
 					"bar": 1,
 				},
 				"foo_2": 2,
@@ -28,8 +27,8 @@ var execPluginTests = []execPluginTest{
 	execPluginTest{
 		query: ("select foo.bar as column1, foo.bar from " +
 			"test_plugin() where foo.bar = 2"),
-		result: []Row{
-			Row{
+		result: []Dict{
+			Dict{
 				"column1": 2,
 				"foo.bar": 2,
 			},
@@ -50,8 +49,8 @@ func (self TestGeneratorPlugin) Call(
 		defer close(output_chan)
 
 		for i := 1; i < 10; i++ {
-			row := Row{
-				"foo": Row{
+			row := Dict{
+				"foo": Dict{
 					"bar": i,
 				},
 				"foo_2": i * 2,
@@ -90,9 +89,10 @@ func TestPlugins(t *testing.T) {
 			result = append(result, row)
 		}
 
-		if !reflect.DeepEqual(result, test.result) {
+		if !scope.Eq(result, test.result) {
 			Debug(scope)
 			Debug(result)
+			Debug(test.result)
 			t.Fatalf("Query %v Failed.", test.query)
 		}
 	}

@@ -171,22 +171,19 @@ func (self _ArrayEq) Applicable(a Any, b Any) bool {
 	return is_array(a) && is_array(b)
 }
 
+// Implements Dict equality.
 type _DictEq struct{}
-
 func (self _DictEq) Eq(scope *Scope, a Any, b Any) bool {
-	return true
-}
-
-func is_dict(a Any) bool {
-	rt := reflect.TypeOf(a)
-	return rt.Kind() == reflect.Map
+	return reflect.DeepEqual(a, b)
 }
 
 func (self _DictEq) Applicable(a Any, b Any) bool {
-	return is_dict(a) && is_dict(b)
+	_, a_ok := a.(Dict)
+	_, b_ok := b.(Dict)
+	return a_ok && b_ok
 }
 
-// Less than protoco
+// Less than protocol
 type LtProtocol interface {
 	Applicable(a Any, b Any) bool
 	Lt(scope *Scope, a Any, b Any) bool
@@ -463,22 +460,25 @@ func (self _SubstringMembership) Membership(scope *Scope, a Any, b Any) bool {
 // Associative protocol.
 type AssociativeProtocol interface {
 	Applicable(a Any, b Any) bool
-	Associative(scope *Scope, a Any, b Any) Any
+	Associative(scope *Scope, a Any, b Any) (Any, bool)
 }
 
 type _AssociativeDispatcher struct {
 	impl []AssociativeProtocol
 }
 
-func (self *_AssociativeDispatcher) Associative(scope *Scope, a Any, b Any) Any {
+func (self *_AssociativeDispatcher) Associative(
+	scope *Scope, a Any, b Any) (Any, bool) {
 	for _, impl := range self.impl {
 		if impl.Applicable(a, b) {
-			return impl.Associative(scope, a, b)
+			res, pres := impl.Associative(scope, a, b)
+			return res, pres
 		}
 	}
 
 
-	return DefaultAssociative{}.Associative(scope, a, b)
+	res, pres := DefaultAssociative{}.Associative(scope, a, b)
+	return res, pres
 }
 
 func (self *_AssociativeDispatcher) AddImpl(elements ...AssociativeProtocol) {
@@ -494,7 +494,7 @@ func (self DefaultAssociative) Applicable(a Any, b Any) bool {
 	return false
 }
 
-func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) Any {
+func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool) {
 	switch field_name := b.(type) {
 	case string:
 		{
@@ -502,17 +502,20 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) Any {
 			if value.Kind() == reflect.Struct {
 				field_value := value.FieldByName(field_name)
 				if field_value.IsValid() && field_value.CanInterface() {
-					return field_value.Interface()
+					return field_value.Interface(), true
 				}
 			} else if value.Kind() == reflect.Slice {
 				var result []Any
 
 				for i:=0; i < value.Len(); i++ {
 					item := value.Index(i).Interface()
-					result = append(result, self.Associative(scope, item, b))
+					item, pres := self.Associative(scope, item, b)
+					if pres {
+						result = append(result, item)
+					}
 				}
 
-				return result
+				return result, true
 			}
 		}
 
@@ -525,30 +528,27 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) Any {
 				// return value, err. We try to guess
 				// here by taking the first return
 				// value as the value.
-				return results[0].Interface()
+				return results[0].Interface(), true
 			}
 		}
 	}
-	return false
+	return false, false
 }
 
 
-type _RowAssociative struct{}
-func (self _RowAssociative) Applicable(a Any, b Any) bool {
-	_, err := b.(string)
-	return is_dict(a) && err
+type _DictAssociative struct{}
+func (self _DictAssociative) Applicable(a Any, b Any) bool {
+	_, a_ok := a.(Dict)
+	_, b_ok := b.(string)
+	return a_ok && b_ok
 }
 
 // Associate object a with key b
-func (self _RowAssociative) Associative(scope *Scope, a Any, b Any) Any {
-	key := reflect.ValueOf(b.(string))
-	value := reflect.ValueOf(a)
-	item := value.MapIndex(key)
-	if !item.IsValid() {
-		return false
-	}
-
-	return item.Interface()
+func (self _DictAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool) {
+	key := b.(string)
+	value := a.(Dict)
+	res, pres := value[key]
+	return res, pres
 }
 
 // Regex Match protocol

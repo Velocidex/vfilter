@@ -93,7 +93,7 @@ var execTests = []execTest{
 
 	// Dicts
 	{"dict(foo=1) = dict(foo=1)", true},
-	{"dict(foo=1)", Row{"foo": 1}},
+	{"dict(foo=1)", Dict{"foo": 1.0}},
 
 	// Associative
 	// Relies on pre-populating the scope with a Dict.
@@ -108,7 +108,7 @@ type TestPlugin struct {
 }
 
 func (self TestPlugin) Call(ctx context.Context, scope *Scope, row Row) Any {
-	if value, pres := row["return"]; pres {
+	if value, pres := scope.Associative(row, "return"); pres {
 		return value
 	}
 	return self.return_value
@@ -119,10 +119,10 @@ func (self TestPlugin) Name() string {
 }
 
 func makeScope() *Scope {
-	return NewScope().AppendVars(Row{
+	return NewScope().AppendVars(Dict{
 		"const_foo": 1,
-		"foo": Row{
-			"bar": Row{
+		"foo": Dict{
+			"bar": Dict{
 				"baz": 5,
 			},
 			"bar2": 7,

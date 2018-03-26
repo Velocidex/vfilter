@@ -74,8 +74,9 @@ func (self *Scope) Membership(a Any, b Any) bool {
 }
 
 // Get the field member b from a (i.e. a.b).
-func (self *Scope) Associative(a Any, b Any) Any {
-	return self.associative.Associative(self, a, b)
+func (self *Scope) Associative(a Any, b Any) (Any, bool) {
+	res, pres := self.associative.Associative(self, a, b)
+	return res, pres
 }
 
 // Does the regex a match object b.
@@ -167,7 +168,7 @@ func NewScope() *Scope {
 		_SubstringMembership{},
 		_NumericMul{},
 		_NumericDiv{},
-		_RowAssociative{},
+		_DictAssociative{},
 		_SubstringRegex{},
 	)
 
@@ -178,7 +179,7 @@ func NewScope() *Scope {
 // Fetch the field from the scope variables.
 func (self *Scope) Resolve(field string) (interface{}, bool) {
 	for _, subscope := range self.vars {
-		if element, pres := subscope[field]; pres {
+		if element, pres := self.Associative(subscope, field); pres {
 			return element, true
 		}
 	}

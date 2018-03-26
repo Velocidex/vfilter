@@ -369,7 +369,18 @@ type _Value struct {
 // A Generic object which may be returned in a row from a plugin.
 type Any interface{}
 
-type Row map[string]interface{}
+
+// Plugins may return anything as long as there is a valid
+// Associative() protocol handler. VFilter will simply call
+// scope.Associative(row, column) to retrieve the cell value for each
+// column. Note that VFilter will use reflection to implement the
+// DefaultAssociative{} protocol - this means that plugins may just
+// return any struct with exported methods and fields and it will be
+// supported automatically.
+type Row interface {}
+
+// A concerete implementation of a row - similar to Python's dict.
+type Dict map[string]interface{}
 
 
 // Filter the row that we receive from the rest of the clause
@@ -397,7 +408,7 @@ func (self _SelectExpression) Filter(
 			// generate the name by converting the
 			// expression to a string using its ToString()
 			// method.
-			new_row := Row{}
+			new_row := Dict{}
 
 			new_scope := *scope
 			new_scope.AppendVars(row)
@@ -505,7 +516,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		defer close(output_chan)
 
 		// Build up the args to pass to the function.
-		args := Row{}
+		args := Dict{}
 		for _, arg := range self.Args {
 			value, ok := <-arg.Right.Reduce(ctx, scope)
 			if !ok {
@@ -572,7 +583,12 @@ func (self _MemberExpression) Reduce(ctx context.Context, scope *Scope) <-chan A
 			}
 
 			for _, term := range self.Right {
-				lhs = scope.Associative(lhs, term.Term)
+				var pres bool
+				lhs, pres = scope.Associative(lhs, term.Term)
+				if !pres {
+					output_chan <- false
+					return
+				}
 			}
 
 			output_chan <- lhs
@@ -979,7 +995,7 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 		defer close(output_chan)
 
 		// Build up the args to pass to the function.
-		row := Row{}
+		row := Dict{}
 		for _, arg := range self.Parameters {
 			value, ok := <-arg.Right.Reduce(ctx, scope)
 			if !ok {

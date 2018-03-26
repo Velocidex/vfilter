@@ -79,7 +79,7 @@ func (self FileInfoSpecialHandler) Applicable(a vfilter.Any, b vfilter.Any) bool
 }
 
 func (self FileInfoSpecialHandler) Associative(
-	scope *vfilter.Scope, a vfilter.Any, b vfilter.Any) vfilter.Any {
+	scope *vfilter.Scope, a vfilter.Any, b vfilter.Any) (vfilter.Any, bool) {
 	// This should never panic because Applicable ensures it is ok.
 	file_info := a.(FileInfo)
 	field := b.(string)
@@ -87,11 +87,11 @@ func (self FileInfoSpecialHandler) Associative(
 	if field == "Stat" {
 		stat, err := os.Stat(file_info.Path)
 		if err == nil {
-			return stat
+			return stat, true
 		}
 	}
 
-	return false
+	return false, false
 }
 
 
