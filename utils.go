@@ -2,6 +2,8 @@ package vfilter
 
 import (
 	"github.com/alecthomas/repr"
+	"reflect"
+	"unicode"
 	"sync"
 )
 
@@ -37,4 +39,29 @@ func merge_channels(cs []<-chan Any) <-chan Any {
 		close(out)
 	}()
 	return out
+}
+
+// Is the symbol exported by Go? Only names with upper case are exported.
+func is_exported(name string) bool {
+	runes := []rune(name)
+	return runes[0] == unicode.ToUpper(runes[0])
+}
+
+
+func _Callable(method_value reflect.Value, field_name string) bool {
+	if !method_value.IsValid() {
+		return false
+	}
+
+	// The name must be exportable.
+	if !is_exported(field_name) {
+		return false
+	}
+
+	// The function must have no args.
+	if method_value.Type().NumIn() != 0 {
+		return false
+	}
+
+	return true
 }

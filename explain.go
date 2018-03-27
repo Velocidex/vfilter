@@ -7,7 +7,6 @@ We use reflection to explain all VQL extensions.
 import (
 	"reflect"
 	"strings"
-	"unicode"
 )
 
 // Populated with information about the scope.
@@ -80,11 +79,6 @@ func (self *TypeMap) addType(a_type reflect.Type) {
 	self.addMethods(a_type, &result)
 }
 
-
-func is_exported(name string) bool {
-	runes := []rune(name)
-	return runes[0] == unicode.ToUpper(runes[0])
-}
 
 func (self *TypeMap) addFields(a_type reflect.Type, desc *TypeDescription) {
 	if a_type.Kind() != reflect.Struct {

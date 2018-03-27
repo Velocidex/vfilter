@@ -392,10 +392,17 @@ func (self _SelectExpression) Filter(
 	go func() {
 		defer close(output_chan)
 
-		// The select uses a * to just relay the plugin output
-		// directly - no transformation is needed.
+		new_row := Dict{}
+
+		// The select uses a * to relay all the row's columns
 		if self.All {
-			output_chan <- row
+			for _, column := range scope.GetMembers(row) {
+				if cell, pres := scope.Associative(row, column); pres {
+					new_row[column] = cell
+				}
+			}
+
+			output_chan <- new_row
 		} else {
 			// The select expression consists of multiple
 			// columns, each may be an
@@ -408,8 +415,6 @@ func (self _SelectExpression) Filter(
 			// generate the name by converting the
 			// expression to a string using its ToString()
 			// method.
-			new_row := Dict{}
-
 			new_scope := *scope
 			new_scope.AppendVars(row)
 

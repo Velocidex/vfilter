@@ -107,31 +107,24 @@ func (self _NumericEq) Eq(scope *Scope, a Any, b Any) bool {
 }
 
 func to_float(x Any) (float64, bool) {
-	b_value, b_ok := x.(bool)
-	if b_ok {
-		if b_value {
+	switch t := x.(type) {
+	case bool:
+		if t {
 			return 1, true
 		} else {
 			return 0, true
 		}
-	}
+	case float64: return t, true
+	case int:
+		return float64(t), true
+	case int32:
+		return float64(t), true
+	case int64:
+		return float64(t), true
 
-	f_value, f_ok := x.(float64)
-	if f_ok {
-		return f_value, true
+	default:
+		return 0, false
 	}
-
-	int_value, int_ok := x.(int)
-	if int_ok {
-		return float64(int_value), true
-	}
-
-	int64_value, int64_ok := x.(int64)
-	if int64_ok {
-		return float64(int64_value), true
-	}
-
-	return 0, false
 }
 
 func (self _NumericEq) Applicable(a Any, b Any) bool {
@@ -222,7 +215,6 @@ type _NumericLt struct{}
 func (self _NumericLt) Lt(scope *Scope, a Any, b Any) bool {
 	a_val, _ := to_float(a)
 	b_val, _ := to_float(b)
-
 	return a_val < b_val
 }
 func (self _NumericLt) Applicable(a Any, b Any) bool {
@@ -461,6 +453,7 @@ func (self _SubstringMembership) Membership(scope *Scope, a Any, b Any) bool {
 type AssociativeProtocol interface {
 	Applicable(a Any, b Any) bool
 	Associative(scope *Scope, a Any, b Any) (Any, bool)
+	GetMembers(scope *Scope, a Any) []string
 }
 
 type _AssociativeDispatcher struct {
@@ -475,11 +468,20 @@ func (self *_AssociativeDispatcher) Associative(
 			return res, pres
 		}
 	}
-
-
 	res, pres := DefaultAssociative{}.Associative(scope, a, b)
 	return res, pres
 }
+
+func (self *_AssociativeDispatcher) GetMembers(
+	scope *Scope, a Any) []string {
+	for _, impl := range self.impl {
+		if impl.Applicable(a, "") {
+			return impl.GetMembers(scope, a)
+		}
+	}
+	return DefaultAssociative{}.GetMembers(scope, a)
+}
+
 
 func (self *_AssociativeDispatcher) AddImpl(elements ...AssociativeProtocol) {
 	for _, impl := range elements {
@@ -497,42 +499,77 @@ func (self DefaultAssociative) Applicable(a Any, b Any) bool {
 func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool) {
 	switch field_name := b.(type) {
 	case string:
-		{
-			value := reflect.Indirect(reflect.ValueOf(a))
-			if value.Kind() == reflect.Struct {
-				field_value := value.FieldByName(field_name)
-				if field_value.IsValid() && field_value.CanInterface() {
-					return field_value.Interface(), true
-				}
-			} else if value.Kind() == reflect.Slice {
-				var result []Any
-
-				for i:=0; i < value.Len(); i++ {
-					item := value.Index(i).Interface()
-					item, pres := self.Associative(scope, item, b)
-					if pres {
-						result = append(result, item)
-					}
-				}
-
-				return result, true
-			}
+		if !is_exported(field_name) {
+			return false, false
 		}
 
-		value := reflect.ValueOf(a)
-		method_value := value.MethodByName(field_name)
-		if method_value.IsValid() {
+		a_value := reflect.Indirect(reflect.ValueOf(a))
+		a_type := a_value.Type()
+
+		// A struct with regular exportable field.
+		if a_type.Kind() == reflect.Struct {
+			field_value := a_value.FieldByName(field_name)
+			if field_value.IsValid() && field_value.CanInterface() {
+				return field_value.Interface(), true
+			}
+
+		}
+
+		// An array - we call Associative on each member.
+		if a_type.Kind() == reflect.Slice {
+			var result []Any
+
+			for i:=0; i < a_value.Len(); i++ {
+				element := a_value.Index(i).Interface()
+				if item, pres := scope.Associative(element, b); pres {
+					result = append(result, item)
+				}
+			}
+
+			return result, true
+		}
+
+		// A method we call. Usually this is a Getter.
+		method_value := reflect.ValueOf(a).MethodByName(field_name)
+		if _Callable(method_value, field_name) {
 			results := method_value.Call([]reflect.Value{})
-			if method_value.CanInterface() {
-				// In Go, a common pattern is to
-				// return value, err. We try to guess
-				// here by taking the first return
-				// value as the value.
-				return results[0].Interface(), true
+
+			// In Go, a common pattern is to
+			// return (value, err). We try to
+			// guess here by taking the first
+			// return value as the value.
+			if len(results) == 1 || len(results) == 2 {
+				res := results[0]
+				if res.CanInterface() {
+					return res.Interface(), true
+				}
 			}
 		}
 	}
+
 	return false, false
+}
+
+// Get the members which are callable by VFilter.
+func (self DefaultAssociative) GetMembers(scope *Scope, a Any) []string {
+	var result []string
+
+	a_type := reflect.TypeOf(a)
+
+	// If a method has a pointer receiver than we will be able to
+	// reflect on its literal type. We need to work on pointers.
+	if a_type.Kind() != reflect.Ptr {
+		a_type = reflect.PtrTo(a_type)
+	}
+
+	for i := 0; i < a_type.NumMethod(); i++ {
+		method_value := a_type.Method(i)
+		if is_exported(method_value.Name) {
+			result = append(result, method_value.Name)
+		}
+	}
+
+	return result
 }
 
 
@@ -549,6 +586,16 @@ func (self _DictAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool)
 	value := a.(Dict)
 	res, pres := value[key]
 	return res, pres
+}
+
+func (self _DictAssociative) GetMembers(scope *Scope, a Any) []string {
+	var result []string
+
+	for item, _ := range a.(Dict) {
+		result = append(result, item)
+	}
+
+	return result
 }
 
 // Regex Match protocol

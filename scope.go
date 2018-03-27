@@ -79,6 +79,10 @@ func (self *Scope) Associative(a Any, b Any) (Any, bool) {
 	return res, pres
 }
 
+func (self *Scope) GetMembers(a Any) []string {
+	return self.associative.GetMembers(self, a)
+}
+
 // Does the regex a match object b.
 func (self *Scope) Match(a Any, b Any) bool {
 	return self.regex.Match(self, a, b)
