@@ -554,18 +554,24 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 func (self DefaultAssociative) GetMembers(scope *Scope, a Any) []string {
 	var result []string
 
-	a_type := reflect.TypeOf(a)
-
-	// If a method has a pointer receiver than we will be able to
-	// reflect on its literal type. We need to work on pointers.
-	if a_type.Kind() != reflect.Ptr {
-		a_type = reflect.PtrTo(a_type)
+	a_value := reflect.Indirect(reflect.ValueOf(a))
+	if a_value.Kind() == reflect.Struct {
+		for i := 0; i < a_value.NumField(); i++ {
+			field_type := a_value.Type().Field(i)
+			if is_exported(field_type.Name) {
+				result = append(result, field_type.Name)
+			}
+		}
 	}
 
-	for i := 0; i < a_type.NumMethod(); i++ {
-		method_value := a_type.Method(i)
-		if is_exported(method_value.Name) {
-			result = append(result, method_value.Name)
+	{
+		a_value := reflect.ValueOf(a)
+		for i := 0; i < a_value.NumMethod(); i++ {
+			method_type := a_value.Type().Method(i)
+			method_value := a_value.Method(i)
+			if _Callable(method_value, method_type.Name) {
+				result = append(result, method_type.Name)
+			}
 		}
 	}
 

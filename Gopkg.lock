@@ -18,34 +18,13 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/alecthomas/template"
-  packages = [
-    ".",
-    "parse"
-  ]
-  revision = "a0175ee3bccc567396460bf5acd36800cb10c49c"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/alecthomas/units"
-  packages = ["."]
-  revision = "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a"
-
-[[projects]]
-  branch = "master"
   name = "golang.org/x/exp"
   packages = ["ebnf"]
   revision = "83bc9a11ae1a00a79c4e59fc5d965d21fe14e6bb"
 
-[[projects]]
-  name = "gopkg.in/alecthomas/kingpin.v2"
-  packages = ["."]
-  revision = "947dcec5ba9c011838740e680966fd7087a71d0d"
-  version = "v2.2.6"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7340943996e9e1cbd403943517b1ca699a4e9d7808dddb45a865fb862d302621"
+  inputs-digest = "613d01671384321a2446df225f5914737133bc9baceed26225e87608308f5c47"
   solver-name = "gps-cdcl"
   solver-version = 1

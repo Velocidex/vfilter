@@ -42,4 +42,4 @@
   unused-packages = true
 
 [metadata.heroku]
-  root-package = "gitlab.com/velocidex/vfilter"
+  root-package = "www.velocidex.com/golabg/vfilter"

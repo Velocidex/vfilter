@@ -154,6 +154,15 @@ func (self *Scope) AppendPlugins(plugins ...PluginGeneratorInterface) *Scope {
 	return result
 }
 
+func (self *Scope) Info(type_map *TypeMap, name string) (*PluginInfo, bool) {
+	if plugin, pres := self.plugins[name]; pres {
+		return plugin.Info(type_map), true
+	}
+
+	return nil, false
+}
+
+
 // A factory for the default scope. This will add all built in
 // protocols for commonly used code. Clients are expected to add their
 // own specialized protocols, functions and plugins to specialize

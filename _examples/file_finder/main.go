@@ -117,7 +117,7 @@ func (self Glob) Call(
 	go func() {
 		defer close(output_chan)
 		var pattern string
-		pattern_arg, pres := args["pattern"]
+		pattern_arg, pres := scope.Associative(args, "pattern")
 		// If no pattern parameter is provided, then just
 		// assume the glob is '*'.
 		if !pres {
@@ -132,7 +132,7 @@ func (self Glob) Call(
 		}
 
 		for _, hit := range matches {
-			output_chan <- vfilter.Row{
+			output_chan <- vfilter.Dict{
 				"info": FileInfo{Path: hit},
 			}
 		}
@@ -146,13 +146,12 @@ func (self Glob) Name() string {
 }
 
 
-
 func MakeScope() *vfilter.Scope {
 	return vfilter.NewScope().AppendPlugins(Glob{}).
 		AddProtocolImpl(FileInfoSpecialHandler{})
 }
 
-func evalQuery(vql *vfilter.Select) {
+func evalQuery(vql *vfilter.VQL) {
 	scope := MakeScope()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -170,7 +169,7 @@ func evalQuery(vql *vfilter.Select) {
 func main() {
 	kingpin.Parse()
 	for _, query := range *queries {
-		vql, err := vfilter.ParseSelect(query)
+		vql, err := vfilter.Parse(query)
 		if err != nil {
 			kingpin.FatalIfError(err, "Unable to parse VQL Query")
 		}

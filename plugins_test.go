@@ -42,7 +42,7 @@ type TestGeneratorPlugin struct{}
 func (self TestGeneratorPlugin) Call(
 	ctx context.Context,
 	scope *Scope,
-	args Row) <-chan Row {
+	args Dict) <-chan Row {
 	output_chan := make(chan Row)
 
 	go func() {
@@ -67,6 +67,11 @@ func (self TestGeneratorPlugin) Call(
 func (self TestGeneratorPlugin) Name() string {
 	return "test_plugin"
 }
+
+func (self TestGeneratorPlugin) Info(type_map *TypeMap) *PluginInfo {
+	return &PluginInfo{}
+}
+
 
 func TestPlugins(t *testing.T) {
 	scope := NewScope().AppendPlugins(TestGeneratorPlugin{})

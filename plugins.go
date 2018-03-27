@@ -5,13 +5,14 @@ import (
 )
 
 type PluginGeneratorInterface interface {
-	Call(ctx context.Context, scope *Scope, args Row) <-chan Row
+	Call(ctx context.Context, scope *Scope, args Dict) <-chan Row
 	Name() string
+	Info(type_map *TypeMap) *PluginInfo
 }
 
 
 // Generic synchronous plugins just return all their rows at once.
-type FunctionPlugin func(args Row) []Row
+type FunctionPlugin func(args Dict) []Row
 
 
 // A generic plugin based on a function returning a slice of
@@ -28,13 +29,15 @@ type FunctionPlugin func(args Row) []Row
 // })
 type GenericListPlugin struct {
 	PluginName string
+	Description string
 	Function FunctionPlugin
+	RowType Any
 }
 
 func (self GenericListPlugin) Call(
 	ctx context.Context,
 	scope *Scope,
-	args Row) <- chan Row {
+	args Dict) <- chan Row {
 	output_chan := make(chan Row)
 
 	go func() {
@@ -50,4 +53,12 @@ func (self GenericListPlugin) Call(
 
 func (self GenericListPlugin) Name() string {
 	return self.PluginName
+}
+
+func (self GenericListPlugin) Info(type_map *TypeMap) *PluginInfo {
+	return &PluginInfo{
+		Name: self.PluginName,
+		Doc: self.Description,
+		RowType: type_map.AddType(self.RowType),
+	}
 }
