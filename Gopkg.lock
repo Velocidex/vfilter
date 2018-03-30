@@ -2,29 +2,49 @@
 
 
 [[projects]]
-  branch = "master"
   name = "github.com/alecthomas/participle"
   packages = [
     ".",
     "lexer"
   ]
-  revision = "7196f7e2c3f3ac23cb7004a051d25a6d14c9d333"
+  revision = "009a95f61c26c01aacb41111275e7a08a409f8c6"
 
 [[projects]]
   branch = "master"
   name = "github.com/alecthomas/repr"
   packages = ["."]
-  revision = "37578405c47fe4f23cb672045b825fa4145a0816"
+  revision = "07932d32eb40f059e08923e049c47a7d1e1b5ead"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/alecthomas/template"
+  packages = [
+    ".",
+    "parse"
+  ]
+  revision = "a0175ee3bccc567396460bf5acd36800cb10c49c"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/alecthomas/units"
+  packages = ["."]
+  revision = "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/exp"
   packages = ["ebnf"]
-  revision = "83bc9a11ae1a00a79c4e59fc5d965d21fe14e6bb"
+  revision = "8460e604b9de9da5834c9f198cadf9dca4b05cac"
+
+[[projects]]
+  name = "gopkg.in/alecthomas/kingpin.v2"
+  packages = ["."]
+  revision = "947dcec5ba9c011838740e680966fd7087a71d0d"
+  version = "v2.2.6"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "613d01671384321a2446df225f5914737133bc9baceed26225e87608308f5c47"
+  inputs-digest = "060bbfe697d2a22367bed86611ad84584774361eec87ddf426e5e30da95aa8d7"
   solver-name = "gps-cdcl"
   solver-version = 1
