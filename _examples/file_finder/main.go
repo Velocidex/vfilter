@@ -94,6 +94,11 @@ func (self FileInfoSpecialHandler) Associative(
 	return false, false
 }
 
+func (self FileInfoSpecialHandler) GetMembers(
+	scope *vfilter.Scope, a vfilter.Any) []string {
+	return vfilter.DefaultAssociative{}.GetMembers(scope, a)
+}
+
 
 // ---------------------------------------------------------------------
 // Plugins - VQL plugins are data sources analogous to tables in
@@ -112,7 +117,7 @@ type Glob struct{}
 func (self Glob) Call(
 	ctx context.Context,
 	scope *vfilter.Scope,
-	args vfilter.Row) <- chan vfilter.Row {
+	args vfilter.Dict) <- chan vfilter.Row {
 	output_chan := make(chan vfilter.Row)
 	go func() {
 		defer close(output_chan)
@@ -132,9 +137,7 @@ func (self Glob) Call(
 		}
 
 		for _, hit := range matches {
-			output_chan <- vfilter.Dict{
-				"info": FileInfo{Path: hit},
-			}
+			output_chan <- FileInfo{Path: hit}
 		}
 	}()
 
@@ -143,6 +146,14 @@ func (self Glob) Call(
 
 func (self Glob) Name() string {
 	return "glob"
+}
+
+func (self Glob) Info(type_map *vfilter.TypeMap) *vfilter.PluginInfo {
+	return &vfilter.PluginInfo{
+		Name: "glob",
+		Doc: "Glob files by expression",
+		RowType: type_map.AddType(FileInfo{}),
+	}
 }
 
 
