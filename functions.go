@@ -32,3 +32,21 @@ func (self _SleepPlugin) Call(ctx context.Context, scope *Scope, row Row) Any {
 	time.Sleep(10000 * time.Millisecond)
 	return true
 }
+
+
+type _Timestamp struct{}
+func (self _Timestamp) Name() string {
+	return "timestamp"
+}
+
+func (self _Timestamp) Call(ctx context.Context, scope *Scope, row Row) Any {
+	epoch_arg, ok := scope.Associative(row, "epoch")
+	if ok {
+		epoch, ok := to_float(epoch_arg)
+		if ok {
+			return time.Unix(int64(epoch), 0)
+		}
+	}
+
+	return false
+}

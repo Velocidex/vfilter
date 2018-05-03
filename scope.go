@@ -186,7 +186,12 @@ func NewScope() *Scope {
 	)
 
 	// Built in functions.
-	return result.AppendFunctions(_DictFunc{}, _SleepPlugin{})
+	result.AppendFunctions(
+		_DictFunc{},
+		_Timestamp{},
+		_SleepPlugin{})
+
+	return &result
 }
 
 // Fetch the field from the scope variables.

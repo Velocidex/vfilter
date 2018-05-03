@@ -142,7 +142,7 @@ var (
 		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)`+
 		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
 		`|(?P<String>'[^']*'|"[^"]*")`+
-		`|(?P<Operators><>|!=|<=|>=|=~|[-+*/%,.()=<>])`,
+		`|(?P<Operators><>|!=|<=|>=|=~|[-+*/%,.()=<>{}\[\]])`,
 	)), "Keyword"), "String")
 	sqlParser = participle.MustBuild(&_Select{}, sqlLexer)
 )
@@ -195,6 +195,19 @@ type _Select struct {
 	GroupBy          *_CommaExpression  `[ "GROUPBY" @@ ]`
 }
 
+func (self _Select) ToString(scope *Scope) string {
+	result := "SELECT "
+	if self.SelectExpression != nil {
+		result += self.SelectExpression.ToString(scope)
+	}
+	result += " FROM "
+	if self.From != nil {
+		result += self.From.ToString(scope)
+
+	}
+	return result
+}
+
 func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	output_chan := make(chan Row)
 	input_chan := self.From.Eval(ctx, scope)
@@ -241,7 +254,11 @@ type _Plugin struct {
 
 type _Args struct {
 	Left  string          `@Ident "=" `
-	Right _CommaExpression `( "(" @@ ")" | @@ )`
+	//	Right _AndExpression `( "(" @@ ")" | @@ )`
+	SubSelect *_Select `( "{" @@ "}" | `
+	Array *_CommaExpression ` "[" @@ "]" | `
+	Right *_AndExpression ` "("@@ ")" | @@ )`
+
 }
 
 type _SelectExpression struct {
@@ -391,18 +408,11 @@ func (self _SelectExpression) Filter(
 
 	go func() {
 		defer close(output_chan)
-
-		new_row := Dict{}
-
-		// The select uses a * to relay all the row's columns
+		// The select uses a * to relay all the rows without
+		// filtering
 		if self.All {
-			for _, column := range scope.GetMembers(row) {
-				if cell, pres := scope.Associative(row, column); pres {
-					new_row[column] = cell
-				}
-			}
+			output_chan <- row
 
-			output_chan <- new_row
 		} else {
 			// The select expression consists of multiple
 			// columns, each may be an
@@ -415,6 +425,7 @@ func (self _SelectExpression) Filter(
 			// generate the name by converting the
 			// expression to a string using its ToString()
 			// method.
+			new_row := Dict{}
 			new_scope := *scope
 			new_scope.AppendVars(row)
 
@@ -511,7 +522,12 @@ func (self _From) Eval(ctx context.Context, scope *Scope) <-chan Row {
 }
 
 func (self _From) ToString(scope *Scope) string {
-	return self.Plugin.ToString(scope) + " WHERE " + self.Where.ToString(scope)
+	result := self.Plugin.ToString(scope)
+	if self.Where != nil {
+		result += " WHERE " + self.Where.ToString(scope)
+	}
+
+	return result
 }
 
 func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
@@ -542,6 +558,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				output_chan <- row
 			}
 		} else {
+			Debug(scope.plugins)
 			Debug("plugin not found")
 			Debug(self.Name)
 		}
@@ -566,7 +583,14 @@ func (self _Plugin) ToString(scope *Scope) string {
 }
 
 func (self _Args) ToString(scope *Scope) string {
-	return self.Left + "=" + self.Right.ToString(scope)
+	if self.Right != nil {
+		return self.Left + "=" + self.Right.ToString(scope)
+	} else if self.SubSelect != nil {
+		return self.Left + "= { " + self.SubSelect.ToString(scope) + "}"
+	} else if self.Array != nil {
+		return self.Left + "= [" + self.Array.ToString(scope) + "]"
+	}
+	return ""
 }
 
 func (self _MemberExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
@@ -1002,13 +1026,28 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 		// Build up the args to pass to the function.
 		row := Dict{}
 		for _, arg := range self.Parameters {
-			value, ok := <-arg.Right.Reduce(ctx, scope)
-			if !ok {
-				output_chan <- false
-				return
-			}
+			if arg.Right != nil {
+				value, ok := <-arg.Right.Reduce(ctx, scope)
+				if !ok {
+					output_chan <- false
+					return
+				}
+				row[arg.Left] = value
+			} else if arg.Array != nil {
+				value, ok := <-arg.Array.Reduce(ctx, scope)
+				if !ok {
+					output_chan <- false
+					return
+				}
+				row[arg.Left] = value
 
-			row[arg.Left] = value
+			} else if arg.SubSelect != nil {
+				var value []Any
+				for item := range arg.SubSelect.Eval(ctx, scope) {
+					value	= append(value, item)
+				}
+				row[arg.Left] = value
+			}
 		}
 
 		// The symbol is just a constant in the scope.

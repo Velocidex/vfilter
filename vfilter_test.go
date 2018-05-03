@@ -94,6 +94,20 @@ var execTests = []execTest{
 	// Dicts
 	{"dict(foo=1) = dict(foo=1)", true},
 	{"dict(foo=1)", Dict{"foo": 1.0}},
+	{"dict(foo=1, bar=2)", Dict{"foo": 1.0, "bar": 2.0}},
+	{"dict(foo=1, bar=2, baz=3)", Dict{"foo": 1.0, "bar": 2.0, "baz": 3.0}},
+
+	// Expression as parameter.
+	{"dict(foo=1, bar=( 2 + 3 ))", Dict{"foo": 1.0, "bar": 5.0}},
+
+	// List as parameter.
+	{"dict(foo=1, bar= [2 , 3] )", Dict{"foo": 1.0, "bar": []Any{2.0, 3.0}}},
+
+	// Sub select as parameter.
+	{"dict(foo=1, bar={select * from range()} )", Dict{
+		"foo": 1.0,
+		"bar": []Any{1, 2, 3, 4},
+	}},
 
 	// Associative
 	// Relies on pre-populating the scope with a Dict.
@@ -103,18 +117,18 @@ var execTests = []execTest{
 }
 
 // Function that returns a value.
-type TestPlugin struct {
+type TestFunction struct {
 	return_value Any
 }
 
-func (self TestPlugin) Call(ctx context.Context, scope *Scope, row Row) Any {
+func (self TestFunction) Call(ctx context.Context, scope *Scope, row Row) Any {
 	if value, pres := scope.Associative(row, "return"); pres {
 		return value
 	}
 	return self.return_value
 }
 
-func (self TestPlugin) Name() string {
+func (self TestFunction) Name() string {
 	return "func_foo"
 }
 
@@ -128,7 +142,16 @@ func makeScope() *Scope {
 			"bar2": 7,
 		},
 	}).AppendFunctions(
-		TestPlugin{1},
+		TestFunction{1},
+	).AppendPlugins(
+		GenericListPlugin{
+			PluginName: "range",
+			Description: "Return a range of numbers.",
+			Function: func(args Dict) []Row {
+				return []Row{1, 2, 3, 4}
+			},
+			RowType: 1,
+		},
 	)
 }
 
@@ -187,7 +210,8 @@ func TestSerializaition(t *testing.T) {
 
 		parsed_sql, err := Parse(vql_string)
 		if err != nil {
-			t.Fatalf("Failed to parse stringified VQL %v: %v", vql_string, err)
+			t.Fatalf("Failed to parse stringified VQL %v: %v (%v)",
+				vql_string, err, test.clause)
 		}
 
 		if !reflect.DeepEqual(parsed_sql, sql) {
@@ -195,5 +219,70 @@ func TestSerializaition(t *testing.T) {
 			t.Fatalf("Parsed generated VQL not equivalent: %v vs %v.",
 				preamble+test.clause, vql_string)
 		}
+	}
+}
+
+
+// Implement some test plugins for testing.
+type _RepeaterPlugin struct{}
+
+func (self _RepeaterPlugin) Call(
+	ctx context.Context,
+	scope *Scope,
+	args Dict) <-chan Row {
+	output_chan := make(chan Row)
+
+	go func() {
+		defer close(output_chan)
+		if value, pres := scope.Associative(args, "return"); pres {
+			output_chan <- value
+		}
+	}()
+
+	return output_chan
+}
+
+func (self _RepeaterPlugin) Name() string {
+	return "repeater"
+}
+
+func (self _RepeaterPlugin) Info(type_map *TypeMap) *PluginInfo {
+	return &PluginInfo{}
+}
+
+func TestSubselectDefinition(t *testing.T) {
+	// Compile a query which uses 2 args.
+	vql, err := Parse("select value+addand1 as total from repeater(return=dict(value=addand2))")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	scope := makeScope().AppendPlugins(
+		_RepeaterPlugin{},
+		SubSelectFunction{
+			PluginName: "test1",
+			SubSelect: vql,
+			RowType: 1,
+		},
+	)
+
+	// Call the pre-baked query with args.
+	vql, err = Parse("select * from test1(addand1=7, addand2=10)")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	ctx := context.Background()
+	output_chan := vql.Eval(ctx, scope)
+	var result []Row
+	for row := range output_chan {
+		result = append(result, row)
+	}
+
+	if !reflect.DeepEqual(result, []Row{Dict{
+		"total": 17.0,
+	}}) {
+		Debug(result)
+		t.Fatalf("failed.")
 	}
 }

@@ -62,3 +62,46 @@ func (self GenericListPlugin) Info(type_map *TypeMap) *PluginInfo {
 		RowType: type_map.AddType(self.RowType),
 	}
 }
+
+
+type SubSelectFunction struct {
+	PluginName string
+	Description string
+	SubSelect *VQL
+	RowType Any
+}
+
+func (self SubSelectFunction) Name() string {
+	return self.PluginName
+}
+
+func (self SubSelectFunction) Call(
+	ctx context.Context,
+	scope *Scope,
+	args Dict) <- chan Row {
+
+	// Make a local copy of the scope with the args added as local
+	// variables. This allows the query to refer to args.
+	new_scope := *scope
+	new_scope.AppendVars(args)
+	in_chan := self.SubSelect.Eval(ctx, &new_scope)
+	output_chan := make(chan Row)
+
+	go func() {
+		defer close(output_chan)
+
+		for item := range in_chan {
+			output_chan <- item
+		}
+	}()
+
+	return output_chan
+}
+
+func (self SubSelectFunction) Info(type_map *TypeMap) *PluginInfo {
+	return &PluginInfo{
+		Name: self.PluginName,
+		Doc: self.Description,
+		RowType: type_map.AddType(self.RowType),
+	}
+}
