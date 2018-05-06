@@ -500,7 +500,7 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 	switch field_name := b.(type) {
 	case string:
 		if !is_exported(field_name) {
-			return false, false
+			field_name = strings.Title(field_name)
 		}
 
 		a_value := reflect.Indirect(reflect.ValueOf(a))
@@ -532,6 +532,11 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 		// A method we call. Usually this is a Getter.
 		method_value := reflect.ValueOf(a).MethodByName(field_name)
 		if _Callable(method_value, field_name) {
+			if method_value.Type().Kind() == reflect.Ptr {
+				method_value = method_value.Elem()
+			}
+
+
 			results := method_value.Call([]reflect.Value{})
 
 			// In Go, a common pattern is to

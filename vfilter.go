@@ -271,6 +271,16 @@ type _AliasedExpression struct {
 	As         string         `[ "AS " @Ident ]`
 }
 
+func (self *_AliasedExpression) ToString(scope *Scope) string {
+	result := self.Expression.ToString(scope)
+	if self.As != "" {
+		result += " AS " + self.As
+	}
+
+	return result
+}
+
+
 // Expressions separated by addition or subtraction.
 type _AdditionExpression struct {
 	Left  *_MultiplicationExpression `@@`
@@ -473,6 +483,10 @@ func (self _SelectExpression) ToString(scope *Scope) string {
 		return "*"
 	}
 	var substrings []string
+	for _, item := range self.Expressions {
+		substrings	= append(substrings, item.ToString(scope))
+	}
+
 	return strings.Join(substrings, ", ")
 }
 
@@ -539,12 +553,27 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		// Build up the args to pass to the function.
 		args := Dict{}
 		for _, arg := range self.Args {
-			value, ok := <-arg.Right.Reduce(ctx, scope)
-			if !ok {
-				return
-			}
+			if arg.Right != nil {
+				value, ok := <-arg.Right.Reduce(ctx, scope)
+				if !ok {
+					return
+				}
+				args[arg.Left] = value
 
-			args[arg.Left] = value
+			} else if arg.SubSelect != nil {
+				var value []Any
+				for item := range arg.SubSelect.Eval(ctx, scope) {
+					members := scope.GetMembers(item)
+					if len(members) == 1 {
+						if member, ok := scope.Associative(item, members[0]); ok {
+							value	= append(value, member)
+						}
+					} else {
+						value	= append(value, item)
+					}
+				}
+				args[arg.Left] = value
+			}
 		}
 
 		if plugin, pres := scope.plugins[self.Name]; pres {
@@ -569,7 +598,14 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 func (self *_Plugin) Columns(scope *Scope) *[]string {
 	var result []string
-
+	type_map := make(TypeMap)
+	if plugin_info, pres := scope.Info(&type_map, self.Name); pres {
+		if type_ref, pres := type_map[plugin_info.RowType]; pres {
+			for k, _ := range type_ref.Fields {
+				result	= append(result, k)
+			}
+		}
+	}
 	return &result
 }
 
