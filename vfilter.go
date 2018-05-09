@@ -138,10 +138,10 @@ import (
 
 var (
 	sqlLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(`(\s+)`+
-		`|(?P<Keyword>(?i)SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS|NOT|ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN )`+
+		`|(?P<Keyword>(?i)SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS |NOT|ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN )`+
 		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)`+
 		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
-		`|(?P<String>'[^']*'|"[^"]*")`+
+		`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")`+
 		`|(?P<Operators><>|!=|<=|>=|=~|[-+*/%,.()=<>{}\[\]])`,
 	)), "Keyword"), "String")
 	sqlParser = participle.MustBuild(&_Select{}, sqlLexer)
@@ -168,8 +168,13 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 // Encodes the query into a string again.
 func (self VQL) ToString(scope *Scope) string {
-	return "SELECT " + self.query.SelectExpression.ToString(scope) +
+	result := "SELECT " + self.query.SelectExpression.ToString(scope) +
 		" FROM " + self.query.From.ToString(scope)
+	if self.query.Where != nil {
+		result += " WHERE " + self.query.Where.ToString(scope)
+	}
+
+	return result
 }
 
 // Provides a list of column names from this query. These columns will
@@ -183,13 +188,13 @@ func (self *VQL) Columns(scope *Scope) *[]string {
 	return self.query.SelectExpression.Columns(scope)
 }
 
-
 type _Select struct {
 	Top              *_Term             `"SELECT" [ "TOP" @@ ]`
-	Distinct         bool              `[  @"DISTINCT"`
-	All              bool              ` | @"ALL" ]`
+	Distinct         bool               `[  @"DISTINCT"`
+	All              bool               ` | @"ALL" ]`
 	SelectExpression *_SelectExpression `@@`
 	From             *_From             `"FROM" @@`
+	Where            *_CommaExpression  `[ "WHERE" @@ ]`
 	Limit            *_CommaExpression  `[ "LIMIT" @@ ]`
 	Offset           *_CommaExpression  `[ "OFFSET" @@ ]`
 	GroupBy          *_CommaExpression  `[ "GROUPBY" @@ ]`
@@ -200,17 +205,24 @@ func (self _Select) ToString(scope *Scope) string {
 	if self.SelectExpression != nil {
 		result += self.SelectExpression.ToString(scope)
 	}
-	result += " FROM "
+
 	if self.From != nil {
+		result += " FROM "
 		result += self.From.ToString(scope)
 
 	}
+
+	if self.Where != nil {
+		result += " WHERE " + self.Where.ToString(scope)
+	}
+
 	return result
 }
 
 func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	output_chan := make(chan Row)
-	input_chan := self.From.Eval(ctx, scope)
+	from_chan := self.From.Eval(ctx, scope)
+
 	go func() {
 		defer close(output_chan)
 		for {
@@ -220,21 +232,43 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				return
 
 				// Get a row
-			case row, ok := <-input_chan:
+			case row, ok := <-from_chan:
 				if !ok {
 					return
 				}
-				// We only read one value from the
-				// expression and then immediately
-				// cancel its context. This is done in
-				// case any user function evaluations
-				// are asyncronous, but the expression
-				// can be evaluated without waiting
-				// for them all to complete.
-				row_filtered_chan := <-self.SelectExpression.Filter(
+
+				transformed_row := <-self.SelectExpression.Filter(
 					ctx, scope, row)
 
-				output_chan <- row_filtered_chan
+				if self.Where == nil {
+					output_chan <- transformed_row
+				} else {
+					// If there is a filter clause, we
+					// need to filter the row using a new
+					// scope.
+					new_scope := *scope
+
+					// Filters can access both the
+					// untransformed row and the
+					// transformed row. This
+					// allows WHERE clause to
+					// refer to both the raw
+					// plugin output as well as
+					// aliases of transformations
+					// on the row.
+					new_scope.AppendVars(row)
+					new_scope.AppendVars(transformed_row)
+
+					expression_chan := self.Where.Reduce(ctx, &new_scope)
+					expression, ok := <-expression_chan
+
+					// If the filtered expression returns
+					// a bool true, then pass the row to
+					// the output.
+					if ok && scope.Bool(expression) {
+						output_chan <- transformed_row
+					}
+				}
 			}
 		}
 	}()
@@ -243,32 +277,30 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 }
 
 type _From struct {
-	Plugin _Plugin           `@@ `
-	Where  *_CommaExpression `[ "WHERE" @@ ]`
+	Plugin _Plugin `@@ `
 }
 
 type _Plugin struct {
-	Name string  `@Ident `
+	Name string   `@Ident `
 	Args []*_Args `"(" [ @@  { "," @@ } ] ")" `
 }
 
 type _Args struct {
-	Left  string          `@Ident "=" `
+	Left string `@Ident "=" `
 	//	Right _AndExpression `( "(" @@ ")" | @@ )`
-	SubSelect *_Select `( "{" @@ "}" | `
-	Array *_CommaExpression ` "[" @@ "]" | `
-	Right *_AndExpression ` "("@@ ")" | @@ )`
-
+	SubSelect *_Select          `( "{" @@ "}" | `
+	Array     *_CommaExpression ` "[" @@ "]" | `
+	Right     *_AndExpression   ` "("@@ ")" | @@ )`
 }
 
 type _SelectExpression struct {
-	All         bool                 `  @"*"`
+	All         bool                  `  @"*"`
 	Expressions []*_AliasedExpression `| @@ { "," @@ }`
 }
 
 type _AliasedExpression struct {
 	Expression *_AndExpression `@@`
-	As         string         `[ "AS " @Ident ]`
+	As         string          `[ "AS " @Ident ]`
 }
 
 func (self *_AliasedExpression) ToString(scope *Scope) string {
@@ -280,7 +312,6 @@ func (self *_AliasedExpression) ToString(scope *Scope) string {
 	return result
 }
 
-
 // Expressions separated by addition or subtraction.
 type _AdditionExpression struct {
 	Left  *_MultiplicationExpression `@@`
@@ -288,7 +319,7 @@ type _AdditionExpression struct {
 }
 
 type _OpAddTerm struct {
-	Operator string                    `@("+" | "-")`
+	Operator string                     `@("+" | "-")`
 	Term     *_MultiplicationExpression `@@`
 }
 
@@ -299,7 +330,7 @@ type _MultiplicationExpression struct {
 }
 
 type _OpFactor struct {
-	Operator string `@("*" | "/")`
+	Operator string  `@("*" | "/")`
 	Factor   *_Value `@@`
 }
 
@@ -333,7 +364,7 @@ type _CommaExpression struct {
 }
 
 type _OpArrayTerm struct {
-	Operator string         `@","`
+	Operator string          `@","`
 	Term     *_AndExpression `@@`
 }
 
@@ -344,7 +375,7 @@ type _AndExpression struct {
 }
 
 type _OpAndTerm struct {
-	Operator string        `@"AND "`
+	Operator string         `@"AND "`
 	Term     *_OrExpression `@@`
 }
 
@@ -355,7 +386,7 @@ type _OrExpression struct {
 }
 
 type _OpOrTerm struct {
-	Operator string            `@"OR "`
+	Operator string             `@"OR "`
 	Term     *_ConditionOperand `@@`
 }
 
@@ -366,7 +397,7 @@ type _ConditionOperand struct {
 }
 
 type _OpComparison struct {
-	Operator string              `@( "<>" | "<=" | ">=" | "=" | "<" | ">" | "!=" | "IN " | "=~")`
+	Operator string               `@( "<>" | "<=" | ">=" | "=" | "<" | ">" | "!=" | "IN " | "=~")`
 	Right    *_AdditionExpression `@@`
 }
 
@@ -379,23 +410,22 @@ type _Term struct {
 
 type _SymbolRef struct {
 	//	Symbol     []string `@Ident { "." @Ident }`
-	Symbol     string  `@Ident`
+	Symbol     string   `@Ident`
 	Parameters []*_Args `[ "(" [ @@ { "," @@ } ] ")" ]`
 }
 
 type _Value struct {
-	Negated       bool             `[ @"-" | "+" ]`
+	Negated       bool              `[ @"-" | "+" ]`
 	SymbolRef     *_SymbolRef       `( @@ `
 	Subexpression *_CommaExpression `| "(" @@ ")"`
-	Number        *float64         ` | @Number`
-	String        *string          ` | @String`
-	Boolean       *string          ` | @("TRUE" | "FALSE")`
-	Null          bool             ` | @"NULL")`
+	Number        *float64          ` | @Number`
+	String        *string           ` | @String`
+	Boolean       *string           ` | @("TRUE" | "FALSE")`
+	Null          bool              ` | @"NULL")`
 }
 
 // A Generic object which may be returned in a row from a plugin.
 type Any interface{}
-
 
 // Plugins may return anything as long as there is a valid
 // Associative() protocol handler. VFilter will simply call
@@ -404,11 +434,10 @@ type Any interface{}
 // DefaultAssociative{} protocol - this means that plugins may just
 // return any struct with exported methods and fields and it will be
 // supported automatically.
-type Row interface {}
+type Row interface{}
 
 // A concerete implementation of a row - similar to Python's dict.
 type Dict map[string]interface{}
-
 
 // Filter the row that we receive from the rest of the clause
 // according to the select expression.
@@ -477,14 +506,13 @@ func (self *_SelectExpression) Columns(scope *Scope) *[]string {
 	return &result
 }
 
-
 func (self _SelectExpression) ToString(scope *Scope) string {
 	if self.All {
 		return "*"
 	}
 	var substrings []string
 	for _, item := range self.Expressions {
-		substrings	= append(substrings, item.ToString(scope))
+		substrings = append(substrings, item.ToString(scope))
 	}
 
 	return strings.Join(substrings, ", ")
@@ -508,25 +536,7 @@ func (self _From) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					if !ok {
 						return
 					}
-
-					if self.Where != nil {
-						// If there is a filter clause, we
-						// need to filter the row using a new
-						// scope.
-						new_scope := *scope
-						new_scope.AppendVars(row)
-						expression_chan := self.Where.Reduce(ctx, &new_scope)
-						expression, ok := <-expression_chan
-
-						// If the filtered expression returns
-						// a bool true, then pass the row to
-						// the output.
-						if ok && scope.Bool(expression) {
-							output_chan <- row
-						}
-					} else {
-						output_chan <- row
-					}
+					output_chan <- row
 				}
 			}
 		}
@@ -537,10 +547,6 @@ func (self _From) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 func (self _From) ToString(scope *Scope) string {
 	result := self.Plugin.ToString(scope)
-	if self.Where != nil {
-		result += " WHERE " + self.Where.ToString(scope)
-	}
-
 	return result
 }
 
@@ -560,16 +566,24 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				}
 				args[arg.Left] = value
 
+			} else if arg.Array != nil {
+				value, ok := <-arg.Array.Reduce(ctx, scope)
+				if !ok {
+					output_chan <- false
+					return
+				}
+				args[arg.Left] = value
+
 			} else if arg.SubSelect != nil {
 				var value []Any
 				for item := range arg.SubSelect.Eval(ctx, scope) {
 					members := scope.GetMembers(item)
 					if len(members) == 1 {
 						if member, ok := scope.Associative(item, members[0]); ok {
-							value	= append(value, member)
+							value = append(value, member)
 						}
 					} else {
-						value	= append(value, item)
+						value = append(value, item)
 					}
 				}
 				args[arg.Left] = value
@@ -602,7 +616,7 @@ func (self *_Plugin) Columns(scope *Scope) *[]string {
 	if plugin_info, pres := scope.Info(&type_map, self.Name); pres {
 		if type_ref, pres := type_map[plugin_info.RowType]; pres {
 			for k, _ := range type_ref.Fields {
-				result	= append(result, k)
+				result = append(result, k)
 			}
 		}
 	}
@@ -1069,6 +1083,7 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 					return
 				}
 				row[arg.Left] = value
+
 			} else if arg.Array != nil {
 				value, ok := <-arg.Array.Reduce(ctx, scope)
 				if !ok {
@@ -1080,7 +1095,7 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 			} else if arg.SubSelect != nil {
 				var value []Any
 				for item := range arg.SubSelect.Eval(ctx, scope) {
-					value	= append(value, item)
+					value = append(value, item)
 				}
 				row[arg.Left] = value
 			}

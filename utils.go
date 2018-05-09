@@ -3,8 +3,8 @@ package vfilter
 import (
 	"github.com/alecthomas/repr"
 	"reflect"
-	"unicode"
 	"sync"
+	"unicode"
 )
 
 func Debug(arg interface{}) {
@@ -47,7 +47,6 @@ func is_exported(name string) bool {
 	return runes[0] == unicode.ToUpper(runes[0])
 }
 
-
 func _Callable(method_value reflect.Value, field_name string) bool {
 	if !method_value.IsValid() {
 		return false
@@ -64,4 +63,9 @@ func _Callable(method_value reflect.Value, field_name string) bool {
 	}
 
 	return true
+}
+
+func IsNil(a interface{}) bool {
+	defer func() { recover() }()
+	return a == nil || reflect.ValueOf(a).IsNil()
 }

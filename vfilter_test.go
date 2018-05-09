@@ -145,7 +145,7 @@ func makeScope() *Scope {
 		TestFunction{1},
 	).AppendPlugins(
 		GenericListPlugin{
-			PluginName: "range",
+			PluginName:  "range",
 			Description: "Return a range of numbers.",
 			Function: func(args Dict) []Row {
 				return []Row{1, 2, 3, 4}
@@ -181,7 +181,7 @@ func TestEvalWhereClause(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		output := sql.query.From.Where.Reduce(ctx, scope)
+		output := sql.query.Where.Reduce(ctx, scope)
 		value, ok := <-output
 		if !ok {
 			t.Fatalf("No output from channel")
@@ -222,7 +222,6 @@ func TestSerializaition(t *testing.T) {
 	}
 }
 
-
 // Implement some test plugins for testing.
 type _RepeaterPlugin struct{}
 
@@ -261,8 +260,8 @@ func TestSubselectDefinition(t *testing.T) {
 		_RepeaterPlugin{},
 		SubSelectFunction{
 			PluginName: "test1",
-			SubSelect: vql,
-			RowType: 1,
+			SubSelect:  vql,
+			RowType:    1,
 		},
 	)
 
