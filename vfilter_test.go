@@ -2,6 +2,9 @@ package vfilter
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/sebdah/goldie"
 	"reflect"
 	"testing"
 )
@@ -141,6 +144,7 @@ func (self TestFunction) Name() string {
 func makeScope() *Scope {
 	return NewScope().AppendVars(NewDict().
 		Set("const_foo", 1).
+		Set("env_var", "EnvironmentData").
 		Set("foo", NewDict().
 			Set("bar", NewDict().Set("baz", 5)).
 			Set("bar2", 7)),
@@ -148,8 +152,7 @@ func makeScope() *Scope {
 		TestFunction{1},
 	).AppendPlugins(
 		GenericListPlugin{
-			PluginName:  "range",
-			Description: "Return a range of numbers.",
+			PluginName: "range",
 			Function: func(args *Dict) []Row {
 				return []Row{1, 2, 3, 4}
 			},
@@ -176,7 +179,7 @@ func TestEvalWhereClause(t *testing.T) {
 	scope := makeScope()
 	for _, test := range execTests {
 		preamble := "select * from plugin() where \n"
-		sql, err := Parse(preamble + test.clause)
+		vql, err := Parse(preamble + test.clause)
 		if err != nil {
 			t.Fatalf("Failed to parse %v: %v", test.clause, err)
 		}
@@ -184,14 +187,14 @@ func TestEvalWhereClause(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		output := sql.query.Where.Reduce(ctx, scope)
+		output := vql.query.Where.Reduce(ctx, scope)
 		value, ok := <-output
 		if !ok {
 			t.Fatalf("No output from channel")
 			return
 		}
 		if !scope.Eq(value, test.result) {
-			Debug(sql)
+			Debug(vql)
 			t.Fatalf("%v: Expected %v, got %v", test.clause, test.result, value)
 		}
 	}
@@ -204,21 +207,21 @@ func TestSerializaition(t *testing.T) {
 	scope := makeScope()
 	for _, test := range execTests {
 		preamble := "select * from plugin() where "
-		sql, err := Parse(preamble + test.clause)
+		vql, err := Parse(preamble + test.clause)
 		if err != nil {
 			t.Fatalf("Failed to parse %v: %v", test.clause, err)
 		}
 
-		vql_string := sql.ToString(scope)
+		vql_string := vql.ToString(scope)
 
-		parsed_sql, err := Parse(vql_string)
+		parsed_vql, err := Parse(vql_string)
 		if err != nil {
 			t.Fatalf("Failed to parse stringified VQL %v: %v (%v)",
 				vql_string, err, test.clause)
 		}
 
-		if !reflect.DeepEqual(parsed_sql, sql) {
-			Debug(sql)
+		if !reflect.DeepEqual(parsed_vql, vql) {
+			Debug(vql)
 			t.Fatalf("Parsed generated VQL not equivalent: %v vs %v.",
 				preamble+test.clause, vql_string)
 		}
@@ -287,4 +290,124 @@ func TestSubselectDefinition(t *testing.T) {
 		Debug(result)
 		t.Fatalf("failed.")
 	}
+}
+
+type vqlTest struct {
+	name string
+	vql  string
+}
+
+var vqlTests = []vqlTest{
+	{"query with dicts", "select * from test()"},
+	{"query with ints", "select * from range(start=10, end=12)"},
+
+	// The environment contains a 'foo' and the plugin emits 'foo'
+	// which should shadow it.
+	{"aliases with shadowed var", "select env_var as EnvVar, foo as FooColumn from test()"},
+	{"aliases with non-shadowed var", "select foo as FooColumn from range(start=1, end=2)"},
+
+	{"condition on aliases", "select foo as FooColumn from test() where FooColumn = 2"},
+	{"condition on non aliases", "select foo as FooColumn from test() where foo = 4"},
+
+	{"dict plugin", "select * from dict(env_var=15, foo=5)"},
+	{"mix from env and plugin", "select env_var + param as ConCat from dict(param='param')"},
+	{"subselects", "select param from dict(param={select * from range(start=3, end=5)})"},
+	// Add two subselects - longer and shorter. Shorter result is
+	// extended to match the longer one.
+	{"subselects addition",
+		`select q1 + q2 as Sum from
+                         dict(q1={select * from range(start=3, end=5)},
+                              q2={select * from range(start=10, end=14)})`},
+
+	{"Functions in select expression",
+		"select func_foo(return=q1 + 4) from dict(q1=3)"},
+
+	// This query shows the power of VQL:
+	// 1. First the test() plugin is called to return a set of rows.
+
+	// 2. For each of these rows, the query() function is run with
+	//    the subselect specified. Note how the subselect can use
+	//    the values returned from the first query.
+	{"Subselect functions.",
+		`select bar,
+                        query(vql={select * from dict(column=bar)}) as Query
+                 from test()`},
+
+	// The below query demonstrates that the query() function is
+	// run on every row returned from the filter, and then the
+	// output is filtered by the the where clause. Be aware that
+	// this may be expensive if test() returns many rows.
+	{"Subselect functions in filter.",
+		`select bar,
+                        query(vql={select * from dict(column=bar)}) as Query
+                 from test() where 1 in Query.column`},
+
+	// This variant of the query is more efficient than above
+	// because the test() plugin is filtered completely _before_
+	// the Query column is constructed. Therefore the Query query
+	// will only be run on those rows where bar=2.
+	{"Subselect with the query plugin",
+		`select bar,
+                        query(vql={select * from dict(column=bar)}) as Query
+                 from query(vql={select * from test() where bar = 2})`},
+}
+
+func TestVQLQueries(t *testing.T) {
+	scope := makeScope().AppendPlugins(
+		GenericListPlugin{
+			PluginName: "test",
+			Function: func(args *Dict) []Row {
+				var result []Row
+				for i := 0; i < 3; i++ {
+					result = append(result, NewDict().
+						Set("foo", i*2).
+						Set("bar", i))
+				}
+				return result
+			},
+		}, GenericListPlugin{
+			PluginName: "range",
+			Function: func(args *Dict) []Row {
+				start := 0.0
+				end := 3.0
+				ExtractFloat(&start, "start", args)
+				ExtractFloat(&end, "end", args)
+
+				var result []Row
+				for i := start; i <= end; i++ {
+					result = append(result, i)
+				}
+				return result
+			},
+		}, GenericListPlugin{
+			PluginName:  "dict",
+			Description: "Just echo back the args as a dict.",
+			Function: func(args *Dict) []Row {
+				return []Row{args}
+			},
+		})
+
+	// Store the result in ordered dict so we have a consistent golden file.
+	result := NewDict()
+	for i, testCase := range vqlTests {
+		vql, err := Parse(testCase.vql)
+		if err != nil {
+			t.Fatalf("Failed to parse %v: %v", testCase.vql, err)
+		}
+
+		ctx := context.Background()
+		output_json, err := OutputJSON(vql, ctx, scope)
+		if err != nil {
+			t.Fatalf("Failed to eval %v: %v", testCase.vql, err)
+		}
+
+		var output Any
+		json.Unmarshal(output_json, &output)
+
+		result.Set(fmt.Sprintf("%03d %s: %s", i, testCase.name,
+			vql.ToString(scope)), output)
+	}
+
+	result_json, _ := json.MarshalIndent(result, "", " ")
+	goldie.Assert(t, "vql_queries", result_json)
 }

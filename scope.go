@@ -162,7 +162,6 @@ func (self *Scope) Info(type_map *TypeMap, name string) (*PluginInfo, bool) {
 	return nil, false
 }
 
-
 // A factory for the default scope. This will add all built in
 // protocols for commonly used code. Clients are expected to add their
 // own specialized protocols, functions and plugins to specialize
@@ -176,7 +175,7 @@ func NewScope() *Scope {
 	result.AddProtocolImpl(_BoolImpl{}, _BoolInt{},
 		_NumericLt{},
 		_StringEq{}, _NumericEq{}, _ArrayEq{}, _DictEq{},
-		_AddStrings{}, _AddFloats{},
+		_AddStrings{}, _AddFloats{}, _AddSlices{},
 		_SubFloats{},
 		_SubstringMembership{},
 		_NumericMul{},
@@ -189,14 +188,21 @@ func NewScope() *Scope {
 	result.AppendFunctions(
 		_DictFunc{},
 		_Timestamp{},
+		_SubSelectFunction{},
 		_SleepPlugin{})
+
+	result.AppendPlugins(_MakeQueryPlugin())
 
 	return &result
 }
 
 // Fetch the field from the scope variables.
 func (self *Scope) Resolve(field string) (interface{}, bool) {
-	for _, subscope := range self.vars {
+	// Walk the scope stack in reverse so more recent vars shadow
+	// older ones.
+	for i := len(self.vars) - 1; i >= 0; i-- {
+		subscope := self.vars[i]
+
 		if element, pres := self.Associative(subscope, field); pres {
 			return element, true
 		}

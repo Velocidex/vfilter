@@ -32,6 +32,18 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/cevaris/ordered_map"
+  packages = ["."]
+  revision = "0efaee1733e3399a3cb88fc7d2ce340bf2e863d7"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/sebdah/goldie"
+  packages = ["."]
+  revision = "8784dd1ab561dcf43d141f6678e9e41f3d0dff55"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/exp"
   packages = ["ebnf"]
   revision = "8460e604b9de9da5834c9f198cadf9dca4b05cac"
@@ -45,6 +57,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "060bbfe697d2a22367bed86611ad84584774361eec87ddf426e5e30da95aa8d7"
+  inputs-digest = "65478eed759a30c8d9f5a83de00f7a0febee37be28ddac4e5d3e0e6db478c350"
   solver-name = "gps-cdcl"
   solver-version = 1

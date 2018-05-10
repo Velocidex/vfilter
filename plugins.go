@@ -116,3 +116,30 @@ func (self SubSelectFunction) Info(type_map *TypeMap) *PluginInfo {
 		RowType: type_map.AddType(self.RowType),
 	}
 }
+
+func _MakeQueryPlugin() GenericListPlugin {
+	plugin := GenericListPlugin{
+		PluginName: "query",
+		RowType:    nil,
+	}
+
+	plugin.Function = func(args *Dict) []Row {
+		var result []Row
+		// Extract the glob from the args.
+		hits, ok := args.Get("vql")
+		if ok {
+			switch t := hits.(type) {
+			case []Any:
+				for _, item := range t {
+					plugin.RowType = item
+					result = append(result, item)
+				}
+			default:
+				return result
+			}
+		}
+		return result
+	}
+
+	return plugin
+}

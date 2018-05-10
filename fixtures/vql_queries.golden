@@ -1,0 +1,135 @@
+{
+ "000 query with dicts: SELECT * FROM test()": [
+  {
+   "bar": 0,
+   "foo": 0
+  },
+  {
+   "bar": 1,
+   "foo": 2
+  },
+  {
+   "bar": 2,
+   "foo": 4
+  }
+ ],
+ "001 query with ints: SELECT * FROM range(start=10, end=12)": [
+  10,
+  11,
+  12
+ ],
+ "002 aliases with shadowed var: SELECT env_var AS EnvVar, foo AS FooColumn FROM test()": [
+  {
+   "EnvVar": "EnvironmentData",
+   "FooColumn": 0
+  },
+  {
+   "EnvVar": "EnvironmentData",
+   "FooColumn": 2
+  },
+  {
+   "EnvVar": "EnvironmentData",
+   "FooColumn": 4
+  }
+ ],
+ "003 aliases with non-shadowed var: SELECT foo AS FooColumn FROM range(start=1, end=2)": [
+  {
+   "FooColumn": "Dict[bar:Dict[baz:5, ],  bar2:7, ]"
+  },
+  {
+   "FooColumn": "Dict[bar:Dict[baz:5, ],  bar2:7, ]"
+  }
+ ],
+ "004 condition on aliases: SELECT foo AS FooColumn FROM test() WHERE FooColumn = 2": [
+  {
+   "FooColumn": 2
+  }
+ ],
+ "005 condition on non aliases: SELECT foo AS FooColumn FROM test() WHERE foo = 4": [
+  {
+   "FooColumn": 4
+  }
+ ],
+ "006 dict plugin: SELECT * FROM dict(env_var=15, foo=5)": [
+  {
+   "env_var": 15,
+   "foo": 5
+  }
+ ],
+ "007 mix from env and plugin: SELECT env_var + param AS ConCat FROM dict(param='param')": [
+  {
+   "ConCat": "EnvironmentDataparam"
+  }
+ ],
+ "008 subselects: SELECT param FROM dict(param= { SELECT * FROM range(start=3, end=5)})": [
+  {
+   "param": [
+    3,
+    4,
+    5
+   ]
+  }
+ ],
+ "009 subselects addition: SELECT q1 + q2 AS Sum FROM dict(q1= { SELECT * FROM range(start=3, end=5)}, q2= { SELECT * FROM range(start=10, end=14)})": [
+  {
+   "Sum": [
+    13,
+    15,
+    17,
+    13,
+    14
+   ]
+  }
+ ],
+ "010 Functions in select expression: SELECT func_foo(return=q1 + 4) FROM dict(q1=3)": [
+  {
+   "func_foo(return=q1 + 4)": 7
+  }
+ ],
+ "011 Subselect functions.: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM test()": [
+  {
+   "Query": [
+    {
+     "column": 0
+    }
+   ],
+   "bar": 0
+  },
+  {
+   "Query": [
+    {
+     "column": 1
+    }
+   ],
+   "bar": 1
+  },
+  {
+   "Query": [
+    {
+     "column": 2
+    }
+   ],
+   "bar": 2
+  }
+ ],
+ "012 Subselect functions in filter.: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM test() WHERE 1 IN  Query.column": [
+  {
+   "Query": [
+    {
+     "column": 1
+    }
+   ],
+   "bar": 1
+  }
+ ],
+ "013 Subselect with the query plugin: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM query(vql= { SELECT * FROM test() WHERE bar = 2})": [
+  {
+   "Query": [
+    {
+     "column": 2
+    }
+   ],
+   "bar": 2
+  }
+ ]
+}

@@ -1,6 +1,7 @@
 package vfilter
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/cevaris/ordered_map"
 	"reflect"
@@ -50,6 +51,11 @@ func (self *Dict) String() string {
 
 func (self *Dict) GoString() string {
 	return self.String()
+}
+
+func (self *Dict) MarshalJSON() ([]byte, error) {
+	res, err := json.Marshal(self.ToDict())
+	return res, err
 }
 
 // Protocols:

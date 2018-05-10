@@ -33,8 +33,8 @@ func (self _SleepPlugin) Call(ctx context.Context, scope *Scope, row Row) Any {
 	return true
 }
 
-
 type _Timestamp struct{}
+
 func (self _Timestamp) Name() string {
 	return "timestamp"
 }
@@ -48,5 +48,20 @@ func (self _Timestamp) Call(ctx context.Context, scope *Scope, row Row) Any {
 		}
 	}
 
+	return false
+}
+
+type _SubSelectFunction struct{}
+
+func (self _SubSelectFunction) Name() string {
+	return "query"
+}
+
+func (self _SubSelectFunction) Call(ctx context.Context, scope *Scope, row Row) Any {
+	if value, pres := scope.Associative(row, "vql"); pres {
+		return value
+	} else {
+		Debug("Query function must take arg: 'vql'")
+	}
 	return false
 }

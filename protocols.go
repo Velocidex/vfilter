@@ -263,6 +263,54 @@ func (self _AddFloats) Add(scope *Scope, a Any, b Any) Any {
 	return a_val + b_val
 }
 
+// Add two slices together.
+type _AddSlices struct{}
+
+func (self _AddSlices) Applicable(a Any, b Any) bool {
+	switch reflect.TypeOf(a).Kind() {
+	case reflect.Slice:
+		break
+	default:
+		return false
+	}
+
+	switch reflect.TypeOf(b).Kind() {
+	case reflect.Slice:
+		break
+	default:
+		return false
+	}
+
+	return true
+}
+
+func (self _AddSlices) Add(scope *Scope, a Any, b Any) Any {
+	var result []Any
+	a_slice := reflect.ValueOf(a)
+	b_slice := reflect.ValueOf(b)
+
+	longest_length := a_slice.Len()
+	if b_slice.Len() > longest_length {
+		longest_length = b_slice.Len()
+	}
+
+	for i := 0; i < longest_length; i++ {
+		var item Any
+		if i < a_slice.Len() && i < b_slice.Len() {
+			item = scope.Add(a_slice.Index(i).Interface(),
+				b_slice.Index(i).Interface())
+		} else if i < a_slice.Len() {
+			item = a_slice.Index(i).Interface()
+		} else {
+			item = b_slice.Index(i).Interface()
+		}
+
+		result = append(result, item)
+	}
+
+	return result
+}
+
 // Sub protocol
 type SubProtocol interface {
 	Applicable(a Any, b Any) bool
