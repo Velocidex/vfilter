@@ -5,15 +5,13 @@ import (
 )
 
 type PluginGeneratorInterface interface {
-	Call(ctx context.Context, scope *Scope, args Dict) <-chan Row
+	Call(ctx context.Context, scope *Scope, args *Dict) <-chan Row
 	Name() string
 	Info(type_map *TypeMap) *PluginInfo
 }
 
-
 // Generic synchronous plugins just return all their rows at once.
-type FunctionPlugin func(args Dict) []Row
-
+type FunctionPlugin func(args *Dict) []Row
 
 // A generic plugin based on a function returning a slice of
 // rows. Many simpler plugins do not need an asynchronous interface
@@ -28,16 +26,25 @@ type FunctionPlugin func(args Dict) []Row
 //   }
 // })
 type GenericListPlugin struct {
-	PluginName string
+	PluginName  string
 	Description string
-	Function FunctionPlugin
+	Function    FunctionPlugin
+
+	// An exemplar instance of the type returned by this
+	// plugin. All rows must be the same type. If this is nil, we
+	// use the first row returned as the exemplar (this is useful
+	// for dynamic plugins).
+
+	// This exemplar is needed to generate the list of columns for
+	// documentation. Therefore, dynamic plugins do not contain
+	// documentation of their returned columns.
 	RowType Any
 }
 
 func (self GenericListPlugin) Call(
 	ctx context.Context,
 	scope *Scope,
-	args Dict) <- chan Row {
+	args *Dict) <-chan Row {
 	output_chan := make(chan Row)
 
 	go func() {
@@ -56,19 +63,23 @@ func (self GenericListPlugin) Name() string {
 }
 
 func (self GenericListPlugin) Info(type_map *TypeMap) *PluginInfo {
-	return &PluginInfo{
+	result := &PluginInfo{
 		Name: self.PluginName,
-		Doc: self.Description,
-		RowType: type_map.AddType(self.RowType),
+		Doc:  self.Description,
 	}
+
+	if self.RowType != nil {
+		result.RowType = type_map.AddType(self.RowType)
+	}
+
+	return result
 }
 
-
 type SubSelectFunction struct {
-	PluginName string
+	PluginName  string
 	Description string
-	SubSelect *VQL
-	RowType Any
+	SubSelect   *VQL
+	RowType     Any
 }
 
 func (self SubSelectFunction) Name() string {
@@ -78,7 +89,7 @@ func (self SubSelectFunction) Name() string {
 func (self SubSelectFunction) Call(
 	ctx context.Context,
 	scope *Scope,
-	args Dict) <- chan Row {
+	args *Dict) <-chan Row {
 
 	// Make a local copy of the scope with the args added as local
 	// variables. This allows the query to refer to args.
@@ -100,8 +111,8 @@ func (self SubSelectFunction) Call(
 
 func (self SubSelectFunction) Info(type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
-		Name: self.PluginName,
-		Doc: self.Description,
+		Name:    self.PluginName,
+		Doc:     self.Description,
 		RowType: type_map.AddType(self.RowType),
 	}
 }

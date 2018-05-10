@@ -2,17 +2,20 @@ package vfilter
 
 import (
 	"context"
-	"fmt"
 	"encoding/json"
+	"fmt"
 )
-
 
 // A convenience function to generate JSON output from a VQL query.
 func OutputJSON(vql *VQL, ctx context.Context, scope *Scope) ([]byte, error) {
 	output_chan := vql.Eval(ctx, scope)
-	result := []Row{}
 	columns := vql.Columns(scope)
+	result := []Row{}
 	for row := range output_chan {
+		if len(*columns) == 0 {
+			members := scope.GetMembers(row)
+			columns = &members
+		}
 		new_row := Dict{}
 		for _, key := range *columns {
 			value, pres := scope.Associative(row, key)
@@ -27,7 +30,7 @@ func OutputJSON(vql *VQL, ctx context.Context, scope *Scope) ([]byte, error) {
 				default:
 					cell = value
 				}
-				new_row[key] = cell
+				new_row.Set(key, cell)
 			}
 		}
 		result = append(result, new_row)

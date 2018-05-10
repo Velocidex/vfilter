@@ -93,21 +93,27 @@ var execTests = []execTest{
 
 	// Dicts
 	{"dict(foo=1) = dict(foo=1)", true},
-	{"dict(foo=1)", Dict{"foo": 1.0}},
-	{"dict(foo=1, bar=2)", Dict{"foo": 1.0, "bar": 2.0}},
-	{"dict(foo=1, bar=2, baz=3)", Dict{"foo": 1.0, "bar": 2.0, "baz": 3.0}},
+	{"dict(foo=1)", NewDict().Set("foo", 1.0)},
+	{"dict(foo=1, bar=2)", NewDict().Set("foo", 1.0).Set("bar", 2.0)},
+	{"dict(foo=1, bar=2, baz=3)", NewDict().
+		Set("foo", 1.0).
+		Set("bar", 2.0).
+		Set("baz", 3.0)},
 
 	// Expression as parameter.
-	{"dict(foo=1, bar=( 2 + 3 ))", Dict{"foo": 1.0, "bar": 5.0}},
+	{"dict(foo=1, bar=( 2 + 3 ))", NewDict().
+		Set("foo", 1.0).Set("bar", 5.0)},
 
 	// List as parameter.
-	{"dict(foo=1, bar= [2 , 3] )", Dict{"foo": 1.0, "bar": []Any{2.0, 3.0}}},
+	{"dict(foo=1, bar= [2 , 3] )", NewDict().
+		Set("foo", 1.0).
+		Set("bar", []Any{2.0, 3.0})},
 
 	// Sub select as parameter.
-	{"dict(foo=1, bar={select * from range()} )", Dict{
-		"foo": 1.0,
-		"bar": []Any{1, 2, 3, 4},
-	}},
+	{"dict(foo=1, bar={select * from range()} )", NewDict().
+		Set("foo", 1.0).
+		Set("bar", []Any{1, 2, 3, 4}),
+	},
 
 	// Associative
 	// Relies on pre-populating the scope with a Dict.
@@ -133,21 +139,18 @@ func (self TestFunction) Name() string {
 }
 
 func makeScope() *Scope {
-	return NewScope().AppendVars(Dict{
-		"const_foo": 1,
-		"foo": Dict{
-			"bar": Dict{
-				"baz": 5,
-			},
-			"bar2": 7,
-		},
-	}).AppendFunctions(
+	return NewScope().AppendVars(NewDict().
+		Set("const_foo", 1).
+		Set("foo", NewDict().
+			Set("bar", NewDict().Set("baz", 5)).
+			Set("bar2", 7)),
+	).AppendFunctions(
 		TestFunction{1},
 	).AppendPlugins(
 		GenericListPlugin{
 			PluginName:  "range",
 			Description: "Return a range of numbers.",
-			Function: func(args Dict) []Row {
+			Function: func(args *Dict) []Row {
 				return []Row{1, 2, 3, 4}
 			},
 			RowType: 1,
@@ -228,7 +231,7 @@ type _RepeaterPlugin struct{}
 func (self _RepeaterPlugin) Call(
 	ctx context.Context,
 	scope *Scope,
-	args Dict) <-chan Row {
+	args *Dict) <-chan Row {
 	output_chan := make(chan Row)
 
 	go func() {
@@ -278,9 +281,9 @@ func TestSubselectDefinition(t *testing.T) {
 		result = append(result, row)
 	}
 
-	if !reflect.DeepEqual(result, []Row{Dict{
-		"total": 17.0,
-	}}) {
+	if !reflect.DeepEqual(result, []Row{NewDict().
+		Set("total", 17.0),
+	}) {
 		Debug(result)
 		t.Fatalf("failed.")
 	}

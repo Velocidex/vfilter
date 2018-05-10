@@ -1,7 +1,7 @@
 package vfilter
 
 func ExtractString(name string, args *Dict) (*string, bool) {
-	arg, ok := (*args)[name]
+	arg, ok := (*args).Get(name)
 	if ok {
 		arg_string, ok := arg.(string)
 		if ok {
@@ -12,9 +12,8 @@ func ExtractString(name string, args *Dict) (*string, bool) {
 	return nil, false
 }
 
-
 func ExtractStringArray(name string, args *Dict) ([]string, bool) {
-	arg, ok := (*args)[name]
+	arg, ok := (*args).Get(name)
 	if ok {
 		arg_string, ok := arg.([]string)
 		if ok {

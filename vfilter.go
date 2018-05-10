@@ -436,9 +436,6 @@ type Any interface{}
 // supported automatically.
 type Row interface{}
 
-// A concerete implementation of a row - similar to Python's dict.
-type Dict map[string]interface{}
-
 // Filter the row that we receive from the rest of the clause
 // according to the select expression.
 func (self _SelectExpression) Filter(
@@ -464,7 +461,7 @@ func (self _SelectExpression) Filter(
 			// generate the name by converting the
 			// expression to a string using its ToString()
 			// method.
-			new_row := Dict{}
+			new_row := NewDict()
 			new_scope := *scope
 			new_scope.AppendVars(row)
 
@@ -482,7 +479,7 @@ func (self _SelectExpression) Filter(
 				} else {
 					column_name = expr.Expression.ToString(scope)
 				}
-				new_row[column_name] = expression
+				new_row.Set(column_name, expression)
 			}
 
 			output_chan <- new_row
@@ -557,14 +554,14 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		defer close(output_chan)
 
 		// Build up the args to pass to the function.
-		args := Dict{}
+		args := NewDict()
 		for _, arg := range self.Args {
 			if arg.Right != nil {
 				value, ok := <-arg.Right.Reduce(ctx, scope)
 				if !ok {
 					return
 				}
-				args[arg.Left] = value
+				args.Set(arg.Left, value)
 
 			} else if arg.Array != nil {
 				value, ok := <-arg.Array.Reduce(ctx, scope)
@@ -572,7 +569,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					output_chan <- false
 					return
 				}
-				args[arg.Left] = value
+				args.Set(arg.Left, value)
 
 			} else if arg.SubSelect != nil {
 				var value []Any
@@ -586,7 +583,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 						value = append(value, item)
 					}
 				}
-				args[arg.Left] = value
+				args.Set(arg.Left, value)
 			}
 		}
 
@@ -1074,7 +1071,7 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 		defer close(output_chan)
 
 		// Build up the args to pass to the function.
-		row := Dict{}
+		args := NewDict()
 		for _, arg := range self.Parameters {
 			if arg.Right != nil {
 				value, ok := <-arg.Right.Reduce(ctx, scope)
@@ -1082,7 +1079,7 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 					output_chan <- false
 					return
 				}
-				row[arg.Left] = value
+				args.Set(arg.Left, value)
 
 			} else if arg.Array != nil {
 				value, ok := <-arg.Array.Reduce(ctx, scope)
@@ -1090,14 +1087,14 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 					output_chan <- false
 					return
 				}
-				row[arg.Left] = value
+				args.Set(arg.Left, value)
 
 			} else if arg.SubSelect != nil {
 				var value []Any
 				for item := range arg.SubSelect.Eval(ctx, scope) {
 					value = append(value, item)
 				}
-				row[arg.Left] = value
+				args.Set(arg.Left, value)
 			}
 		}
 
@@ -1107,7 +1104,7 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 
 			// The symbol is a function.
 		} else if value, pres := scope.functions[self.Symbol]; pres {
-			output_chan <- value.Call(ctx, scope, row)
+			output_chan <- value.Call(ctx, scope, args)
 
 		} else {
 			Debug(self.Symbol)

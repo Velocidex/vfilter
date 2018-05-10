@@ -114,7 +114,8 @@ func to_float(x Any) (float64, bool) {
 		} else {
 			return 0, true
 		}
-	case float64: return t, true
+	case float64:
+		return t, true
 	case int:
 		return float64(t), true
 	case int32:
@@ -162,18 +163,6 @@ func is_array(a Any) bool {
 
 func (self _ArrayEq) Applicable(a Any, b Any) bool {
 	return is_array(a) && is_array(b)
-}
-
-// Implements Dict equality.
-type _DictEq struct{}
-func (self _DictEq) Eq(scope *Scope, a Any, b Any) bool {
-	return reflect.DeepEqual(a, b)
-}
-
-func (self _DictEq) Applicable(a Any, b Any) bool {
-	_, a_ok := a.(Dict)
-	_, b_ok := b.(Dict)
-	return a_ok && b_ok
 }
 
 // Less than protocol
@@ -482,7 +471,6 @@ func (self *_AssociativeDispatcher) GetMembers(
 	return DefaultAssociative{}.GetMembers(scope, a)
 }
 
-
 func (self *_AssociativeDispatcher) AddImpl(elements ...AssociativeProtocol) {
 	for _, impl := range elements {
 		self.impl = append(self.impl, impl)
@@ -492,6 +480,7 @@ func (self *_AssociativeDispatcher) AddImpl(elements ...AssociativeProtocol) {
 // Last resort associative - uses reflect package to resolve struct
 // fields.
 type DefaultAssociative struct{}
+
 func (self DefaultAssociative) Applicable(a Any, b Any) bool {
 	return false
 }
@@ -519,7 +508,7 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 		if a_type.Kind() == reflect.Slice {
 			var result []Any
 
-			for i:=0; i < a_value.Len(); i++ {
+			for i := 0; i < a_value.Len(); i++ {
 				element := a_value.Index(i).Interface()
 				if item, pres := scope.Associative(element, b); pres {
 					result = append(result, item)
@@ -535,7 +524,6 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 			if method_value.Type().Kind() == reflect.Ptr {
 				method_value = method_value.Elem()
 			}
-
 
 			results := method_value.Call([]reflect.Value{})
 
@@ -578,32 +566,6 @@ func (self DefaultAssociative) GetMembers(scope *Scope, a Any) []string {
 				result = append(result, method_type.Name)
 			}
 		}
-	}
-
-	return result
-}
-
-
-type _DictAssociative struct{}
-func (self _DictAssociative) Applicable(a Any, b Any) bool {
-	_, a_ok := a.(Dict)
-	_, b_ok := b.(string)
-	return a_ok && b_ok
-}
-
-// Associate object a with key b
-func (self _DictAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool) {
-	key := b.(string)
-	value := a.(Dict)
-	res, pres := value[key]
-	return res, pres
-}
-
-func (self _DictAssociative) GetMembers(scope *Scope, a Any) []string {
-	var result []string
-
-	for item, _ := range a.(Dict) {
-		result = append(result, item)
 	}
 
 	return result

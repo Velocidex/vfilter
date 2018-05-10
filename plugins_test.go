@@ -7,31 +7,26 @@ import (
 
 type execPluginTest struct {
 	query  string
-	result []Dict
+	result []*Dict
 }
 
 var execPluginTests = []execPluginTest{
-
 	execPluginTest{
 		query: "select * from test_plugin() where foo.bar < 2",
-		result: []Dict{
-			Dict{
-				"foo": Dict{
-					"bar": 1,
-				},
-				"foo_2": 2,
-				"foo_3": 3,
-			},
+		result: []*Dict{
+			NewDict().
+				Set("foo", NewDict().Set("bar", 1)).
+				Set("foo_2", 2).
+				Set("foo_3", 3),
 		},
 	},
 	execPluginTest{
 		query: ("select foo.bar as column1, foo.bar from " +
 			"test_plugin() where foo.bar = 2"),
-		result: []Dict{
-			Dict{
-				"column1": 2,
-				"foo.bar": 2,
-			},
+		result: []*Dict{
+			NewDict().
+				Set("column1", 2).
+				Set("foo.bar", 2),
 		},
 	},
 }
@@ -42,20 +37,17 @@ type TestGeneratorPlugin struct{}
 func (self TestGeneratorPlugin) Call(
 	ctx context.Context,
 	scope *Scope,
-	args Dict) <-chan Row {
+	args *Dict) <-chan Row {
 	output_chan := make(chan Row)
 
 	go func() {
 		defer close(output_chan)
 
 		for i := 1; i < 10; i++ {
-			row := Dict{
-				"foo": Dict{
-					"bar": i,
-				},
-				"foo_2": i * 2,
-				"foo_3": i * 3,
-			}
+			row := NewDict().
+				Set("foo", NewDict().Set("bar", i)).
+				Set("foo_2", i*2).
+				Set("foo_3", i*3)
 			output_chan <- row
 		}
 
@@ -71,7 +63,6 @@ func (self TestGeneratorPlugin) Name() string {
 func (self TestGeneratorPlugin) Info(type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{}
 }
-
 
 func TestPlugins(t *testing.T) {
 	scope := NewScope().AppendPlugins(TestGeneratorPlugin{})

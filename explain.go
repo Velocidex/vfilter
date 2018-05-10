@@ -11,7 +11,7 @@ import (
 
 // Populated with information about the scope.
 type ScopeInformation struct {
-	plugins []PluginInfo
+	plugins   []PluginInfo
 	functions []FunctionInfo
 }
 
@@ -31,7 +31,6 @@ type PluginInfo struct {
 // Describe functions.
 type FunctionInfo struct{}
 
-
 // Describe a type. This is meant for human consumption so it does not
 // need to be so accurate. Fields is a map between the Associative
 // member and the type that is supposed to be returned. Note that
@@ -44,14 +43,12 @@ type TypeDescription struct {
 // This describes what type is returned when we reference this field
 // from the TypeDescription.
 type TypeReference struct {
-	Target string
+	Target   string
 	Repeated bool
 }
 
 // Map between type name and its description.
 type TypeMap map[string]*TypeDescription
-
-
 
 func canonicalTypeName(a_type reflect.Type) string {
 	return strings.TrimLeft(a_type.String(), "*[]")
@@ -79,7 +76,6 @@ func (self *TypeMap) addType(a_type reflect.Type) {
 	self.addMethods(a_type, &result)
 }
 
-
 func (self *TypeMap) addFields(a_type reflect.Type, desc *TypeDescription) {
 	if a_type.Kind() != reflect.Struct {
 		return
@@ -101,7 +97,6 @@ func (self *TypeMap) addFields(a_type reflect.Type, desc *TypeDescription) {
 		desc.Fields[field_value.Name] = &return_type_descriptor
 	}
 }
-
 
 func (self *TypeMap) addMethods(a_type reflect.Type, desc *TypeDescription) {
 	// If a method has a pointer receiver than we will be able to
