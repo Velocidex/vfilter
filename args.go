@@ -1,10 +1,8 @@
 package vfilter
 
 func ExtractString(name string, args *Dict) (*string, bool) {
-	arg, ok := (*args).Get(name)
-	if ok {
-		arg_string, ok := arg.(string)
-		if ok {
+	if arg, pres := args.Get(name); pres {
+		if arg_string, ok := arg.(string); ok {
 			return &arg_string, true
 		}
 	}
@@ -13,10 +11,8 @@ func ExtractString(name string, args *Dict) (*string, bool) {
 }
 
 func ExtractFloat(output *float64, name string, args *Dict) bool {
-	arg, ok := (*args).Get(name)
-	if ok {
-		arg_float, ok := arg.(float64)
-		if ok {
+	if arg, pres := args.Get(name); pres {
+		if arg_float, ok := to_float(arg); ok {
 			*output = arg_float
 			return true
 		}

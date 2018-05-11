@@ -1,5 +1,9 @@
 package vfilter
 
+import (
+	"fmt"
+)
+
 /* The scope is a common environment passed to all plugins, functions
    and operators.
 
@@ -31,6 +35,8 @@ type Scope struct {
 	membership  _MembershipDispatcher
 	associative _AssociativeDispatcher
 	regex       _RegexDispatcher
+
+	log_messages []string
 }
 
 // Tests two values for equality.
@@ -162,6 +168,15 @@ func (self *Scope) Info(type_map *TypeMap, name string) (*PluginInfo, bool) {
 	return nil, false
 }
 
+func (self *Scope) Log(format string, a ...interface{}) {
+	msg := fmt.Sprintf(format, a...)
+	self.log_messages = append(self.log_messages, msg)
+}
+
+func (self *Scope) GetLogs() []string {
+	return self.log_messages
+}
+
 // A factory for the default scope. This will add all built in
 // protocols for commonly used code. Clients are expected to add their
 // own specialized protocols, functions and plugins to specialize
@@ -172,7 +187,9 @@ func NewScope() *Scope {
 	result.plugins = make(map[string]PluginGeneratorInterface)
 
 	// Protocol handlers.
-	result.AddProtocolImpl(_BoolImpl{}, _BoolInt{},
+	result.AddProtocolImpl(
+		_NullAssociative{}, _NullEqProtocol{},
+		_BoolImpl{}, _BoolInt{},
 		_NumericLt{},
 		_StringEq{}, _NumericEq{}, _ArrayEq{}, _DictEq{},
 		_AddStrings{}, _AddFloats{}, _AddSlices{},

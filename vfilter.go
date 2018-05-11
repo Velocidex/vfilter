@@ -132,46 +132,84 @@ import (
 	"context"
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
+	"reflect"
 	"strconv"
 	"strings"
 )
 
 var (
 	sqlLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(`(\s+)`+
-		`|(?P<Keyword>(?i)SELECT|FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS |NOT|ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN )`+
+		`|(?P<Keyword>(?i)LET |SELECT |FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS |NOT|ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN )`+
 		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)`+
 		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
 		`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")`+
 		`|(?P<Operators><>|!=|<=|>=|=~|[-+*/%,.()=<>{}\[\]])`,
 	)), "Keyword"), "String")
-	sqlParser = participle.MustBuild(&_Select{}, sqlLexer)
+	sqlParser = participle.MustBuild(&VQL{}, sqlLexer)
 )
 
 // Parse the VQL expression. Returns a VQL object which may be
 // evaluated.
 func Parse(expression string) (*VQL, error) {
-	sql := &_Select{}
+	sql := &VQL{}
 	err := sqlParser.ParseString(expression, sql)
-	return &VQL{query: sql}, err
+	return sql, err
 }
 
 // An opaque object representing the VQL expression.
 type VQL struct {
-	query *_Select
+	Let   string   `[ "LET " @Ident "=" ]`
+	Query *_Select ` @@ `
 }
 
 // Evaluate the expression. Returns a channel which emits a series of
 // rows.
 func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
-	return self.query.Eval(ctx, scope)
+	// If this is a Let expression we need to gather the results
+	// and assign to the scope.
+	if len(self.Let) > 0 {
+		output_chan := make(chan Row)
+		from_chan := self.Query.Eval(ctx, scope)
+		var result []Row
+
+		// Copy results from the Eval to the output, saving a copy.
+		go func() {
+			defer close(output_chan)
+
+			// When we finish - assign to the scope.
+			defer func() {
+				scope.AppendVars(NewDict().Set(self.Let, result))
+			}()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+
+				case row, ok := <-from_chan:
+					if !ok {
+						return
+					}
+					result = append(result, row)
+					output_chan <- row
+				}
+			}
+		}()
+		return output_chan
+	} else {
+		return self.Query.Eval(ctx, scope)
+	}
 }
 
 // Encodes the query into a string again.
 func (self VQL) ToString(scope *Scope) string {
-	result := "SELECT " + self.query.SelectExpression.ToString(scope) +
-		" FROM " + self.query.From.ToString(scope)
-	if self.query.Where != nil {
-		result += " WHERE " + self.query.Where.ToString(scope)
+	result := ""
+	if len(self.Let) > 0 {
+		result += "LET " + self.Let + " = "
+	}
+	result += "SELECT " + self.Query.SelectExpression.ToString(scope) +
+		" FROM " + self.Query.From.ToString(scope)
+	if self.Query.Where != nil {
+		result += " WHERE " + self.Query.Where.ToString(scope)
 	}
 
 	return result
@@ -181,18 +219,15 @@ func (self VQL) ToString(scope *Scope) string {
 // serve as Row keys for rows that are published on the output channel
 // by Eval().
 func (self *VQL) Columns(scope *Scope) *[]string {
-	if self.query.SelectExpression.All {
-		return self.query.From.Plugin.Columns(scope)
+	if self.Query.SelectExpression.All {
+		return self.Query.From.Plugin.Columns(scope)
 	}
 
-	return self.query.SelectExpression.Columns(scope)
+	return self.Query.SelectExpression.Columns(scope)
 }
 
 type _Select struct {
-	Top              *_Term             `"SELECT" [ "TOP" @@ ]`
-	Distinct         bool               `[  @"DISTINCT"`
-	All              bool               ` | @"ALL" ]`
-	SelectExpression *_SelectExpression `@@`
+	SelectExpression *_SelectExpression `"SELECT " @@`
 	From             *_From             `"FROM" @@`
 	Where            *_CommaExpression  `[ "WHERE" @@ ]`
 	Limit            *_CommaExpression  `[ "LIMIT" @@ ]`
@@ -223,6 +258,11 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	output_chan := make(chan Row)
 	from_chan := self.From.Eval(ctx, scope)
 
+	// Gets a row from the FROM clause, then transforms it
+	// according to the SelectExpression. After transformation,
+	// apply the WHERE clause to the row to determine if it should
+	// be relayed. NOTE: We need to transform the row first in
+	// order to assign aliases.
 	go func() {
 		defer close(output_chan)
 		for {
@@ -277,12 +317,13 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 }
 
 type _From struct {
-	Plugin _Plugin `@@ `
+	Plugin _Plugin ` @@ `
 }
 
 type _Plugin struct {
 	Name string   `@Ident `
-	Args []*_Args `"(" [ @@  { "," @@ } ] ")" `
+	Call bool     `[ @"("`
+	Args []*_Args ` [ @@  { "," @@ } ] ")" ]`
 }
 
 type _Args struct {
@@ -436,14 +477,15 @@ type Any interface{}
 // supported automatically.
 type Row interface{}
 
-// Filter the row that we receive from the rest of the clause
-// according to the select expression.
+// Receives a row from the FROM clause and transforms it according to
+// the select expression to produce a new row.
 func (self _SelectExpression) Filter(
 	ctx context.Context, scope *Scope, row Row) <-chan Row {
 	output_chan := make(chan Row)
 
 	go func() {
 		defer close(output_chan)
+
 		// The select uses a * to relay all the rows without
 		// filtering
 		if self.All {
@@ -469,8 +511,10 @@ func (self _SelectExpression) Filter(
 				expression_chan := expr.Expression.Reduce(ctx, &new_scope)
 				expression, ok := <-expression_chan
 
+				// If we fail to read we still need to
+				// set something for that column.
 				if !ok {
-					expression = nil
+					expression = Null{}
 				}
 
 				var column_name string
@@ -553,6 +597,23 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	go func() {
 		defer close(output_chan)
 
+		// The FROM clause refers to a var and not a
+		// plugin. Just read the var from the scope.
+		if !self.Call {
+			if variable, pres := scope.Resolve(self.Name); pres {
+				if is_array(variable) {
+					var_slice := reflect.ValueOf(variable)
+					for i := 0; i < var_slice.Len(); i++ {
+						output_chan <- var_slice.Index(i).Interface()
+					}
+				}
+
+			} else {
+				output_chan <- Null{}
+			}
+			return
+		}
+
 		// Build up the args to pass to the function.
 		args := NewDict()
 		for _, arg := range self.Args {
@@ -566,7 +627,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			} else if arg.Array != nil {
 				value, ok := <-arg.Array.Reduce(ctx, scope)
 				if !ok {
-					output_chan <- false
+					output_chan <- Null{}
 					return
 				}
 				args.Set(arg.Left, value)
@@ -598,9 +659,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				output_chan <- row
 			}
 		} else {
-			Debug(scope.plugins)
-			Debug("plugin not found")
-			Debug(self.Name)
+			scope.Log("Plugin %v not found", self.Name)
 		}
 	}()
 
@@ -621,12 +680,17 @@ func (self *_Plugin) Columns(scope *Scope) *[]string {
 }
 
 func (self _Plugin) ToString(scope *Scope) string {
-	var substrings []string
-	for _, arg := range self.Args {
-		substrings = append(substrings, arg.ToString(scope))
+	result := self.Name
+	if self.Call {
+		var substrings []string
+		for _, arg := range self.Args {
+			substrings = append(substrings, arg.ToString(scope))
+		}
+
+		result += "(" + strings.Join(substrings, ", ") + ")"
 	}
 
-	return self.Name + "(" + strings.Join(substrings, ", ") + ")"
+	return result
 }
 
 func (self _Args) ToString(scope *Scope) string {
@@ -654,7 +718,7 @@ func (self _MemberExpression) Reduce(ctx context.Context, scope *Scope) <-chan A
 
 		case lhs, ok := <-self.Left.Reduce(ctx, scope):
 			if !ok {
-				output_chan <- false
+				output_chan <- Null{}
 				return
 			}
 
@@ -662,7 +726,7 @@ func (self _MemberExpression) Reduce(ctx context.Context, scope *Scope) <-chan A
 				var pres bool
 				lhs, pres = scope.Associative(lhs, term.Term)
 				if !pres {
-					output_chan <- false
+					output_chan <- Null{}
 					return
 				}
 			}
@@ -701,7 +765,7 @@ func (self _CommaExpression) Reduce(
 
 		case lhs, ok := <-self.Left.Reduce(ctx, scope):
 			if !ok {
-				output_chan <- false
+				output_chan <- Null{}
 				return
 			}
 
@@ -937,7 +1001,7 @@ func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) <-chan A
 		// Run the Left and Right channels and wait for both.
 		case lhs, ok = <-self.Left.Reduce(ctx, scope):
 			if !ok {
-				output_chan <- false
+				output_chan <- Null{}
 				return
 			}
 		}
@@ -948,7 +1012,7 @@ func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) <-chan A
 
 		case rhs, ok = <-self.Right.Right.Reduce(ctx, scope):
 			if !ok {
-				output_chan <- false
+				output_chan <- Null{}
 				return
 			}
 		}
@@ -1034,7 +1098,7 @@ func (self _Value) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 		} else if self.Null {
 			output_chan <- nil
 		} else {
-			output_chan <- false
+			output_chan <- Null{}
 		}
 	}()
 
@@ -1076,7 +1140,7 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 			if arg.Right != nil {
 				value, ok := <-arg.Right.Reduce(ctx, scope)
 				if !ok {
-					output_chan <- false
+					output_chan <- Null{}
 					return
 				}
 				args.Set(arg.Left, value)
@@ -1084,7 +1148,7 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 			} else if arg.Array != nil {
 				value, ok := <-arg.Array.Reduce(ctx, scope)
 				if !ok {
-					output_chan <- false
+					output_chan <- Null{}
 					return
 				}
 				args.Set(arg.Left, value)
@@ -1107,10 +1171,8 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 			output_chan <- value.Call(ctx, scope, args)
 
 		} else {
-			Debug(self.Symbol)
-			Debug("Symbol not found.")
-			// Todo: proper error handling.
-			output_chan <- false
+			scope.Log("Symbol %v not found", self.Symbol)
+			output_chan <- Null{}
 		}
 	}()
 

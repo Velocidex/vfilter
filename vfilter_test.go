@@ -47,8 +47,8 @@ var execTests = []execTest{
 	{"10 / 0", false},
 
 	// Arithmetic on incompatible types silently trapped.
-	{"1 + 'foo'", false},
-	{"'foo' - 'bar'", false},
+	{"1 + 'foo'", Null{}},
+	{"'foo' - 'bar'", Null{}},
 
 	// Logical operators
 	{"1 and 2 and 3 and 4", true},
@@ -130,8 +130,8 @@ type TestFunction struct {
 	return_value Any
 }
 
-func (self TestFunction) Call(ctx context.Context, scope *Scope, row Row) Any {
-	if value, pres := scope.Associative(row, "return"); pres {
+func (self TestFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any {
+	if value, pres := args.Get("return"); pres {
 		return value
 	}
 	return self.return_value
@@ -187,7 +187,7 @@ func TestEvalWhereClause(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		output := vql.query.Where.Reduce(ctx, scope)
+		output := vql.Query.Where.Reduce(ctx, scope)
 		value, ok := <-output
 		if !ok {
 			t.Fatalf("No output from channel")
@@ -310,6 +310,10 @@ var vqlTests = []vqlTest{
 	{"condition on non aliases", "select foo as FooColumn from test() where foo = 4"},
 
 	{"dict plugin", "select * from dict(env_var=15, foo=5)"},
+	{"dict plugin with invalide column",
+		"select no_such_column from dict(env_var=15, foo=5)"},
+	{"dict plugin with invalide column in expression",
+		"select no_such_column + 'foo' from dict(env_var=15, foo=5)"},
 	{"mix from env and plugin", "select env_var + param as ConCat from dict(param='param')"},
 	{"subselects", "select param from dict(param={select * from range(start=3, end=5)})"},
 	// Add two subselects - longer and shorter. Shorter result is
@@ -350,6 +354,12 @@ var vqlTests = []vqlTest{
 		`select bar,
                         query(vql={select * from dict(column=bar)}) as Query
                  from query(vql={select * from test() where bar = 2})`},
+
+	{"Create Let expression", "let result = select  * from test()"},
+	{"Refer to Let expression", "select * from result"},
+	{"Refer to non existent Let expression", "select * from no_such_result"},
+	{"Refer to non existent Let expression by column",
+		"select foobar from no_such_result"},
 }
 
 func TestVQLQueries(t *testing.T) {

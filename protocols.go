@@ -228,7 +228,7 @@ func (self _AddDispatcher) Add(scope *Scope, a Any, b Any) Any {
 			return impl.Add(scope, a, b)
 		}
 	}
-	return false
+	return Null{}
 }
 
 func (self *_AddDispatcher) AddImpl(elements ...AddProtocol) {
@@ -267,21 +267,7 @@ func (self _AddFloats) Add(scope *Scope, a Any, b Any) Any {
 type _AddSlices struct{}
 
 func (self _AddSlices) Applicable(a Any, b Any) bool {
-	switch reflect.TypeOf(a).Kind() {
-	case reflect.Slice:
-		break
-	default:
-		return false
-	}
-
-	switch reflect.TypeOf(b).Kind() {
-	case reflect.Slice:
-		break
-	default:
-		return false
-	}
-
-	return true
+	return is_array(a) && is_array(b)
 }
 
 func (self _AddSlices) Add(scope *Scope, a Any, b Any) Any {
@@ -327,7 +313,7 @@ func (self _SubDispatcher) Sub(scope *Scope, a Any, b Any) Any {
 			return impl.Sub(scope, a, b)
 		}
 	}
-	return false
+	return Null{}
 }
 
 func (self *_SubDispatcher) AddImpl(elements ...SubProtocol) {
@@ -367,7 +353,7 @@ func (self _MulDispatcher) Mul(scope *Scope, a Any, b Any) Any {
 			return impl.Mul(scope, a, b)
 		}
 	}
-	return 0
+	return Null{}
 }
 
 func (self *_MulDispatcher) AddImpl(elements ...MulProtocol) {
@@ -406,7 +392,7 @@ func (self _DivDispatcher) Div(scope *Scope, a Any, b Any) Any {
 			return impl.Div(scope, a, b)
 		}
 	}
-	return 0
+	return Null{}
 }
 
 func (self *_DivDispatcher) AddImpl(elements ...DivProtocol) {
@@ -588,7 +574,7 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 		}
 	}
 
-	return false, false
+	return Null{}, false
 }
 
 // Get the members which are callable by VFilter.
