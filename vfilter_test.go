@@ -153,7 +153,7 @@ func makeScope() *Scope {
 	).AppendPlugins(
 		GenericListPlugin{
 			PluginName: "range",
-			Function: func(args *Dict) []Row {
+			Function: func(scope *Scope, args *Dict) []Row {
 				return []Row{1, 2, 3, 4}
 			},
 			RowType: 1,
@@ -366,7 +366,7 @@ func TestVQLQueries(t *testing.T) {
 	scope := makeScope().AppendPlugins(
 		GenericListPlugin{
 			PluginName: "test",
-			Function: func(args *Dict) []Row {
+			Function: func(scope *Scope, args *Dict) []Row {
 				var result []Row
 				for i := 0; i < 3; i++ {
 					result = append(result, NewDict().
@@ -377,7 +377,7 @@ func TestVQLQueries(t *testing.T) {
 			},
 		}, GenericListPlugin{
 			PluginName: "range",
-			Function: func(args *Dict) []Row {
+			Function: func(scope *Scope, args *Dict) []Row {
 				start := 0.0
 				end := 3.0
 				ExtractFloat(&start, "start", args)
@@ -392,7 +392,7 @@ func TestVQLQueries(t *testing.T) {
 		}, GenericListPlugin{
 			PluginName:  "dict",
 			Description: "Just echo back the args as a dict.",
-			Function: func(args *Dict) []Row {
+			Function: func(scope *Scope, args *Dict) []Row {
 				return []Row{args}
 			},
 		})

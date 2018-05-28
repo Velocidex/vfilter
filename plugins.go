@@ -11,7 +11,7 @@ type PluginGeneratorInterface interface {
 }
 
 // Generic synchronous plugins just return all their rows at once.
-type FunctionPlugin func(args *Dict) []Row
+type FunctionPlugin func(scope *Scope, args *Dict) []Row
 
 // A generic plugin based on a function returning a slice of
 // rows. Many simpler plugins do not need an asynchronous interface
@@ -50,7 +50,7 @@ func (self GenericListPlugin) Call(
 	go func() {
 		defer close(output_chan)
 
-		for _, item := range self.Function(args) {
+		for _, item := range self.Function(scope, args) {
 			output_chan <- item
 		}
 	}()
@@ -123,7 +123,7 @@ func _MakeQueryPlugin() GenericListPlugin {
 		RowType:    nil,
 	}
 
-	plugin.Function = func(args *Dict) []Row {
+	plugin.Function = func(scope *Scope, args *Dict) []Row {
 		var result []Row
 		// Extract the glob from the args.
 		hits, ok := args.Get("vql")
