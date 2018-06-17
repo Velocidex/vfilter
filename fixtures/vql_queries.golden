@@ -34,10 +34,20 @@
  ],
  "003 aliases with non-shadowed var: SELECT foo AS FooColumn FROM range(start=1, end=2)": [
   {
-   "FooColumn": "Dict[bar:Dict[baz:5, ],  bar2:7, ]"
+   "FooColumn": {
+    "bar": {
+     "baz": 5
+    },
+    "bar2": 7
+   }
   },
   {
-   "FooColumn": "Dict[bar:Dict[baz:5, ],  bar2:7, ]"
+   "FooColumn": {
+    "bar": {
+     "baz": 5
+    },
+    "bar2": 7
+   }
   }
  ],
  "004 condition on aliases: SELECT foo AS FooColumn FROM test() WHERE FooColumn = 2": [
@@ -58,12 +68,12 @@
  ],
  "007 dict plugin with invalide column: SELECT no_such_column FROM dict(env_var=15, foo=5)": [
   {
-   "no_such_column": "Null"
+   "no_such_column": null
   }
  ],
  "008 dict plugin with invalide column in expression: SELECT no_such_column + 'foo' FROM dict(env_var=15, foo=5)": [
   {
-   "no_such_column + 'foo'": "Null"
+   "no_such_column + 'foo'": null
   }
  ],
  "009 mix from env and plugin: SELECT env_var + param AS ConCat FROM dict(param='param')": [
@@ -175,7 +185,7 @@
  ],
  "019 Refer to non existent Let expression by column: SELECT foobar FROM no_such_result": [
   {
-   "foobar": "Null"
+   "foobar": null
   }
  ]
 }
