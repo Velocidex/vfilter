@@ -84,6 +84,12 @@ func (self *TypeMap) addFields(a_type reflect.Type, desc *TypeDescription) {
 	for i := 0; i < a_type.NumField(); i++ {
 		field_value := a_type.Field(i)
 
+		// Embedded structs just merge their fields with this
+		// struct.
+		if field_value.Anonymous {
+			self.addFields(field_value.Type, desc)
+			continue
+		}
 		// Skip un-exported names.
 		if !is_exported(field_value.Name) {
 			continue

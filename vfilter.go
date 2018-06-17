@@ -606,6 +606,8 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					for i := 0; i < var_slice.Len(); i++ {
 						output_chan <- var_slice.Index(i).Interface()
 					}
+				} else {
+					output_chan <- variable
 				}
 
 			} else {

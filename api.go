@@ -26,12 +26,19 @@ func OutputJSON(vql *VQL, ctx context.Context, scope *Scope) ([]byte, error) {
 				if pres && !IsNil(value) {
 					var cell Any
 					switch t := value.(type) {
+					case Null:
+						cell = nil
+
 					case fmt.Stringer:
-						cell = t.String()
+						//						cell = t.String()
+						cell = value
 
 					case []byte:
 						cell = string(t)
+
 					default:
+						// Pass directly to
+						// Json Marshal
 						cell = value
 					}
 					new_row.Set(key, cell)

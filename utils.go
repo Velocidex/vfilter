@@ -71,7 +71,7 @@ func IsNil(a interface{}) bool {
 }
 
 // A real type which encodes to JSON NULL. Using go's nil is dangerous
-// because it forced constant checking for nil pointer dereference. It
+// because it forces constant checking for nil pointer dereference. It
 // is safer to just return this value when VQL needs to return NULL.
 type Null struct{}
 

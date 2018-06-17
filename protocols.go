@@ -118,7 +118,11 @@ func to_float(x Any) (float64, bool) {
 		return t, true
 	case int:
 		return float64(t), true
+	case uint32:
+		return float64(t), true
 	case int32:
+		return float64(t), true
+	case uint64:
 		return float64(t), true
 	case int64:
 		return float64(t), true
