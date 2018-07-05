@@ -2,6 +2,7 @@ package vfilter
 
 import (
 	"fmt"
+	"log"
 )
 
 /* The scope is a common environment passed to all plugins, functions
@@ -36,7 +37,7 @@ type Scope struct {
 	associative _AssociativeDispatcher
 	regex       _RegexDispatcher
 
-	log_messages []string
+	Logger *log.Logger
 }
 
 // Tests two values for equality.
@@ -170,11 +171,9 @@ func (self *Scope) Info(type_map *TypeMap, name string) (*PluginInfo, bool) {
 
 func (self *Scope) Log(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
-	self.log_messages = append(self.log_messages, msg)
-}
-
-func (self *Scope) GetLogs() []string {
-	return self.log_messages
+	if self.Logger != nil {
+		self.Logger.Print(msg)
+	}
 }
 
 // A factory for the default scope. This will add all built in
