@@ -1,0 +1,8 @@
+{
+ "000 Columns from env: SELECT Field FROM TestDict": [
+  "Field"
+ ],
+ "001 Columns from env wildcard: SELECT * FROM TestDict": [
+  "Field"
+ ]
+}

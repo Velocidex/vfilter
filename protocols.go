@@ -597,6 +597,19 @@ func (self DefaultAssociative) GetMembers(scope *Scope, a Any) []string {
 
 	{
 		a_value := reflect.ValueOf(a)
+
+		// If a value is a slice, we get the members of the
+		// first item. Hopefully they are the same as the
+		// other items. A common use case is storing the
+		// output of a query in the scope environment and then
+		// selecting from it, in which case the value is a
+		// list of Rows, each row has a Dict.
+		if a_value.Type().Kind() == reflect.Slice {
+			for i := 0; i < a_value.Len(); i++ {
+				return scope.GetMembers(a_value.Index(i).Interface())
+			}
+		}
+
 		for i := 0; i < a_value.NumMethod(); i++ {
 			method_type := a_value.Type().Method(i)
 			method_value := a_value.Method(i)

@@ -362,8 +362,8 @@ var vqlTests = []vqlTest{
 		"select foobar from no_such_result"},
 }
 
-func TestVQLQueries(t *testing.T) {
-	scope := makeScope().AppendPlugins(
+func makeTestScope() *Scope {
+	return makeScope().AppendPlugins(
 		GenericListPlugin{
 			PluginName: "test",
 			Function: func(scope *Scope, args *Dict) []Row {
@@ -396,6 +396,10 @@ func TestVQLQueries(t *testing.T) {
 				return []Row{args}
 			},
 		})
+}
+
+func TestVQLQueries(t *testing.T) {
+	scope := makeTestScope()
 
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := NewDict()
@@ -420,4 +424,30 @@ func TestVQLQueries(t *testing.T) {
 
 	result_json, _ := json.MarshalIndent(result, "", " ")
 	goldie.Assert(t, "vql_queries", result_json)
+}
+
+var columnTests = []vqlTest{
+	{"Columns from env", "select Field from TestDict"},
+	{"Columns from env wildcard", "select * from TestDict"},
+}
+
+func TestColumns(t *testing.T) {
+	env := NewDict().Set("TestDict", []Row{
+		NewDict().Set("Field", 2),
+	})
+	scope := makeTestScope().AppendVars(env)
+
+	result := NewDict()
+	for i, testCase := range columnTests {
+		vql, err := Parse(testCase.vql)
+		if err != nil {
+			t.Fatalf("Failed to parse %v: %v", testCase.vql, err)
+		}
+
+		result.Set(fmt.Sprintf("%03d %s: %s", i, testCase.name,
+			vql.ToString(scope)), vql.Columns(scope))
+	}
+
+	result_json, _ := json.MarshalIndent(result, "", " ")
+	goldie.Assert(t, "columns", result_json)
 }
