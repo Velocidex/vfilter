@@ -190,7 +190,6 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 						return
 					}
 					result = append(result, row)
-					output_chan <- row
 				}
 			}
 		}()

@@ -147,3 +147,25 @@ func (self _DictAssociative) GetMembers(scope *Scope, a Any) []string {
 
 	return result
 }
+
+type _BoolDict struct{}
+
+func (self _BoolDict) Applicable(a Any) bool {
+	switch a.(type) {
+	case Dict, *Dict:
+		return true
+	}
+	return false
+}
+
+func (self _BoolDict) Bool(scope *Scope, a Any) bool {
+	switch t := a.(type) {
+	case Dict:
+		return t.Len() > 0
+
+	case *Dict:
+		return t.Len() > 0
+
+	}
+	return false
+}

@@ -8,9 +8,10 @@ import (
 
 // A response from VQL queries.
 type VFilterJsonResult struct {
-	Part    int
-	Columns []string
-	Payload []byte
+	Part      int
+	TotalRows int
+	Columns   []string
+	Payload   []byte
 }
 
 // Returns a channel over which multi part results are sent.
@@ -35,9 +36,10 @@ func GetResponseChannel(
 				return
 			}
 			result_chan <- &VFilterJsonResult{
-				Part:    part,
-				Columns: *columns,
-				Payload: s,
+				Part:      part,
+				TotalRows: len(rows),
+				Columns:   *columns,
+				Payload:   s,
 			}
 
 			rows = []Row{}

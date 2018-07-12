@@ -60,6 +60,37 @@ func (self _BoolInt) Applicable(a Any) bool {
 	return a_ok
 }
 
+type _BoolString struct{}
+
+func (self _BoolString) Bool(scope *Scope, a Any) bool {
+	switch t := a.(type) {
+	case string:
+		return len(t) > 0
+	case *string:
+		return len(*t) > 0
+	}
+	return false
+}
+
+func (self _BoolString) Applicable(a Any) bool {
+	switch a.(type) {
+	case string, *string:
+		return true
+	}
+	return false
+}
+
+type _BoolSlice struct{}
+
+func (self _BoolSlice) Applicable(a Any) bool {
+	return is_array(a)
+}
+
+func (self _BoolSlice) Bool(scope *Scope, a Any) bool {
+	value_a := reflect.ValueOf(a)
+	return value_a.Len() > 0
+}
+
 // Eq protocol
 type EqProtocol interface {
 	Applicable(a Any, b Any) bool

@@ -152,20 +152,7 @@
    "bar": 2
   }
  ],
- "016 Create Let expression: LET result = SELECT * FROM test()": [
-  {
-   "bar": 0,
-   "foo": 0
-  },
-  {
-   "bar": 1,
-   "foo": 2
-  },
-  {
-   "bar": 2,
-   "foo": 4
-  }
- ],
+ "016 Create Let expression: LET result = SELECT * FROM test()": [],
  "017 Refer to Let expression: SELECT * FROM result": [
   {
    "bar": 0,
