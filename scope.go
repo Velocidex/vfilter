@@ -95,6 +95,12 @@ func (self *Scope) Match(a Any, b Any) bool {
 	return self.regex.Match(self, a, b)
 }
 
+func (self Scope) Copy() *Scope {
+	copy_of_vars := append([]Row{}, self.vars...)
+	self.vars = copy_of_vars
+	return &self
+}
+
 // Add various protocol implementations into this
 // scope. Implementations must be one of the supported protocols or
 // this function will panic.

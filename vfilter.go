@@ -165,35 +165,15 @@ type VQL struct {
 // Evaluate the expression. Returns a channel which emits a series of
 // rows.
 func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
-	// If this is a Let expression we need to gather the results
-	// and assign to the scope.
+	// If this is a Let expression we need to create a stored
+	// query and assign to the scope.
 	if len(self.Let) > 0 {
 		output_chan := make(chan Row)
-		from_chan := self.Query.Eval(ctx, scope)
-		var result []Row
-
-		// Copy results from the Eval to the output, saving a copy.
-		go func() {
-			defer close(output_chan)
-
-			// When we finish - assign to the scope.
-			defer func() {
-				scope.AppendVars(NewDict().Set(self.Let, result))
-			}()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-
-				case row, ok := <-from_chan:
-					if !ok {
-						return
-					}
-					result = append(result, row)
-				}
-			}
-		}()
+		stored_query := NewStoredQuery(self.Query, scope)
+		scope.AppendVars(NewDict().Set(self.Let, stored_query))
+		close(output_chan)
 		return output_chan
+
 	} else {
 		return self.Query.Eval(ctx, scope)
 	}
@@ -600,7 +580,21 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		// plugin. Just read the var from the scope.
 		if !self.Call {
 			if variable, pres := scope.Resolve(self.Name); pres {
-				if is_array(variable) {
+				// If the variable is a stored query
+				// we just copy from its channel to
+				// the output.
+				stored_query, ok := variable.(*_StoredQuery)
+				if ok {
+					from_chan := stored_query.Eval(ctx)
+					for {
+						row, ok := <-from_chan
+						if !ok {
+							return
+						}
+						output_chan <- row
+					}
+
+				} else if is_array(variable) {
 					var_slice := reflect.ValueOf(variable)
 					for i := 0; i < var_slice.Len(); i++ {
 						output_chan <- var_slice.Index(i).Interface()
@@ -686,6 +680,13 @@ func (self *_Plugin) Columns(scope *Scope) *[]string {
 	} else {
 		value, pres := scope.Resolve(self.Name)
 		if pres {
+			// If it is a stored query we just delegate
+			// the Columns() method to it.
+			stored_query, ok := value.(*_StoredQuery)
+			if ok {
+				return stored_query.Columns()
+			}
+
 			for _, item := range scope.GetMembers(value) {
 				result = append(result, item)
 			}
@@ -1186,6 +1187,7 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 			output_chan <- value.Call(ctx, scope, args)
 
 		} else {
+			Debug(scope.vars)
 			scope.Log("Symbol %v not found", self.Symbol)
 			output_chan <- Null{}
 		}
