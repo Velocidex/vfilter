@@ -555,6 +555,11 @@ func (self DefaultAssociative) Applicable(a Any, b Any) bool {
 }
 
 func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool) {
+	defer func() {
+		// If an error occurs we return false - not found.
+		recover()
+	}()
+
 	switch field_name := b.(type) {
 	case string:
 		if !is_exported(field_name) {

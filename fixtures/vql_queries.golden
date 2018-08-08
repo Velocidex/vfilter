@@ -152,8 +152,28 @@
    "bar": 2
   }
  ],
- "016 Create Let expression: LET result = SELECT * FROM test()": [],
- "017 Refer to Let expression: SELECT * FROM result": [
+ "016 Subselect in columns: SELECT bar, { SELECT column FROM dict(column=bar) } FROM test()": [
+  {
+   "bar": 0,
+   "subquery": [
+    0
+   ]
+  },
+  {
+   "bar": 1,
+   "subquery": [
+    1
+   ]
+  },
+  {
+   "bar": 2,
+   "subquery": [
+    2
+   ]
+  }
+ ],
+ "017 Create Let expression: LET result = SELECT * FROM test()": [],
+ "018 Refer to Let expression: SELECT * FROM result": [
   {
    "bar": 0,
    "foo": 0
@@ -167,10 +187,10 @@
    "foo": 4
   }
  ],
- "018 Refer to non existent Let expression: SELECT * FROM no_such_result": [
+ "019 Refer to non existent Let expression: SELECT * FROM no_such_result": [
   null
  ],
- "019 Refer to non existent Let expression by column: SELECT foobar FROM no_such_result": [
+ "020 Refer to non existent Let expression by column: SELECT foobar FROM no_such_result": [
   {
    "foobar": null
   }

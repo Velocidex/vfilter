@@ -43,8 +43,15 @@ func merge_channels(cs []<-chan Any) <-chan Any {
 
 // Is the symbol exported by Go? Only names with upper case are exported.
 func is_exported(name string) bool {
-	runes := []rune(name)
-	return runes[0] == unicode.ToUpper(runes[0])
+	switch name {
+	// Ignore common methods which should not be exported.
+	case "MarshalJSON", "MarshalYAML":
+		return false
+
+	default:
+		runes := []rune(name)
+		return runes[0] == unicode.ToUpper(runes[0])
+	}
 }
 
 func _Callable(method_value reflect.Value, field_name string) bool {

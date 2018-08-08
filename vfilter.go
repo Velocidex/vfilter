@@ -198,11 +198,7 @@ func (self VQL) ToString(scope *Scope) string {
 // serve as Row keys for rows that are published on the output channel
 // by Eval().
 func (self *VQL) Columns(scope *Scope) *[]string {
-	if self.Query.SelectExpression.All {
-		return self.Query.From.Plugin.Columns(scope)
-	}
-
-	return self.Query.SelectExpression.Columns(scope)
+	return self.Query.Columns(scope)
 }
 
 type _Select struct {
@@ -212,6 +208,17 @@ type _Select struct {
 	Limit            *_CommaExpression  `[ "LIMIT" @@ ]`
 	Offset           *_CommaExpression  `[ "OFFSET" @@ ]`
 	GroupBy          *_CommaExpression  `[ "GROUPBY" @@ ]`
+}
+
+// Provides a list of column names from this query. These columns will
+// serve as Row keys for rows that are published on the output channel
+// by Eval().
+func (self _Select) Columns(scope *Scope) *[]string {
+	if self.SelectExpression.All {
+		return self.From.Plugin.Columns(scope)
+	}
+
+	return self.SelectExpression.Columns(scope)
 }
 
 func (self _Select) ToString(scope *Scope) string {
@@ -306,8 +313,7 @@ type _Plugin struct {
 }
 
 type _Args struct {
-	Left string `@Ident "=" `
-	//	Right _AndExpression `( "(" @@ ")" | @@ )`
+	Left      string            `@Ident "=" `
 	SubSelect *_Select          `( "{" @@ "}" | `
 	Array     *_CommaExpression ` "[" @@ "]" | `
 	Right     *_AndExpression   ` "("@@ ")" | @@ )`
@@ -319,17 +325,57 @@ type _SelectExpression struct {
 }
 
 type _AliasedExpression struct {
-	Expression *_AndExpression `@@`
-	As         string          `[ "AS " @Ident ]`
+	SubSelect  *_Select        `( "{" @@ "}" |`
+	Expression *_AndExpression ` @@ )`
+
+	As string `[ "AS " @Ident ]`
+}
+
+func (self _AliasedExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
+	if self.Expression != nil {
+		return self.Expression.Reduce(ctx, scope)
+	}
+
+	if self.SubSelect != nil {
+		output_chan := make(chan Any)
+
+		go func() {
+			defer close(output_chan)
+			var rows []Row
+			for item := range self.SubSelect.Eval(ctx, scope) {
+				members := scope.GetMembers(item)
+				if len(members) == 1 {
+					item_column, pres := scope.Associative(item, members[0])
+					if pres {
+						rows = append(rows, item_column)
+					}
+				} else {
+					rows = append(rows, item)
+				}
+			}
+			output_chan <- rows
+		}()
+		return output_chan
+	}
+
+	return nil
 }
 
 func (self *_AliasedExpression) ToString(scope *Scope) string {
-	result := self.Expression.ToString(scope)
-	if self.As != "" {
-		result += " AS " + self.As
-	}
+	if self.Expression != nil {
+		result := self.Expression.ToString(scope)
+		if self.As != "" {
+			result += " AS " + self.As
+		}
+		return result
 
-	return result
+	} else if self.SubSelect != nil {
+		result := self.SubSelect.ToString(scope)
+		return "{ " + result + " }"
+
+	} else {
+		return ""
+	}
 }
 
 // Expressions separated by addition or subtraction.
@@ -487,7 +533,7 @@ func (self _SelectExpression) Filter(
 			new_scope.AppendVars(row)
 
 			for _, expr := range self.Expressions {
-				expression_chan := expr.Expression.Reduce(ctx, &new_scope)
+				expression_chan := expr.Reduce(ctx, &new_scope)
 				expression, ok := <-expression_chan
 
 				// If we fail to read we still need to
@@ -500,7 +546,7 @@ func (self _SelectExpression) Filter(
 				if expr.As != "" {
 					column_name = expr.As
 				} else {
-					column_name = expr.Expression.ToString(scope)
+					column_name = expr.ToString(scope)
 				}
 				new_row.Set(column_name, expression)
 			}
@@ -519,10 +565,9 @@ func (self *_SelectExpression) Columns(scope *Scope) *[]string {
 		if expr.As != "" {
 			result = append(result, expr.As)
 		} else {
-			result = append(result, expr.Expression.ToString(scope))
+			result = append(result, expr.ToString(scope))
 		}
 	}
-
 	return &result
 }
 
@@ -583,7 +628,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				// If the variable is a stored query
 				// we just copy from its channel to
 				// the output.
-				stored_query, ok := variable.(*_StoredQuery)
+				stored_query, ok := variable.(StoredQuery)
 				if ok {
 					from_chan := stored_query.Eval(ctx)
 					for {
@@ -682,7 +727,7 @@ func (self *_Plugin) Columns(scope *Scope) *[]string {
 		if pres {
 			// If it is a stored query we just delegate
 			// the Columns() method to it.
-			stored_query, ok := value.(*_StoredQuery)
+			stored_query, ok := value.(StoredQuery)
 			if ok {
 				return stored_query.Columns()
 			}

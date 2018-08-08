@@ -24,6 +24,13 @@ import (
 	"context"
 )
 
+// A plugin like object which takes no arguments but may be inserted
+// into the scope to select from it.
+type StoredQuery interface {
+	Eval(ctx context.Context) <-chan Row
+	Columns() *[]string
+}
+
 type _StoredQuery struct {
 	// Capture the scope at the point of definition. We will use
 	// this scope when we run the query.

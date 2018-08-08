@@ -355,6 +355,10 @@ var vqlTests = []vqlTest{
                         query(vql={select * from dict(column=bar)}) as Query
                  from query(vql={select * from test() where bar = 2})`},
 
+	{"Subselect in columns",
+		`select bar, { select column from dict(column=bar) } AS subquery from test()
+                        `},
+
 	{"Create Let expression", "let result = select  * from test()"},
 	{"Refer to Let expression", "select * from result"},
 	{"Refer to non existent Let expression", "select * from no_such_result"},
