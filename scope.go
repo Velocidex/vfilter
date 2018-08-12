@@ -197,13 +197,14 @@ func NewScope() *Scope {
 		_BoolImpl{}, _BoolInt{}, _BoolString{}, _BoolSlice{}, _BoolDict{},
 		_NumericLt{},
 		_StringEq{}, _NumericEq{}, _ArrayEq{}, _DictEq{},
-		_AddStrings{}, _AddFloats{}, _AddSlices{},
+		_AddStrings{}, _AddFloats{}, _AddSlices{}, _AddSliceAny{},
 		_SubFloats{},
 		_SubstringMembership{},
 		_NumericMul{},
 		_NumericDiv{},
 		_DictAssociative{},
 		_SubstringRegex{},
+		_StoredQueryAssociative{}, _StoredQueryBool{},
 	)
 
 	// Built in functions.
@@ -211,9 +212,12 @@ func NewScope() *Scope {
 		_DictFunc{},
 		_Timestamp{},
 		_SubSelectFunction{},
+		_SplitFunction{},
 		_SleepPlugin{})
 
-	result.AppendPlugins(_MakeQueryPlugin())
+	result.AppendPlugins(
+		_MakeQueryPlugin(), _IfPlugin{},
+	)
 
 	return &result
 }

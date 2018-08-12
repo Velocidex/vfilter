@@ -310,23 +310,31 @@ func (self _AddSlices) Add(scope *Scope, a Any, b Any) Any {
 	a_slice := reflect.ValueOf(a)
 	b_slice := reflect.ValueOf(b)
 
-	longest_length := a_slice.Len()
-	if b_slice.Len() > longest_length {
-		longest_length = b_slice.Len()
+	for i := 0; i < a_slice.Len(); i++ {
+		result = append(result, a_slice.Index(i).Interface())
 	}
 
-	for i := 0; i < longest_length; i++ {
-		var item Any
-		if i < a_slice.Len() && i < b_slice.Len() {
-			item = scope.Add(a_slice.Index(i).Interface(),
-				b_slice.Index(i).Interface())
-		} else if i < a_slice.Len() {
-			item = a_slice.Index(i).Interface()
-		} else {
-			item = b_slice.Index(i).Interface()
-		}
+	for i := 0; i < b_slice.Len(); i++ {
+		result = append(result, b_slice.Index(i).Interface())
+	}
 
-		result = append(result, item)
+	return result
+}
+
+// Add a slice to Any will expand the slice and add each item with the
+// any.
+type _AddSliceAny struct{}
+
+func (self _AddSliceAny) Applicable(a Any, b Any) bool {
+	return is_array(a)
+}
+
+func (self _AddSliceAny) Add(scope *Scope, a Any, b Any) Any {
+	var result []Any
+	a_slice := reflect.ValueOf(a)
+
+	for i := 0; i < a_slice.Len(); i++ {
+		result = append(result, scope.Add(a_slice.Index(i).Interface(), b))
 	}
 
 	return result

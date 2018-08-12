@@ -55,33 +55,41 @@
    "FooColumn": 2
   }
  ],
- "005 condition on non aliases: SELECT foo AS FooColumn FROM test() WHERE foo = 4": [
+ "005 condition on aliases with not: SELECT foo AS FooColumn FROM test() WHERE  NOT FooColumn = 2": [
+  {
+   "FooColumn": 0
+  },
   {
    "FooColumn": 4
   }
  ],
- "006 dict plugin: SELECT * FROM dict(env_var=15, foo=5)": [
+ "006 condition on non aliases: SELECT foo AS FooColumn FROM test() WHERE foo = 4": [
+  {
+   "FooColumn": 4
+  }
+ ],
+ "007 dict plugin: SELECT * FROM dict(env_var=15, foo=5)": [
   {
    "env_var": 15,
    "foo": 5
   }
  ],
- "007 dict plugin with invalide column: SELECT no_such_column FROM dict(env_var=15, foo=5)": [
+ "008 dict plugin with invalide column: SELECT no_such_column FROM dict(env_var=15, foo=5)": [
   {
    "no_such_column": null
   }
  ],
- "008 dict plugin with invalide column in expression: SELECT no_such_column + 'foo' FROM dict(env_var=15, foo=5)": [
+ "009 dict plugin with invalide column in expression: SELECT no_such_column + 'foo' FROM dict(env_var=15, foo=5)": [
   {
    "no_such_column + 'foo'": null
   }
  ],
- "009 mix from env and plugin: SELECT env_var + param AS ConCat FROM dict(param='param')": [
+ "010 mix from env and plugin: SELECT env_var + param AS ConCat FROM dict(param='param')": [
   {
    "ConCat": "EnvironmentDataparam"
   }
  ],
- "010 subselects: SELECT param FROM dict(param= { SELECT * FROM range(start=3, end=5)})": [
+ "011 subselects: SELECT param FROM dict(param= { SELECT * FROM range(start=3, end=5)})": [
   {
    "param": [
     3,
@@ -90,23 +98,26 @@
    ]
   }
  ],
- "011 subselects addition: SELECT q1 + q2 AS Sum FROM dict(q1= { SELECT * FROM range(start=3, end=5)}, q2= { SELECT * FROM range(start=10, end=14)})": [
+ "012 subselects addition: SELECT q1 + q2 AS Sum FROM dict(q1= { SELECT * FROM range(start=3, end=5)}, q2= { SELECT * FROM range(start=10, end=14)})": [
   {
    "Sum": [
-    13,
-    15,
-    17,
+    3,
+    4,
+    5,
+    10,
+    11,
+    12,
     13,
     14
    ]
   }
  ],
- "012 Functions in select expression: SELECT func_foo(return=q1 + 4) FROM dict(q1=3)": [
+ "013 Functions in select expression: SELECT func_foo(return=q1 + 4) FROM dict(q1=3)": [
   {
    "func_foo(return=q1 + 4)": 7
   }
  ],
- "013 Subselect functions.: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM test()": [
+ "014 Subselect functions.: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM test()": [
   {
    "Query": [
     {
@@ -132,7 +143,7 @@
    "bar": 2
   }
  ],
- "014 Subselect functions in filter.: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM test() WHERE 1 IN  Query.column": [
+ "015 Subselect functions in filter.: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM test() WHERE 1 IN  Query.column": [
   {
    "Query": [
     {
@@ -142,7 +153,7 @@
    "bar": 1
   }
  ],
- "015 Subselect with the query plugin: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM query(vql= { SELECT * FROM test() WHERE bar = 2})": [
+ "016 Subselect with the query plugin: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM query(vql= { SELECT * FROM test() WHERE bar = 2})": [
   {
    "Query": [
     {
@@ -152,7 +163,7 @@
    "bar": 2
   }
  ],
- "016 Subselect in columns: SELECT bar, { SELECT column FROM dict(column=bar) } FROM test()": [
+ "017 Subselect in columns: SELECT bar, { SELECT column FROM dict(column=bar) } FROM test()": [
   {
    "bar": 0,
    "subquery": [
@@ -172,8 +183,8 @@
    ]
   }
  ],
- "017 Create Let expression: LET result = SELECT * FROM test()": [],
- "018 Refer to Let expression: SELECT * FROM result": [
+ "018 Create Let expression: LET result = SELECT * FROM test()": [],
+ "019 Refer to Let expression: SELECT * FROM result": [
   {
    "bar": 0,
    "foo": 0
@@ -187,10 +198,10 @@
    "foo": 4
   }
  ],
- "019 Refer to non existent Let expression: SELECT * FROM no_such_result": [
+ "020 Refer to non existent Let expression: SELECT * FROM no_such_result": [
   null
  ],
- "020 Refer to non existent Let expression by column: SELECT foobar FROM no_such_result": [
+ "021 Refer to non existent Let expression by column: SELECT foobar FROM no_such_result": [
   {
    "foobar": null
   }

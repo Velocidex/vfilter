@@ -2,6 +2,7 @@ package vfilter
 
 import (
 	"context"
+	"reflect"
 )
 
 type PluginGeneratorInterface interface {
@@ -114,6 +115,83 @@ func (self SubSelectFunction) Info(type_map *TypeMap) *PluginInfo {
 		Name:    self.PluginName,
 		Doc:     self.Description,
 		RowType: type_map.AddType(self.RowType),
+	}
+}
+
+type _IfPlugin struct{}
+
+func (self _IfPlugin) Call(
+	ctx context.Context,
+	scope *Scope,
+	args *Dict) <-chan Row {
+	output_chan := make(chan Row)
+
+	condition, pres := args.Get("condition")
+	if !pres {
+		scope.Log("Expecting 'condition' parameter")
+		close(output_chan)
+		return output_chan
+	}
+
+	if !scope.Bool(condition) {
+		close(output_chan)
+		return output_chan
+	}
+
+	query, pres := args.Get("query")
+	if !pres {
+		scope.Log("Expecting 'query' parameter")
+		close(output_chan)
+		return output_chan
+	}
+
+	stored_query, ok := query.(StoredQuery)
+	if !ok {
+		// If it is a slice of rows we just copy it to the output.
+		slice := reflect.ValueOf(query)
+		if slice.Type().Kind() == reflect.Slice {
+			go func() {
+				defer close(output_chan)
+				for i := 0; i < slice.Len(); i++ {
+					item := slice.Index(i).Interface()
+					output_chan <- item
+				}
+			}()
+			return output_chan
+		}
+		scope.Log("Expecting Query type in 'query' parameter")
+		close(output_chan)
+		return output_chan
+	}
+
+	go func() {
+		defer close(output_chan)
+
+		from_chan := stored_query.Eval(ctx)
+		for {
+			item, ok := <-from_chan
+			if !ok {
+				return
+			}
+			output_chan <- item
+		}
+	}()
+
+	return output_chan
+}
+
+func (self _IfPlugin) Name() string {
+	return "if"
+}
+
+func (self _IfPlugin) Info(type_map *TypeMap) *PluginInfo {
+	return &PluginInfo{
+		Name: "if",
+		Doc:  "Conditional execution of query",
+
+		// Our type is not known - it depends on the
+		// delegate's type.
+		RowType: "",
 	}
 }
 

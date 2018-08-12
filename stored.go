@@ -56,3 +56,64 @@ func (self *_StoredQuery) Columns() *[]string {
 
 	return self.query.SelectExpression.Columns(self.scope)
 }
+
+type _StoredQueryAssociative struct{}
+
+func (self _StoredQueryAssociative) Applicable(a Any, b Any) bool {
+	_, a_ok := a.(StoredQuery)
+	return a_ok
+}
+
+func (self _StoredQueryAssociative) Associative(
+	scope *Scope, a Any, b Any) (Any, bool) {
+	var result []Any
+	stored_query, ok := a.(StoredQuery)
+	if ok {
+		ctx := context.Background()
+		from_chan := stored_query.Eval(ctx)
+		for {
+			row, ok := <-from_chan
+			if !ok {
+				break
+			}
+			item, pres := scope.Associative(row, b)
+			if pres {
+				result = append(result, item)
+			}
+		}
+	}
+	return result, true
+}
+
+func (self _StoredQueryAssociative) GetMembers(scope *Scope, a Any) []string {
+	var result []string
+	return result
+}
+
+type _StoredQueryBool struct{}
+
+func (self _StoredQueryBool) Bool(scope *Scope, a Any) bool {
+	stored_query, ok := a.(StoredQuery)
+	if ok {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		from_chan := stored_query.Eval(ctx)
+		for {
+			// As soon as a single result is returned we
+			// can cancel the query.
+			_, ok := <-from_chan
+			if !ok {
+				break
+			}
+
+			return true
+		}
+	}
+
+	return false
+}
+
+func (self _StoredQueryBool) Applicable(a Any) bool {
+	_, a_ok := a.(StoredQuery)
+	return a_ok
+}

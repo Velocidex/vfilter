@@ -307,6 +307,7 @@ var vqlTests = []vqlTest{
 	{"aliases with non-shadowed var", "select foo as FooColumn from range(start=1, end=2)"},
 
 	{"condition on aliases", "select foo as FooColumn from test() where FooColumn = 2"},
+	{"condition on aliases with not", "select foo as FooColumn from test() where NOT FooColumn = 2"},
 	{"condition on non aliases", "select foo as FooColumn from test() where foo = 4"},
 
 	{"dict plugin", "select * from dict(env_var=15, foo=5)"},
@@ -316,8 +317,7 @@ var vqlTests = []vqlTest{
 		"select no_such_column + 'foo' from dict(env_var=15, foo=5)"},
 	{"mix from env and plugin", "select env_var + param as ConCat from dict(param='param')"},
 	{"subselects", "select param from dict(param={select * from range(start=3, end=5)})"},
-	// Add two subselects - longer and shorter. Shorter result is
-	// extended to match the longer one.
+	// Add two subselects - Adding sequences makes one longer sequence.
 	{"subselects addition",
 		`select q1 + q2 as Sum from
                          dict(q1={select * from range(start=3, end=5)},

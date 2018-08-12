@@ -139,7 +139,7 @@ import (
 
 var (
 	sqlLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(`(\s+)`+
-		`|(?P<Keyword>(?i)LET |SELECT |FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS |NOT|ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN )`+
+		`|(?P<Keyword>(?i)LET |SELECT |FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS |NOT |ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN )`+
 		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)`+
 		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
 		`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")`+
@@ -436,8 +436,9 @@ type _OpArrayTerm struct {
 
 // Expressions separated by AND.
 type _AndExpression struct {
+	Not   *_OrExpression `("NOT " @@ | `
 	Left  *_OrExpression `@@`
-	Right []*_OpAndTerm  `{ @@ }`
+	Right []*_OpAndTerm  `{ @@ })`
 }
 
 type _OpAndTerm struct {
@@ -855,6 +856,27 @@ func (self _CommaExpression) ToString(scope *Scope) string {
 }
 
 func (self _AndExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
+	if self.Not != nil {
+		output_chan := make(chan Any)
+		go func() {
+			defer close(output_chan)
+
+			select {
+			case <-ctx.Done():
+				return
+
+			case value, ok := <-self.Not.Reduce(ctx, scope):
+				if !ok {
+					output_chan <- Null{}
+					return
+				}
+
+				output_chan <- !scope.Bool(value)
+			}
+		}()
+		return output_chan
+	}
+
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
 	}
@@ -865,6 +887,7 @@ func (self _AndExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any 
 		var result Any = false
 
 		inputs := []<-chan Any{self.Left.Reduce(ctx, scope)}
+
 		for _, term := range self.Right {
 			inputs = append(inputs, term.Term.Reduce(ctx, scope))
 		}
@@ -898,6 +921,9 @@ func (self _AndExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any 
 }
 
 func (self _AndExpression) ToString(scope *Scope) string {
+	if self.Not != nil {
+		return " NOT " + self.Not.ToString(scope)
+	}
 	result := []string{self.Left.ToString(scope)}
 
 	for _, right := range self.Right {
@@ -1232,7 +1258,6 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 			output_chan <- value.Call(ctx, scope, args)
 
 		} else {
-			Debug(scope.vars)
 			scope.Log("Symbol %v not found", self.Symbol)
 			output_chan <- Null{}
 		}

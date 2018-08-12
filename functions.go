@@ -2,6 +2,7 @@ package vfilter
 
 import (
 	"context"
+	"strings"
 	"time"
 )
 
@@ -61,4 +62,25 @@ func (self _SubSelectFunction) Call(ctx context.Context, scope *Scope, args *Dic
 		Debug("Query function must take arg: 'vql'")
 	}
 	return false
+}
+
+type _SplitFunction struct{}
+
+func (self _SplitFunction) Name() string {
+	return "split"
+}
+
+func (self _SplitFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any {
+	str, pres := ExtractString("string", args)
+	if pres {
+		seperator := ","
+		sep, pres := ExtractString("sep", args)
+		if pres {
+			seperator = *sep
+		}
+
+		return strings.Split(*str, seperator)
+	}
+
+	return &Null{}
 }
