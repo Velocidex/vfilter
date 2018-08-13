@@ -307,7 +307,7 @@ type _From struct {
 }
 
 type _Plugin struct {
-	Name string   `@Ident `
+	Name string   `@Ident { @"." @Ident } `
 	Call bool     `[ @"("`
 	Args []*_Args ` [ @@  { "," @@ } ] ")" ]`
 }
@@ -616,6 +616,36 @@ func (self _From) ToString(scope *Scope) string {
 	return result
 }
 
+func (self _Plugin) getPlugin(scope *Scope, plugin_name string) (
+	PluginGeneratorInterface, bool) {
+	components := strings.Split(plugin_name, ".")
+	// Single plugin reference.
+	if len(components) == 1 {
+		plugin, pres := scope.plugins[plugin_name]
+		return plugin, pres
+	}
+
+	// Plugins with "." resolve themselves recursively.
+	var result Any = scope
+	for _, component := range components {
+		subcomponent, pres := scope.Associative(result, component)
+		if !pres {
+			return nil, false
+		}
+
+		result = subcomponent
+	}
+
+	// It is a plugin
+	plugin, ok := result.(PluginGeneratorInterface)
+	if ok {
+		return plugin, true
+	}
+
+	// Not a plugin - do not return it.
+	return nil, false
+}
+
 func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	output_chan := make(chan Row)
 
@@ -689,7 +719,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			}
 		}
 
-		if plugin, pres := scope.plugins[self.Name]; pres {
+		if plugin, pres := self.getPlugin(scope, self.Name); pres {
 			plugin_chan := plugin.Call(ctx, scope, args)
 			for {
 				row, ok := <-plugin_chan

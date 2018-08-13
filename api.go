@@ -35,12 +35,22 @@ func GetResponseChannel(
 					err.Error())
 				return
 			}
-			result_chan <- &VFilterJsonResult{
+
+			result := &VFilterJsonResult{
 				Part:      part,
 				TotalRows: len(rows),
 				Columns:   *columns,
 				Payload:   s,
 			}
+
+			// We dont know the columns but we have at
+			// least one row. Set the columns from this
+			// row.
+			if len(result.Columns) == 0 && len(rows) > 0 {
+				result.Columns = scope.GetMembers(rows[0])
+			}
+
+			result_chan <- result
 
 			rows = []Row{}
 			part += 1
@@ -52,10 +62,6 @@ func GetResponseChannel(
 				ship_payload()
 			}
 
-			if len(*columns) == 0 {
-				members := scope.GetMembers(row)
-				columns = &members
-			}
 			if len(*columns) == 0 {
 				rows = append(rows, row)
 

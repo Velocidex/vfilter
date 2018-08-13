@@ -205,6 +205,7 @@ func NewScope() *Scope {
 		_DictAssociative{},
 		_SubstringRegex{},
 		_StoredQueryAssociative{}, _StoredQueryBool{},
+		_ScopeAssociative{},
 	)
 
 	// Built in functions.
@@ -235,4 +236,46 @@ func (self *Scope) Resolve(field string) (interface{}, bool) {
 	}
 
 	return nil, false
+}
+
+// Scope Associative
+type _ScopeAssociative struct{}
+
+func (self _ScopeAssociative) Applicable(a Any, b Any) bool {
+	_, a_ok := a.(*Scope)
+	_, b_ok := b.(string)
+	return a_ok && b_ok
+}
+
+func (self _ScopeAssociative) GetMembers(
+	scope *Scope, a Any) []string {
+	seen := make(map[string]bool)
+	var result []string
+	a_scope, ok := a.(Scope)
+	if ok {
+		for _, vars := range scope.vars {
+			for _, member := range a_scope.GetMembers(vars) {
+				seen[member] = true
+			}
+		}
+
+		for k, _ := range seen {
+			result = append(result, k)
+		}
+	}
+	return result
+}
+
+func (self _ScopeAssociative) Associative(
+	scope *Scope, a Any, b Any) (Any, bool) {
+	b_str, ok := b.(string)
+	if !ok {
+		return nil, false
+	}
+
+	a_scope, ok := a.(*Scope)
+	if !ok {
+		return nil, false
+	}
+	return a_scope.Resolve(b_str)
 }
