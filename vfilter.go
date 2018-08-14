@@ -132,18 +132,24 @@ import (
 	"context"
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
+	errors "github.com/pkg/errors"
 	"reflect"
 	"strconv"
 	"strings"
 )
 
 var (
-	sqlLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(`(\s+)`+
-		`|(?P<Keyword>(?i)LET |SELECT |FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS |NOT |ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN )`+
-		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)`+
-		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
-		`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")`+
-		`|(?P<Operators><>|!=|<=|>=|=~|[-+*/%,.()=<>{}\[\]])`,
+	sqlLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(
+		`(?ms)`+
+			`(\s+)`+
+			`|(^/[*].*?[*]/$)`+ // C Style comment.
+			`|(^--.*?$)`+ // SQL style one line comment.
+			`|(^//.*?$)`+ // C++ style one line comment.
+			`|(?P<Keyword>(?i)LET |SELECT |FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS |NOT |ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN )`+
+			`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)`+
+			`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
+			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")`+
+			`|(?P<Operators><>|!=|<=|>=|=~|[-+*/%,.()=<>{}\[\]])`,
 	)), "Keyword"), "String")
 	sqlParser = participle.MustBuild(&VQL{}, sqlLexer)
 )
@@ -153,13 +159,31 @@ var (
 func Parse(expression string) (*VQL, error) {
 	sql := &VQL{}
 	err := sqlParser.ParseString(expression, sql)
-	return sql, err
+	switch t := err.(type) {
+	case *lexer.Error:
+		end := t.Pos.Offset + 10
+		if end >= len(expression) {
+			end = len(expression) - 1
+		}
+		start := t.Pos.Offset - 10
+		if start < 0 {
+			start = 0
+		}
+
+		return sql, errors.Wrap(
+			err,
+			expression[start:t.Pos.Offset]+"|"+
+				expression[t.Pos.Offset:end])
+	default:
+		return sql, err
+	}
 }
 
 // An opaque object representing the VQL expression.
 type VQL struct {
-	Let   string   `[ "LET " @Ident "=" ]`
-	Query *_Select ` @@ `
+	Let         string   `{ "LET " @Ident `
+	LetOperator string   ` ( @"=" | @"<=" ) }`
+	Query       *_Select ` @@ `
 }
 
 // Evaluate the expression. Returns a channel which emits a series of
@@ -169,8 +193,14 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	// query and assign to the scope.
 	if len(self.Let) > 0 {
 		output_chan := make(chan Row)
-		stored_query := NewStoredQuery(self.Query, scope)
-		scope.AppendVars(NewDict().Set(self.Let, stored_query))
+		switch self.LetOperator {
+		case "=":
+			stored_query := NewStoredQuery(self.Query)
+			scope.AppendVars(NewDict().Set(self.Let, stored_query))
+		case "<=":
+			scope.AppendVars(NewDict().Set(self.Let, Materialize(
+				scope, self.Query)))
+		}
 		close(output_chan)
 		return output_chan
 
@@ -661,7 +691,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				// the output.
 				stored_query, ok := variable.(StoredQuery)
 				if ok {
-					from_chan := stored_query.Eval(ctx)
+					from_chan := stored_query.Eval(ctx, scope)
 					for {
 						row, ok := <-from_chan
 						if !ok {
@@ -704,18 +734,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				args.Set(arg.Left, value)
 
 			} else if arg.SubSelect != nil {
-				var value []Any
-				for item := range arg.SubSelect.Eval(ctx, scope) {
-					members := scope.GetMembers(item)
-					if len(members) == 1 {
-						if member, ok := scope.Associative(item, members[0]); ok {
-							value = append(value, member)
-						}
-					} else {
-						value = append(value, item)
-					}
-				}
-				args.Set(arg.Left, value)
+				args.Set(arg.Left, arg.SubSelect)
 			}
 		}
 
@@ -760,7 +779,7 @@ func (self *_Plugin) Columns(scope *Scope) *[]string {
 			// the Columns() method to it.
 			stored_query, ok := value.(StoredQuery)
 			if ok {
-				return stored_query.Columns()
+				return stored_query.Columns(scope)
 			}
 
 			for _, item := range scope.GetMembers(value) {
@@ -1271,11 +1290,7 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 				args.Set(arg.Left, value)
 
 			} else if arg.SubSelect != nil {
-				var value []Any
-				for item := range arg.SubSelect.Eval(ctx, scope) {
-					value = append(value, item)
-				}
-				args.Set(arg.Left, value)
+				args.Set(arg.Left, arg.SubSelect)
 			}
 		}
 
@@ -1289,6 +1304,7 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 
 		} else {
 			scope.Log("Symbol %v not found", self.Symbol)
+			scope.PrintVars()
 			output_chan <- Null{}
 		}
 	}()

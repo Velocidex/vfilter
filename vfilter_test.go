@@ -112,12 +112,6 @@ var execTests = []execTest{
 		Set("foo", 1.0).
 		Set("bar", []Any{2.0, 3.0})},
 
-	// Sub select as parameter.
-	{"dict(foo=1, bar={select * from range()} )", NewDict().
-		Set("foo", 1.0).
-		Set("bar", []Any{1, 2, 3, 4}),
-	},
-
 	// Associative
 	// Relies on pre-populating the scope with a Dict.
 	{"foo.bar.baz, foo.bar2", []float64{5, 7}},
@@ -194,7 +188,7 @@ func TestEvalWhereClause(t *testing.T) {
 			return
 		}
 		if !scope.Eq(value, test.result) {
-			Debug(vql)
+			Debug(test.clause)
 			t.Fatalf("%v: Expected %v, got %v", test.clause, test.result, value)
 		}
 	}

@@ -2,7 +2,6 @@ package vfilter
 
 import (
 	"context"
-	"reflect"
 )
 
 type PluginGeneratorInterface interface {
@@ -133,33 +132,12 @@ func (self _IfPlugin) Call(
 		return output_chan
 	}
 
-	if !scope.Bool(condition) {
-		close(output_chan)
-		return output_chan
-	}
+	// else_query is optional.
+	else_query, _ := ExtractStoredQuery(scope, "else", args)
 
-	query, pres := args.Get("query")
+	query, pres := ExtractStoredQuery(scope, "query", args)
 	if !pres {
 		scope.Log("Expecting 'query' parameter")
-		close(output_chan)
-		return output_chan
-	}
-
-	stored_query, ok := query.(StoredQuery)
-	if !ok {
-		// If it is a slice of rows we just copy it to the output.
-		slice := reflect.ValueOf(query)
-		if slice.Type().Kind() == reflect.Slice {
-			go func() {
-				defer close(output_chan)
-				for i := 0; i < slice.Len(); i++ {
-					item := slice.Index(i).Interface()
-					output_chan <- item
-				}
-			}()
-			return output_chan
-		}
-		scope.Log("Expecting Query type in 'query' parameter")
 		close(output_chan)
 		return output_chan
 	}
@@ -167,7 +145,15 @@ func (self _IfPlugin) Call(
 	go func() {
 		defer close(output_chan)
 
-		from_chan := stored_query.Eval(ctx)
+		var from_chan <-chan Row
+		if scope.Bool(condition) {
+			from_chan = query.Eval(ctx, scope)
+		} else if else_query != nil {
+			from_chan = else_query.Eval(ctx, scope)
+		} else {
+			return
+		}
+
 		for {
 			item, ok := <-from_chan
 			if !ok {
@@ -204,16 +190,10 @@ func _MakeQueryPlugin() GenericListPlugin {
 	plugin.Function = func(scope *Scope, args *Dict) []Row {
 		var result []Row
 		// Extract the glob from the args.
-		hits, ok := args.Get("vql")
+		hits, ok := ExtractStoredQuery(scope, "vql", args)
 		if ok {
-			switch t := hits.(type) {
-			case []Any:
-				for _, item := range t {
-					plugin.RowType = item
-					result = append(result, item)
-				}
-			default:
-				return result
+			for _, item := range Materialize(scope, hits) {
+				result = append(result, item)
 			}
 		}
 		return result

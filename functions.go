@@ -56,8 +56,8 @@ func (self _SubSelectFunction) Name() string {
 }
 
 func (self _SubSelectFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any {
-	if value, pres := args.Get("vql"); pres {
-		return value
+	if value, pres := ExtractStoredQuery(scope, "vql", args); pres {
+		return Materialize(scope, value)
 	} else {
 		Debug("Query function must take arg: 'vql'")
 	}

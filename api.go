@@ -81,6 +81,9 @@ func GetResponseChannel(
 						case []byte:
 							cell = string(t)
 
+						case StoredQuery:
+							cell = Materialize(scope, t)
+
 						default:
 							// Pass directly to
 							// Json Marshal
@@ -125,6 +128,9 @@ func OutputJSON(vql *VQL, ctx context.Context, scope *Scope) ([]byte, error) {
 
 					case []byte:
 						cell = string(t)
+
+					case StoredQuery:
+						cell = Materialize(scope, t)
 
 					default:
 						// Pass directly to

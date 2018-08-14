@@ -67,3 +67,20 @@ func ExtractStringArray(scope *Scope, name string, args *Dict) ([]string, bool) 
 
 	return nil, false
 }
+
+func ExtractStoredQuery(scope *Scope, name string, args *Dict) (
+	StoredQuery, bool) {
+	arg, ok := (*args).Get(name)
+	if !ok {
+		return nil, false
+	}
+
+	// Its already a stored query, just return it.
+	stored_query_arg, ok := arg.(StoredQuery)
+	if ok {
+		return stored_query_arg, true
+	}
+
+	// Wrap in a stored query to return that.
+	return &StoredQueryWrapper{arg}, true
+}

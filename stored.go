@@ -22,39 +22,38 @@ package vfilter
 
 import (
 	"context"
+	"reflect"
 )
 
 // A plugin like object which takes no arguments but may be inserted
 // into the scope to select from it.
 type StoredQuery interface {
-	Eval(ctx context.Context) <-chan Row
-	Columns() *[]string
+	Eval(ctx context.Context, scope *Scope) <-chan Row
+	Columns(scope *Scope) *[]string
 }
 
 type _StoredQuery struct {
 	// Capture the scope at the point of definition. We will use
 	// this scope when we run the query.
-	scope *Scope
 	query *_Select
 }
 
-func NewStoredQuery(query *_Select, scope *Scope) *_StoredQuery {
+func NewStoredQuery(query *_Select) *_StoredQuery {
 	return &_StoredQuery{
 		query: query,
-		scope: scope.Copy(),
 	}
 }
 
-func (self *_StoredQuery) Eval(ctx context.Context) <-chan Row {
-	return self.query.Eval(ctx, self.scope)
+func (self *_StoredQuery) Eval(ctx context.Context, scope *Scope) <-chan Row {
+	return self.query.Eval(ctx, scope)
 }
 
-func (self *_StoredQuery) Columns() *[]string {
+func (self *_StoredQuery) Columns(scope *Scope) *[]string {
 	if self.query.SelectExpression.All {
-		return self.query.From.Plugin.Columns(self.scope)
+		return self.query.From.Plugin.Columns(scope)
 	}
 
-	return self.query.SelectExpression.Columns(self.scope)
+	return self.query.SelectExpression.Columns(scope)
 }
 
 type _StoredQueryAssociative struct{}
@@ -70,7 +69,7 @@ func (self _StoredQueryAssociative) Associative(
 	stored_query, ok := a.(StoredQuery)
 	if ok {
 		ctx := context.Background()
-		from_chan := stored_query.Eval(ctx)
+		from_chan := stored_query.Eval(ctx, scope)
 		for {
 			row, ok := <-from_chan
 			if !ok {
@@ -97,7 +96,7 @@ func (self _StoredQueryBool) Bool(scope *Scope, a Any) bool {
 	if ok {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		from_chan := stored_query.Eval(ctx)
+		from_chan := stored_query.Eval(ctx, scope)
 		for {
 			// As soon as a single result is returned we
 			// can cancel the query.
@@ -116,4 +115,57 @@ func (self _StoredQueryBool) Bool(scope *Scope, a Any) bool {
 func (self _StoredQueryBool) Applicable(a Any) bool {
 	_, a_ok := a.(StoredQuery)
 	return a_ok
+}
+
+type _StoredQueryAdd struct{}
+
+func (self _StoredQueryAdd) Applicable(a Any, b Any) bool {
+	_, a_ok := a.(StoredQuery)
+	_, b_ok := b.(StoredQuery)
+	return a_ok && b_ok
+}
+
+func (self _StoredQueryAdd) Add(scope *Scope, a Any, b Any) Any {
+	return append(Materialize(scope, a.(StoredQuery)),
+		Materialize(scope, b.(StoredQuery))...)
+}
+
+// Wraps any object (e.g. a slice) into a StoredQuery object.
+type StoredQueryWrapper struct {
+	delegate Any
+}
+
+func (self *StoredQueryWrapper) Eval(ctx context.Context, scope *Scope) <-chan Row {
+	output_chan := make(chan Row)
+
+	go func() {
+		defer close(output_chan)
+
+		slice := reflect.ValueOf(self.delegate)
+		if slice.Type().Kind() == reflect.Slice {
+			for i := 0; i < slice.Len(); i++ {
+				value := slice.Index(i).Interface()
+				output_chan <- value
+			}
+		} else {
+			output_chan <- self.delegate
+		}
+	}()
+	return output_chan
+}
+
+func (self *StoredQueryWrapper) Columns(scope *Scope) *[]string {
+	return &[]string{}
+}
+
+func Materialize(scope *Scope, stored_query StoredQuery) []Row {
+	result := []Row{}
+
+	// Materialize both queries to an array.
+	ctx := context.Background()
+	for item := range stored_query.Eval(ctx, scope) {
+		result = append(result, item)
+	}
+
+	return result
 }

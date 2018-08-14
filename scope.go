@@ -40,6 +40,10 @@ type Scope struct {
 	Logger *log.Logger
 }
 
+func (self *Scope) PrintVars() {
+	Debug(self.vars)
+}
+
 // Tests two values for equality.
 func (self *Scope) Eq(a Any, b Any) bool {
 	return self.eq.Eq(self, a, b)
@@ -198,6 +202,7 @@ func NewScope() *Scope {
 		_NumericLt{},
 		_StringEq{}, _NumericEq{}, _ArrayEq{}, _DictEq{},
 		_AddStrings{}, _AddFloats{}, _AddSlices{}, _AddSliceAny{},
+		_StoredQueryAdd{},
 		_SubFloats{},
 		_SubstringMembership{},
 		_NumericMul{},
@@ -218,6 +223,13 @@ func NewScope() *Scope {
 
 	result.AppendPlugins(
 		_MakeQueryPlugin(), _IfPlugin{},
+		_ForeachPluginImpl{},
+		&GenericListPlugin{
+			PluginName: "scope",
+			Function: func(scope *Scope, args *Dict) []Row {
+				return []Row{scope}
+			},
+		},
 	)
 
 	return &result
