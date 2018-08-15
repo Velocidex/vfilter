@@ -125,3 +125,13 @@ func (self _NullEqProtocol) Eq(scope *Scope, a Any, b Any) bool {
 	}
 	return false
 }
+
+func InString(hay *[]string, needle string) bool {
+	for _, x := range *hay {
+		if x == needle {
+			return true
+		}
+	}
+
+	return false
+}

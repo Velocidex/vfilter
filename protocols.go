@@ -163,6 +163,33 @@ func to_float(x Any) (float64, bool) {
 	}
 }
 
+func to_int64(x Any) (int64, bool) {
+	switch t := x.(type) {
+	case bool:
+		if t {
+			return 1, true
+		} else {
+			return 0, true
+		}
+	case int64:
+		return t, true
+	case int:
+		return int64(t), true
+	case uint32:
+		return int64(t), true
+	case int32:
+		return int64(t), true
+	case uint64:
+		return int64(t), true
+
+	case float64:
+		return int64(t), true
+
+	default:
+		return 0, false
+	}
+}
+
 func (self _NumericEq) Applicable(a Any, b Any) bool {
 	_, a_ok := to_float(a)
 	_, b_ok := to_float(b)
