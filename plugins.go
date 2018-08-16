@@ -93,9 +93,9 @@ func (self SubSelectFunction) Call(
 
 	// Make a local copy of the scope with the args added as local
 	// variables. This allows the query to refer to args.
-	new_scope := *scope
+	new_scope := scope.Copy()
 	new_scope.AppendVars(args)
-	in_chan := self.SubSelect.Eval(ctx, &new_scope)
+	in_chan := self.SubSelect.Eval(ctx, new_scope)
 	output_chan := make(chan Row)
 
 	go func() {

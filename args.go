@@ -81,23 +81,45 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 				"Field %s is unsettable.", field_name))
 		}
 
+		if field_types_value.Type.String() == "vfilter.Any" {
+			new_value, pres := args.Get(field_name)
+			if !pres {
+				if InString(&directives, "required") {
+					return errors.New(fmt.Sprintf(
+						"Field %s is required.",
+						field_types_value.Name))
+				}
+			} else {
+				field_value.Set(reflect.ValueOf(new_value))
+			}
+			continue
+		}
+
 		// It is a slice.
 		switch field_types_value.Type.Kind() {
 
 		case reflect.Slice:
 			new_value, pres := ExtractStringArray(scope, field_name, args)
-			if !pres && InString(&directives, "required") {
-				return errors.New(fmt.Sprintf(
-					"Field %s is a required string array.",
-					field_types_value.Name))
+			if !pres {
+				if InString(&directives, "required") {
+					return errors.New(fmt.Sprintf(
+						"Field %s is a required string array.",
+						field_types_value.Name))
+				}
+			} else {
+				field_value.Set(reflect.ValueOf(new_value))
 			}
-			field_value.Set(reflect.ValueOf(new_value))
+
 		case reflect.String:
-			a, ok := arg.(string)
-			if !ok {
-				a = fmt.Sprintf("%v", arg)
+			switch t := arg.(type) {
+			case string:
+				field_value.Set(reflect.ValueOf(t))
+			case Null, *Null:
+				continue
+			default:
+				field_value.Set(reflect.ValueOf(
+					fmt.Sprintf("%v", arg)))
 			}
-			field_value.Set(reflect.ValueOf(a))
 
 		case reflect.Bool:
 			a, ok := arg.(bool)

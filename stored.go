@@ -45,7 +45,8 @@ func NewStoredQuery(query *_Select) *_StoredQuery {
 }
 
 func (self *_StoredQuery) Eval(ctx context.Context, scope *Scope) <-chan Row {
-	return self.query.Eval(ctx, scope)
+	new_scope := scope.Copy()
+	return self.query.Eval(ctx, new_scope)
 }
 
 func (self *_StoredQuery) Columns(scope *Scope) *[]string {
@@ -69,7 +70,8 @@ func (self _StoredQueryAssociative) Associative(
 	stored_query, ok := a.(StoredQuery)
 	if ok {
 		ctx := context.Background()
-		from_chan := stored_query.Eval(ctx, scope)
+		new_scope := scope.Copy()
+		from_chan := stored_query.Eval(ctx, new_scope)
 		for {
 			row, ok := <-from_chan
 			if !ok {
@@ -96,7 +98,8 @@ func (self _StoredQueryBool) Bool(scope *Scope, a Any) bool {
 	if ok {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		from_chan := stored_query.Eval(ctx, scope)
+		new_scope := scope.Copy()
+		from_chan := stored_query.Eval(ctx, new_scope)
 		for {
 			// As soon as a single result is returned we
 			// can cancel the query.
@@ -163,7 +166,8 @@ func Materialize(scope *Scope, stored_query StoredQuery) []Row {
 
 	// Materialize both queries to an array.
 	ctx := context.Background()
-	for item := range stored_query.Eval(ctx, scope) {
+	new_scope := scope.Copy()
+	for item := range stored_query.Eval(ctx, new_scope) {
 		result = append(result, item)
 	}
 

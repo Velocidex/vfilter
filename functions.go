@@ -82,5 +82,69 @@ func (self _SplitFunction) Call(ctx context.Context, scope *Scope, args *Dict) A
 		return strings.Split(*str, seperator)
 	}
 
-	return &Null{}
+	return Null{}
+}
+
+type _IfFunctionArgs struct {
+	Condition Any `vfilter:"required,field=condition"`
+	Then      Any `vfilter:"required,field=then"`
+	Else      Any `vfilter:"optional,field=else"`
+}
+
+type _IfFunction struct{}
+
+func (self _IfFunction) Name() string {
+	return "if"
+}
+
+func (self _IfFunction) Call(
+	ctx context.Context,
+	scope *Scope,
+	args *Dict) Any {
+	arg := &_IfFunctionArgs{}
+	err := ExtractArgs(scope, args, arg)
+	if err != nil {
+		scope.Log("%s: %s", self.Name(), err.Error())
+		return Null{}
+	}
+
+	if scope.Bool(arg.Condition) {
+		return arg.Then
+	} else {
+		if arg.Else != nil {
+			return arg.Else
+		}
+		return Null{}
+	}
+}
+
+type _GetFunctionArgs struct {
+	Item   Any    `vfilter:"required,field=item"`
+	Member string `vfilter:"required,field=member"`
+}
+
+type _GetFunction struct{}
+
+func (self _GetFunction) Name() string {
+	return "get"
+}
+
+func (self _GetFunction) Call(
+	ctx context.Context,
+	scope *Scope,
+	args *Dict) Any {
+	arg := &_GetFunctionArgs{}
+	err := ExtractArgs(scope, args, arg)
+	if err != nil {
+		scope.Log("%s: %s", self.Name(), err.Error())
+		return Null{}
+	}
+
+	if arg.Member != "" {
+		result, pres := scope.Associative(arg.Item, arg.Member)
+		if pres {
+			return result
+		}
+	}
+	return Null{}
 }

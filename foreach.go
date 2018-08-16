@@ -51,6 +51,7 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 			}
 		}
 	}()
+
 	return output_chan
 }
 

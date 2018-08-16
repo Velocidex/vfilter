@@ -170,10 +170,14 @@ func Parse(expression string) (*VQL, error) {
 			start = 0
 		}
 
+		pos := t.Pos.Offset
+		if pos >= len(expression) {
+			pos = len(expression) - 1
+		}
+
 		return sql, errors.Wrap(
 			err,
-			expression[start:t.Pos.Offset]+"|"+
-				expression[t.Pos.Offset:end])
+			expression[start:pos]+"|"+expression[pos:end])
 	default:
 		return sql, err
 	}
@@ -302,7 +306,7 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					// If there is a filter clause, we
 					// need to filter the row using a new
 					// scope.
-					new_scope := *scope
+					new_scope := scope.Copy()
 
 					// Filters can access both the
 					// untransformed row and the
@@ -315,7 +319,7 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					new_scope.AppendVars(row)
 					new_scope.AppendVars(transformed_row)
 
-					expression_chan := self.Where.Reduce(ctx, &new_scope)
+					expression_chan := self.Where.Reduce(ctx, new_scope)
 					expression, ok := <-expression_chan
 
 					// If the filtered expression returns
@@ -560,11 +564,11 @@ func (self _SelectExpression) Filter(
 			// expression to a string using its ToString()
 			// method.
 			new_row := NewDict()
-			new_scope := *scope
+			new_scope := scope.Copy()
 			new_scope.AppendVars(row)
 
 			for _, expr := range self.Expressions {
-				expression_chan := expr.Reduce(ctx, &new_scope)
+				expression_chan := expr.Reduce(ctx, new_scope)
 				expression, ok := <-expression_chan
 
 				// If we fail to read we still need to

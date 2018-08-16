@@ -219,6 +219,8 @@ func NewScope() *Scope {
 		_Timestamp{},
 		_SubSelectFunction{},
 		_SplitFunction{},
+		_IfFunction{},
+		_GetFunction{},
 		_SleepPlugin{})
 
 	result.AppendPlugins(
