@@ -762,12 +762,12 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 func (self *_Plugin) Columns(scope *Scope) *[]string {
 	var result []string
-	type_map := make(TypeMap)
-
 	// If the plugin is a callable then get the scope to list its columns.
 	if self.Call {
-		if plugin_info, pres := scope.Info(&type_map, self.Name); pres {
-			if type_ref, pres := type_map[plugin_info.RowType]; pres {
+		type_map := NewTypeMap()
+		if plugin_info, pres := scope.Info(type_map, self.Name); pres {
+			type_ref, pres := type_map.Get(plugin_info.RowType)
+			if pres {
 				for k, _ := range type_ref.Fields {
 					result = append(result, k)
 				}

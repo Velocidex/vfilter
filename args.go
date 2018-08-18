@@ -114,7 +114,7 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 			switch t := arg.(type) {
 			case string:
 				field_value.Set(reflect.ValueOf(t))
-			case Null, *Null:
+			case Null, *Null, nil:
 				continue
 			default:
 				field_value.Set(reflect.ValueOf(

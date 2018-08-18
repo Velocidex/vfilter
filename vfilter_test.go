@@ -131,8 +131,10 @@ func (self TestFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any
 	return self.return_value
 }
 
-func (self TestFunction) Name() string {
-	return "func_foo"
+func (self TestFunction) Info(type_map *TypeMap) *FunctionInfo {
+	return &FunctionInfo{
+		Name: "func_foo",
+	}
 }
 
 func makeScope() *Scope {
@@ -241,12 +243,10 @@ func (self _RepeaterPlugin) Call(
 	return output_chan
 }
 
-func (self _RepeaterPlugin) Name() string {
-	return "repeater"
-}
-
 func (self _RepeaterPlugin) Info(type_map *TypeMap) *PluginInfo {
-	return &PluginInfo{}
+	return &PluginInfo{
+		Name: "repeater",
+	}
 }
 
 func TestSubselectDefinition(t *testing.T) {
@@ -340,15 +340,6 @@ var vqlTests = []vqlTest{
                         query(vql={select * from dict(column=bar)}) as Query
                  from test() where 1 in Query.column`},
 
-	// This variant of the query is more efficient than above
-	// because the test() plugin is filtered completely _before_
-	// the Query column is constructed. Therefore the Query query
-	// will only be run on those rows where bar=2.
-	{"Subselect with the query plugin",
-		`select bar,
-                        query(vql={select * from dict(column=bar)}) as Query
-                 from query(vql={select * from test() where bar = 2})`},
-
 	{"Subselect in columns",
 		`select bar, { select column from dict(column=bar) } AS subquery from test()
                         `},
@@ -388,8 +379,8 @@ func makeTestScope() *Scope {
 				return result
 			},
 		}, GenericListPlugin{
-			PluginName:  "dict",
-			Description: "Just echo back the args as a dict.",
+			PluginName: "dict",
+			Doc:        "Just echo back the args as a dict.",
 			Function: func(scope *Scope, args *Dict) []Row {
 				return []Row{args}
 			},

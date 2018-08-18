@@ -6,13 +6,18 @@ We use reflection to explain all VQL extensions.
 */
 import (
 	"reflect"
+	"regexp"
 	"strings"
+)
+
+var (
+	field_regex = regexp.MustCompile("field=([a-zA-Z0-9_]+)")
 )
 
 // Populated with information about the scope.
 type ScopeInformation struct {
-	plugins   []PluginInfo
-	functions []FunctionInfo
+	Plugins   []*PluginInfo
+	Functions []*FunctionInfo
 }
 
 // Describes the specific plugin.
@@ -23,13 +28,21 @@ type PluginInfo struct {
 	// A helpful description about the plugin.
 	Doc string
 
-	// The type we return for each row. This is a reference into
-	// the relevant type_map.
+	ArgType string
+
+	// A hint about the type we return for each row. This is a
+	// reference into the relevant type_map. It may be an empty
+	// string if the plugin has no idea what type it will produce
+	// for example if it relays output from other plugins.
 	RowType string
 }
 
 // Describe functions.
-type FunctionInfo struct{}
+type FunctionInfo struct {
+	Name    string
+	Doc     string
+	ArgType string
+}
 
 // Describe a type. This is meant for human consumption so it does not
 // need to be so accurate. Fields is a map between the Associative
@@ -45,32 +58,51 @@ type TypeDescription struct {
 type TypeReference struct {
 	Target   string
 	Repeated bool
+	Tag      string
 }
 
 // Map between type name and its description.
-type TypeMap map[string]*TypeDescription
+type TypeMap struct {
+	desc map[string]*TypeDescription
+}
+
+func NewTypeMap() *TypeMap {
+	return &TypeMap{
+		desc: make(map[string]*TypeDescription),
+	}
+}
 
 func canonicalTypeName(a_type reflect.Type) string {
 	return strings.TrimLeft(a_type.String(), "*[]")
 }
 
+func (self *TypeMap) Get(name string) (*TypeDescription, bool) {
+	res, pres := self.desc[name]
+	return res, pres
+}
+
 // Introspect the type of the parameter. Add type descriptor to the
 // type map and return the type name.
 func (self *TypeMap) AddType(a Any) string {
-	a_type := reflect.TypeOf(a)
+	v := reflect.ValueOf(a)
+	if v.Type().Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	a_type := v.Type()
 	self.addType(a_type)
 
 	return canonicalTypeName(a_type)
 }
 
 func (self *TypeMap) addType(a_type reflect.Type) {
-	if _, pres := (*self)[canonicalTypeName(a_type)]; pres {
+	if _, pres := self.desc[canonicalTypeName(a_type)]; pres {
 		return
 	}
 	result := TypeDescription{
 		Fields: make(map[string]*TypeReference),
 	}
-	(*self)[canonicalTypeName(a_type)] = &result
+	self.desc[canonicalTypeName(a_type)] = &result
 
 	self.addFields(a_type, &result)
 	self.addMethods(a_type, &result)
@@ -98,9 +130,31 @@ func (self *TypeMap) addFields(a_type reflect.Type, desc *TypeDescription) {
 		return_type := field_value.Type
 		return_type_descriptor := TypeReference{
 			Target: canonicalTypeName(return_type),
+			Tag:    field_value.Tag.Get("vfilter"),
 		}
 
-		desc.Fields[field_value.Name] = &return_type_descriptor
+		switch return_type.Kind() {
+		case reflect.Array, reflect.Slice:
+			element := return_type.Elem()
+			self.addType(element)
+			return_type_descriptor.Target = canonicalTypeName(
+				return_type.Elem())
+			return_type_descriptor.Repeated = true
+
+		case reflect.Map, reflect.Ptr:
+			element := return_type.Elem()
+			self.addType(element)
+			return_type_descriptor.Target = canonicalTypeName(
+				return_type.Elem())
+		}
+
+		name := field_value.Name
+		m := field_regex.FindStringSubmatch(return_type_descriptor.Tag)
+		if len(m) > 1 {
+			name = m[1]
+		}
+
+		desc.Fields[name] = &return_type_descriptor
 	}
 }
 

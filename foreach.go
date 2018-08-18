@@ -4,6 +4,11 @@ import (
 	"context"
 )
 
+type _ForeachPluginImplArgs struct {
+	Row   StoredQuery `vfilter:"required,field=row"`
+	Query StoredQuery `vfilter:"required,field=query"`
+}
+
 type _ForeachPluginImpl struct{}
 
 func (self _ForeachPluginImpl) Call(ctx context.Context,
@@ -41,7 +46,8 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 			// "row" query.
 			child_scope := scope.Copy()
 			child_scope.AppendVars(row_item)
-			query_chan := stored_query.Eval(ctx, child_scope)
+			child_ctx, cancel := context.WithCancel(ctx)
+			query_chan := stored_query.Eval(child_ctx, child_scope)
 			for {
 				query_chan_item, ok := <-query_chan
 				if !ok {
@@ -49,6 +55,12 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 				}
 				output_chan <- query_chan_item
 			}
+			// Cancel the context when the child query is
+			// done. This will force any cleanup functions
+			// used by the child query to be run now
+			// instead of waiting for our parent query to
+			// complete.
+			cancel()
 		}
 	}()
 
@@ -63,6 +75,8 @@ func (self _ForeachPluginImpl) Info(type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
 		Name: "foreach",
 		Doc:  "Executes 'query' once for each row in the 'row' query.",
+
+		ArgType: type_map.AddType(&_ForeachPluginImplArgs{}),
 
 		// Our type is not known - it depends on the
 		// delegate's type.

@@ -153,17 +153,7 @@
    "bar": 1
   }
  ],
- "016 Subselect with the query plugin: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM query(vql= { SELECT * FROM test() WHERE bar = 2})": [
-  {
-   "Query": [
-    {
-     "column": 2
-    }
-   ],
-   "bar": 2
-  }
- ],
- "017 Subselect in columns: SELECT bar, { SELECT column FROM dict(column=bar) } FROM test()": [
+ "016 Subselect in columns: SELECT bar, { SELECT column FROM dict(column=bar) } FROM test()": [
   {
    "bar": 0,
    "subquery": [
@@ -183,8 +173,8 @@
    ]
   }
  ],
- "018 Create Let expression: LET result = SELECT * FROM test()": [],
- "019 Refer to Let expression: SELECT * FROM result": [
+ "017 Create Let expression: LET result = SELECT * FROM test()": [],
+ "018 Refer to Let expression: SELECT * FROM result": [
   {
    "bar": 0,
    "foo": 0
@@ -198,10 +188,10 @@
    "foo": 4
   }
  ],
- "020 Refer to non existent Let expression: SELECT * FROM no_such_result": [
+ "019 Refer to non existent Let expression: SELECT * FROM no_such_result": [
   null
  ],
- "021 Refer to non existent Let expression by column: SELECT foobar FROM no_such_result": [
+ "020 Refer to non existent Let expression by column: SELECT foobar FROM no_such_result": [
   {
    "foobar": null
   }

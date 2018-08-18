@@ -56,12 +56,10 @@ func (self TestGeneratorPlugin) Call(
 	return output_chan
 }
 
-func (self TestGeneratorPlugin) Name() string {
-	return "test_plugin"
-}
-
 func (self TestGeneratorPlugin) Info(type_map *TypeMap) *PluginInfo {
-	return &PluginInfo{}
+	return &PluginInfo{
+		Name: "test_plugin",
+	}
 }
 
 func TestPlugins(t *testing.T) {

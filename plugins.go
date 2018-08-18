@@ -6,7 +6,6 @@ import (
 
 type PluginGeneratorInterface interface {
 	Call(ctx context.Context, scope *Scope, args *Dict) <-chan Row
-	Name() string
 	Info(type_map *TypeMap) *PluginInfo
 }
 
@@ -26,9 +25,9 @@ type FunctionPlugin func(scope *Scope, args *Dict) []Row
 //   }
 // })
 type GenericListPlugin struct {
-	PluginName  string
-	Description string
-	Function    FunctionPlugin
+	PluginName string
+	Doc        string
+	Function   FunctionPlugin
 
 	// An exemplar instance of the type returned by this
 	// plugin. All rows must be the same type. If this is nil, we
@@ -39,6 +38,8 @@ type GenericListPlugin struct {
 	// documentation. Therefore, dynamic plugins do not contain
 	// documentation of their returned columns.
 	RowType Any
+
+	ArgType Any
 }
 
 func (self GenericListPlugin) Call(
@@ -65,11 +66,15 @@ func (self GenericListPlugin) Name() string {
 func (self GenericListPlugin) Info(type_map *TypeMap) *PluginInfo {
 	result := &PluginInfo{
 		Name: self.PluginName,
-		Doc:  self.Description,
+		Doc:  self.Doc,
 	}
 
 	if self.RowType != nil {
 		result.RowType = type_map.AddType(self.RowType)
+	}
+
+	if self.ArgType != nil {
+		result.ArgType = type_map.AddType(self.ArgType)
 	}
 
 	return result
@@ -80,10 +85,6 @@ type SubSelectFunction struct {
 	Description string
 	SubSelect   *VQL
 	RowType     Any
-}
-
-func (self SubSelectFunction) Name() string {
-	return self.PluginName
 }
 
 func (self SubSelectFunction) Call(
@@ -115,6 +116,12 @@ func (self SubSelectFunction) Info(type_map *TypeMap) *PluginInfo {
 		Doc:     self.Description,
 		RowType: type_map.AddType(self.RowType),
 	}
+}
+
+type _IfPluginArg struct {
+	Condition Any         `vfilter:"required,field=condition"`
+	Query     StoredQuery `vfilter:"required,field=query"`
+	Else      StoredQuery `vfilter:"optional,field=query"`
 }
 
 type _IfPlugin struct{}
@@ -166,10 +173,6 @@ func (self _IfPlugin) Call(
 	return output_chan
 }
 
-func (self _IfPlugin) Name() string {
-	return "if"
-}
-
 func (self _IfPlugin) Info(type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
 		Name: "if",
@@ -178,26 +181,6 @@ func (self _IfPlugin) Info(type_map *TypeMap) *PluginInfo {
 		// Our type is not known - it depends on the
 		// delegate's type.
 		RowType: "",
+		ArgType: type_map.AddType(&_IfPluginArg{}),
 	}
-}
-
-func _MakeQueryPlugin() GenericListPlugin {
-	plugin := GenericListPlugin{
-		PluginName: "query",
-		RowType:    nil,
-	}
-
-	plugin.Function = func(scope *Scope, args *Dict) []Row {
-		var result []Row
-		// Extract the glob from the args.
-		hits, ok := ExtractStoredQuery(scope, "vql", args)
-		if ok {
-			for _, item := range Materialize(scope, hits) {
-				result = append(result, item)
-			}
-		}
-		return result
-	}
-
-	return plugin
 }

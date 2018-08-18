@@ -44,6 +44,19 @@ func (self *Scope) PrintVars() {
 	Debug(self.vars)
 }
 
+func (self *Scope) Describe(type_map *TypeMap) *ScopeInformation {
+	result := &ScopeInformation{}
+	for _, item := range self.plugins {
+		result.Plugins = append(result.Plugins, item.Info(type_map))
+	}
+
+	for _, func_item := range self.functions {
+		result.Functions = append(result.Functions, func_item.Info(type_map))
+	}
+
+	return result
+}
+
 // Tests two values for equality.
 func (self *Scope) Eq(a Any, b Any) bool {
 	return self.eq.Eq(self, a, b)
@@ -153,8 +166,10 @@ func (self *Scope) AppendVars(row Row) *Scope {
 // this scope can call these functions from within VQL queries.
 func (self *Scope) AppendFunctions(functions ...FunctionInterface) *Scope {
 	result := self
+	type_map := NewTypeMap()
 	for _, function := range functions {
-		result.functions[function.Name()] = function
+		info := function.Info(type_map)
+		result.functions[info.Name] = function
 	}
 
 	return result
@@ -164,8 +179,10 @@ func (self *Scope) AppendFunctions(functions ...FunctionInterface) *Scope {
 // from these newly added plugins.
 func (self *Scope) AppendPlugins(plugins ...PluginGeneratorInterface) *Scope {
 	result := self
+	type_map := NewTypeMap()
 	for _, plugin := range plugins {
-		result.plugins[plugin.Name()] = plugin
+		info := plugin.Info(type_map)
+		result.plugins[info.Name] = plugin
 	}
 
 	return result
@@ -221,10 +238,10 @@ func NewScope() *Scope {
 		_SplitFunction{},
 		_IfFunction{},
 		_GetFunction{},
-		_SleepPlugin{})
+	)
 
 	result.AppendPlugins(
-		_MakeQueryPlugin(), _IfPlugin{},
+		_IfPlugin{},
 		_ForeachPluginImpl{},
 		&GenericListPlugin{
 			PluginName: "scope",
