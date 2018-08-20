@@ -2,7 +2,9 @@ package vfilter
 
 import (
 	"context"
-	"strings"
+	"encoding/hex"
+	"fmt"
+	"regexp"
 	"time"
 )
 
@@ -83,7 +85,7 @@ type _SplitFunction struct{}
 func (self _SplitFunction) Info(type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name:    "split",
-		Doc:     "Splits a string into an array.",
+		Doc:     "Splits a string into an array based on a regexp separator.",
 		ArgType: type_map.AddType(_TimestampArg{}),
 	}
 }
@@ -95,7 +97,13 @@ func (self _SplitFunction) Call(ctx context.Context, scope *Scope, args *Dict) A
 		scope.Log("split: %s", err.Error())
 		return Null{}
 	}
-	return strings.Split(arg.String, arg.Sep)
+	re, err := regexp.Compile(arg.Sep)
+	if err != nil {
+		scope.Log("split: %s", err.Error())
+		return Null{}
+	}
+
+	return re.Split(arg.String, -1)
 }
 
 type _IfFunctionArgs struct {
@@ -166,6 +174,43 @@ func (self _GetFunction) Call(
 		if pres {
 			return result
 		}
+	}
+	return Null{}
+}
+
+type _EncodeFunctionArgs struct {
+	String string `vfilter:"required,field=string"`
+	Type   string `vfilter:"required,field=type"`
+}
+
+type _EncodeFunction struct{}
+
+func (self _EncodeFunction) Info(type_map *TypeMap) *FunctionInfo {
+	return &FunctionInfo{
+		Name:    "encode",
+		Doc:     "Encodes a string as as different type. Currently supported types include 'hex', 'base64'.",
+		ArgType: type_map.AddType(_EncodeFunctionArgs{}),
+	}
+}
+
+func (self _EncodeFunction) Call(
+	ctx context.Context,
+	scope *Scope,
+	args *Dict) Any {
+	arg := &_EncodeFunctionArgs{}
+	err := ExtractArgs(scope, args, arg)
+	if err != nil {
+		scope.Log("hex: %s", err.Error())
+		return Null{}
+	}
+
+	switch arg.Type {
+	case "hex":
+		return hex.EncodeToString([]byte(arg.String))
+	case "string":
+		return fmt.Sprintf("%s", arg.String)
+	default:
+		scope.Log("hex: encoding %s not supported.", arg.Type)
 	}
 	return Null{}
 }

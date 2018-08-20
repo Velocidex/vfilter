@@ -313,7 +313,7 @@ var vqlTests = []vqlTest{
 	{"subselects", "select param from dict(param={select * from range(start=3, end=5)})"},
 	// Add two subselects - Adding sequences makes one longer sequence.
 	{"subselects addition",
-		`select q1 + q2 as Sum from
+		`select q1.value + q2.value as Sum from
                          dict(q1={select * from range(start=3, end=5)},
                               q2={select * from range(start=10, end=14)})`},
 
@@ -345,10 +345,21 @@ var vqlTests = []vqlTest{
                         `},
 
 	{"Create Let expression", "let result = select  * from test()"},
+	{"Create Let materialized expression", "let result <= select  * from test()"},
 	{"Refer to Let expression", "select * from result"},
 	{"Refer to non existent Let expression", "select * from no_such_result"},
 	{"Refer to non existent Let expression by column",
 		"select foobar from no_such_result"},
+
+	{"Foreach plugin", `
+            select * from foreach(
+                row={
+                   select * from test()
+                }, query={
+                   select bar, foo, value from range(start=bar, end=foo)
+                })`},
+
+	{"Query plugin with dots", "Select * from Artifact.Linux.Sys()"},
 }
 
 func makeTestScope() *Scope {
@@ -374,7 +385,7 @@ func makeTestScope() *Scope {
 
 				var result []Row
 				for i := start; i <= end; i++ {
-					result = append(result, i)
+					result = append(result, NewDict().Set("value", i))
 				}
 				return result
 			},
@@ -413,6 +424,33 @@ func TestVQLQueries(t *testing.T) {
 
 	result_json, _ := json.MarshalIndent(result, "", " ")
 	goldie.Assert(t, "vql_queries", result_json)
+}
+
+// Check that ToString() methods work properly - convert an AST back
+// to VQL. Since ToString() will produce normalized VQL, we ensure
+// that re-parsing this will produce the same AST.
+func TestVQLSerializaition(t *testing.T) {
+	scope := makeScope()
+	for _, test := range vqlTests {
+		vql, err := Parse(test.vql)
+		if err != nil {
+			t.Fatalf("Failed to parse %v: %v", test.vql, err)
+		}
+
+		vql_string := vql.ToString(scope)
+
+		parsed_vql, err := Parse(vql_string)
+		if err != nil {
+			t.Fatalf("Failed to parse stringified VQL %v: %v (%v)",
+				vql_string, err, test.vql)
+		}
+
+		if !reflect.DeepEqual(parsed_vql, vql) {
+			Debug(vql)
+			t.Fatalf("Parsed generated VQL not equivalent: %v vs %v.",
+				test.vql, vql_string)
+		}
+	}
 }
 
 var columnTests = []vqlTest{

@@ -118,7 +118,7 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 				continue
 			default:
 				field_value.Set(reflect.ValueOf(
-					fmt.Sprintf("%v", arg)))
+					fmt.Sprintf("%s", arg)))
 			}
 
 		case reflect.Bool:

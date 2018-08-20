@@ -238,6 +238,7 @@ func NewScope() *Scope {
 		_SplitFunction{},
 		_IfFunction{},
 		_GetFunction{},
+		_EncodeFunction{},
 	)
 
 	result.AppendPlugins(

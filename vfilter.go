@@ -217,7 +217,12 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 func (self VQL) ToString(scope *Scope) string {
 	result := ""
 	if len(self.Let) > 0 {
-		result += "LET " + self.Let + " = "
+		operator := " = "
+		if self.LetOperator != "" {
+			operator = self.LetOperator
+		}
+
+		result += "LET " + self.Let + operator
 	}
 	result += "SELECT " + self.Query.SelectExpression.ToString(scope) +
 		" FROM " + self.Query.From.ToString(scope)
@@ -405,8 +410,11 @@ func (self *_AliasedExpression) ToString(scope *Scope) string {
 
 	} else if self.SubSelect != nil {
 		result := self.SubSelect.ToString(scope)
-		return "{ " + result + " }"
-
+		result = "{ " + result + " }"
+		if self.As != "" {
+			result += " AS " + self.As
+		}
+		return result
 	} else {
 		return ""
 	}

@@ -14,9 +14,15 @@
   }
  ],
  "001 query with ints: SELECT * FROM range(start=10, end=12)": [
-  10,
-  11,
-  12
+  {
+   "value": 10
+  },
+  {
+   "value": 11
+  },
+  {
+   "value": 12
+  }
  ],
  "002 aliases with shadowed var: SELECT env_var AS EnvVar, foo AS FooColumn FROM test()": [
   {
@@ -92,13 +98,19 @@
  "011 subselects: SELECT param FROM dict(param= { SELECT * FROM range(start=3, end=5)})": [
   {
    "param": [
-    3,
-    4,
-    5
+    {
+     "value": 3
+    },
+    {
+     "value": 4
+    },
+    {
+     "value": 5
+    }
    ]
   }
  ],
- "012 subselects addition: SELECT q1 + q2 AS Sum FROM dict(q1= { SELECT * FROM range(start=3, end=5)}, q2= { SELECT * FROM range(start=10, end=14)})": [
+ "012 subselects addition: SELECT q1.value + q2.value AS Sum FROM dict(q1= { SELECT * FROM range(start=3, end=5)}, q2= { SELECT * FROM range(start=10, end=14)})": [
   {
    "Sum": [
     3,
@@ -153,7 +165,7 @@
    "bar": 1
   }
  ],
- "016 Subselect in columns: SELECT bar, { SELECT column FROM dict(column=bar) } FROM test()": [
+ "016 Subselect in columns: SELECT bar, { SELECT column FROM dict(column=bar) } AS subquery FROM test()": [
   {
    "bar": 0,
    "subquery": [
@@ -173,8 +185,9 @@
    ]
   }
  ],
- "017 Create Let expression: LET result = SELECT * FROM test()": [],
- "018 Refer to Let expression: SELECT * FROM result": [
+ "017 Create Let expression: LET result=SELECT * FROM test()": [],
+ "018 Create Let materialized expression: LET result\u003c=SELECT * FROM test()": [],
+ "019 Refer to Let expression: SELECT * FROM result": [
   {
    "bar": 0,
    "foo": 0
@@ -188,12 +201,45 @@
    "foo": 4
   }
  ],
- "019 Refer to non existent Let expression: SELECT * FROM no_such_result": [
+ "020 Refer to non existent Let expression: SELECT * FROM no_such_result": [
   null
  ],
- "020 Refer to non existent Let expression by column: SELECT foobar FROM no_such_result": [
+ "021 Refer to non existent Let expression by column: SELECT foobar FROM no_such_result": [
   {
    "foobar": null
   }
- ]
+ ],
+ "022 Foreach plugin: SELECT * FROM foreach(row= { SELECT * FROM test()}, query= { SELECT bar, foo, value FROM range(start=bar, end=foo)})": [
+  {
+   "bar": 0,
+   "foo": 0,
+   "value": 0
+  },
+  {
+   "bar": 1,
+   "foo": 2,
+   "value": 1
+  },
+  {
+   "bar": 1,
+   "foo": 2,
+   "value": 2
+  },
+  {
+   "bar": 2,
+   "foo": 4,
+   "value": 2
+  },
+  {
+   "bar": 2,
+   "foo": 4,
+   "value": 3
+  },
+  {
+   "bar": 2,
+   "foo": 4,
+   "value": 4
+  }
+ ],
+ "023 Query plugin with dots: SELECT * FROM Artifact.Linux.Sys()": []
 }
