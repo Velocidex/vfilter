@@ -2,6 +2,7 @@ package vfilter
 
 import (
 	"context"
+	"sort"
 )
 
 type PluginGeneratorInterface interface {
@@ -183,4 +184,51 @@ func (self _IfPlugin) Info(type_map *TypeMap) *PluginInfo {
 		RowType: "",
 		ArgType: type_map.AddType(&_IfPluginArg{}),
 	}
+}
+
+type _ChainPlugin struct{}
+
+func (self _ChainPlugin) Info(type_map *TypeMap) *PluginInfo {
+	return &PluginInfo{
+		Name: "chain",
+		Doc: "Chain the output of several queries into the same table." +
+			"This plugin takes any args and chains them.",
+	}
+}
+
+func (self _ChainPlugin) Call(
+	ctx context.Context,
+	scope *Scope,
+	args *Dict) <-chan Row {
+	output_chan := make(chan Row)
+
+	queries := []StoredQuery{}
+	members := scope.GetMembers(args)
+	sort.Strings(members)
+
+	for _, member := range members {
+		query, pres := ExtractStoredQuery(scope, member, args)
+		if !pres {
+			scope.Log("Parameter " + member + " should be a query")
+			close(output_chan)
+			return output_chan
+		}
+
+		queries = append(queries, query)
+	}
+
+	go func() {
+		defer close(output_chan)
+
+		for _, query := range queries {
+			new_scope := scope.Copy()
+			in_chan := query.Eval(ctx, new_scope)
+			for item := range in_chan {
+				output_chan <- item
+			}
+		}
+	}()
+
+	return output_chan
+
 }

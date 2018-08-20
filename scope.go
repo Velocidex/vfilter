@@ -243,6 +243,7 @@ func NewScope() *Scope {
 
 	result.AppendPlugins(
 		_IfPlugin{},
+		_ChainPlugin{},
 		_ForeachPluginImpl{},
 		&GenericListPlugin{
 			PluginName: "scope",

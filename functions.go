@@ -4,7 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
+	"io/ioutil"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -209,6 +213,18 @@ func (self _EncodeFunction) Call(
 		return hex.EncodeToString([]byte(arg.String))
 	case "string":
 		return fmt.Sprintf("%s", arg.String)
+
+	// Read a UTF16 encoded string and convert it to utf8
+	case "utf16":
+		codec := unicode.UTF16(unicode.LittleEndian, unicode.UseBOM)
+		rd := strings.NewReader(arg.String)
+		decoded, err := ioutil.ReadAll(
+			transform.NewReader(
+				rd, codec.NewDecoder()))
+		if err != nil {
+			scope.Log("encoder: %s", err.Error())
+		}
+		return string(decoded)
 	default:
 		scope.Log("hex: encoding %s not supported.", arg.Type)
 	}
