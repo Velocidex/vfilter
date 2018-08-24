@@ -5,15 +5,36 @@ import (
 	"fmt"
 	"github.com/cevaris/ordered_map"
 	"reflect"
+	"strings"
 )
 
 // A concerete implementation of a row - similar to Python's OrderedDict.
 type Dict struct {
 	*ordered_map.OrderedMap
+	default_value    Any
+	case_insensitive bool
 }
 
 func NewDict() *Dict {
-	return &Dict{ordered_map.NewOrderedMap()}
+	return &Dict{ordered_map.NewOrderedMap(), nil, false}
+}
+
+func (self *Dict) MergeFrom(other *Dict) {
+	iter := other.IterFunc()
+	for kv, ok := iter(); ok; kv, ok = iter() {
+		key := kv.Key.(string)
+		self.Set(key, kv.Value)
+	}
+}
+
+func (self *Dict) SetDefault(value Any) *Dict {
+	self.default_value = value
+	return self
+}
+
+func (self *Dict) SetCaseInsensitive() *Dict {
+	self.case_insensitive = true
+	return self
 }
 
 func (self *Dict) Set(key string, value Any) *Dict {
@@ -122,6 +143,22 @@ func (self _DictAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool)
 	}
 
 	res, pres := value.Get(key)
+	if !pres {
+		if value.case_insensitive {
+			lower_case_key := strings.ToLower(key)
+			for _, member := range scope.GetMembers(value) {
+				if strings.ToLower(member) == lower_case_key {
+					value, pres := scope.Associative(value, member)
+					return value, pres
+				}
+			}
+
+		}
+
+		if value.default_value != nil {
+			return value.default_value, true
+		}
+	}
 	return res, pres
 }
 

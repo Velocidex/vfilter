@@ -183,7 +183,7 @@ func (self _GetFunction) Call(
 }
 
 type _EncodeFunctionArgs struct {
-	String string `vfilter:"required,field=string"`
+	String Any    `vfilter:"required,field=string"`
 	Type   string `vfilter:"required,field=type"`
 }
 
@@ -208,16 +208,31 @@ func (self _EncodeFunction) Call(
 		return Null{}
 	}
 
+	var arg_string string
+	switch t := arg.String.(type) {
+	case string:
+		arg_string = t
+	case []byte:
+		arg_string = string(t)
+
+	case fmt.Stringer:
+		arg_string = fmt.Sprintf("%s", t)
+
+	default:
+		arg_string = fmt.Sprintf("%v", t)
+	}
+
 	switch arg.Type {
 	case "hex":
-		return hex.EncodeToString([]byte(arg.String))
+		return hex.EncodeToString([]byte(arg_string))
+
 	case "string":
-		return fmt.Sprintf("%s", arg.String)
+		return arg_string
 
 	// Read a UTF16 encoded string and convert it to utf8
 	case "utf16":
 		codec := unicode.UTF16(unicode.LittleEndian, unicode.UseBOM)
-		rd := strings.NewReader(arg.String)
+		rd := strings.NewReader(arg_string)
 		decoded, err := ioutil.ReadAll(
 			transform.NewReader(
 				rd, codec.NewDecoder()))

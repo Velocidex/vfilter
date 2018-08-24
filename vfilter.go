@@ -165,6 +165,10 @@ func Parse(expression string) (*VQL, error) {
 		if end >= len(expression) {
 			end = len(expression) - 1
 		}
+		if end < 0 {
+			end = 0
+		}
+
 		start := t.Pos.Offset - 10
 		if start < 0 {
 			start = 0
@@ -173,6 +177,10 @@ func Parse(expression string) (*VQL, error) {
 		pos := t.Pos.Offset
 		if pos >= len(expression) {
 			pos = len(expression) - 1
+		}
+
+		if pos < 0 {
+			pos = 0
 		}
 
 		return sql, errors.Wrap(
@@ -1315,8 +1323,8 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 			output_chan <- value.Call(ctx, scope, args)
 
 		} else {
-			scope.Log("Symbol %v not found", self.Symbol)
-			scope.PrintVars()
+			scope.Log("Symbol %v not found. %s", self.Symbol,
+				scope.PrintVars())
 			output_chan <- Null{}
 		}
 	}()

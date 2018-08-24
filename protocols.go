@@ -149,6 +149,18 @@ func to_float(x Any) (float64, bool) {
 		return t, true
 	case int:
 		return float64(t), true
+	case uint:
+		return float64(t), true
+
+	case int8:
+		return float64(t), true
+	case int16:
+		return float64(t), true
+	case uint8:
+		return float64(t), true
+	case uint16:
+		return float64(t), true
+
 	case uint32:
 		return float64(t), true
 	case int32:
@@ -594,7 +606,6 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 		// If an error occurs we return false - not found.
 		recover()
 	}()
-
 	switch field_name := b.(type) {
 	case string:
 		if !is_exported(field_name) {

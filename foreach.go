@@ -41,6 +41,7 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 			if !ok {
 				break
 			}
+
 			// Evaluate the query on a new sub scope. The
 			// query can refer to rows returned by the
 			// "row" query.

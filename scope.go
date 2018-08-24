@@ -3,6 +3,7 @@ package vfilter
 import (
 	"fmt"
 	"log"
+	"strings"
 )
 
 /* The scope is a common environment passed to all plugins, functions
@@ -40,8 +41,17 @@ type Scope struct {
 	Logger *log.Logger
 }
 
-func (self *Scope) PrintVars() {
-	Debug(self.vars)
+func (self *Scope) PrintVars() string {
+	my_vars := []string{}
+	for _, vars := range self.vars {
+		keys := []string{}
+		for _, k := range self.GetMembers(vars) {
+			keys = append(keys, k)
+		}
+
+		my_vars = append(my_vars, "["+strings.Join(keys, ", ")+"]")
+	}
+	return fmt.Sprintf("Current Scope is: %s", strings.Join(my_vars, ", "))
 }
 
 func (self *Scope) Describe(type_map *TypeMap) *ScopeInformation {
@@ -243,6 +253,7 @@ func NewScope() *Scope {
 
 	result.AppendPlugins(
 		_IfPlugin{},
+		_FlattenPluginImpl{},
 		_ChainPlugin{},
 		_ForeachPluginImpl{},
 		&GenericListPlugin{
