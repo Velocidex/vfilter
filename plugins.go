@@ -121,8 +121,8 @@ func (self SubSelectFunction) Info(type_map *TypeMap) *PluginInfo {
 
 type _IfPluginArg struct {
 	Condition Any         `vfilter:"required,field=condition"`
-	Query     StoredQuery `vfilter:"required,field=query"`
-	Else      StoredQuery `vfilter:"optional,field=query"`
+	Then      StoredQuery `vfilter:"required,field=then"`
+	Else      StoredQuery `vfilter:"optional,field=else"`
 }
 
 type _IfPlugin struct{}
@@ -143,9 +143,10 @@ func (self _IfPlugin) Call(
 	// else_query is optional.
 	else_query, _ := ExtractStoredQuery(scope, "else", args)
 
-	query, pres := ExtractStoredQuery(scope, "query", args)
+	query, pres := ExtractStoredQuery(scope, "then", args)
 	if !pres {
-		scope.Log("Expecting 'query' parameter")
+		scope.Log("Expecting 'then' parameter")
+		Debug(args)
 		close(output_chan)
 		return output_chan
 	}
