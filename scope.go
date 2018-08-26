@@ -269,17 +269,28 @@ func NewScope() *Scope {
 
 // Fetch the field from the scope variables.
 func (self *Scope) Resolve(field string) (interface{}, bool) {
+	var default_value Any
+
 	// Walk the scope stack in reverse so more recent vars shadow
 	// older ones.
 	for i := len(self.vars) - 1; i >= 0; i-- {
 		subscope := self.vars[i]
 
-		if element, pres := self.Associative(subscope, field); pres {
+		// Allow each subscope to specify a default. In the
+		// end if a default was found then return Resolve as
+		// present.
+		element, pres := self.Associative(subscope, field)
+		if pres {
 			return element, true
+		}
+
+		// Default value of inner most scope will prevail.
+		if element != nil && default_value == nil {
+			default_value = element
 		}
 	}
 
-	return nil, false
+	return default_value, default_value != nil
 }
 
 // Scope Associative

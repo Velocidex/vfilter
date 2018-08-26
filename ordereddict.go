@@ -155,8 +155,10 @@ func (self _DictAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool)
 
 		}
 
+		// Return the default value but still indicate the
+		// value is not present.
 		if value.default_value != nil {
-			return value.default_value, true
+			return value.default_value, false
 		}
 	}
 	return res, pres

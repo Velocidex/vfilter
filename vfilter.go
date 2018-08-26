@@ -400,7 +400,17 @@ func (self _AliasedExpression) Reduce(ctx context.Context, scope *Scope) <-chan 
 					rows = append(rows, item)
 				}
 			}
-			output_chan <- rows
+
+			// If the subselect returns only a single row
+			// we just pass that item. This allows a
+			// subselect in row spec to just substitute
+			// one value instead of needlessly creating a
+			// slice of one item.
+			if len(rows) == 1 {
+				output_chan <- rows[0]
+			} else {
+				output_chan <- rows
+			}
 		}()
 		return output_chan
 	}
@@ -1314,13 +1324,16 @@ func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 			}
 		}
 
-		// The symbol is just a constant in the scope.
-		if value, pres := scope.Resolve(self.Symbol); pres {
-			output_chan <- value
+		// Lookup the symbol in the scope. Functions take
+		// precedence over symbols.
 
-			// The symbol is a function.
-		} else if value, pres := scope.functions[self.Symbol]; pres {
+		// The symbol is a function.
+		if value, pres := scope.functions[self.Symbol]; pres {
 			output_chan <- value.Call(ctx, scope, args)
+
+			// The symbol is just a constant in the scope.
+		} else if value, pres := scope.Resolve(self.Symbol); pres {
+			output_chan <- value
 
 		} else {
 			scope.Log("Symbol %v not found. %s", self.Symbol,

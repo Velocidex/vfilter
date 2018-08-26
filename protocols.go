@@ -557,7 +557,12 @@ func (self _SubstringMembership) Membership(scope *Scope, a Any, b Any) bool {
 // Associative protocol.
 type AssociativeProtocol interface {
 	Applicable(a Any, b Any) bool
-	Associative(scope *Scope, a Any, b Any) (Any, bool)
+
+	// Returns a value obtained by dereferencing field b from
+	// object a. If not present return pres == false and possibly
+	// a default value in res. If no default is present res must
+	// be nil.
+	Associative(scope *Scope, a Any, b Any) (res Any, pres bool)
 	GetMembers(scope *Scope, a Any) []string
 }
 
