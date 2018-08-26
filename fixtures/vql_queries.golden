@@ -168,21 +168,15 @@
  "016 Subselect in columns: SELECT bar, { SELECT column FROM dict(column=bar) } AS subquery FROM test()": [
   {
    "bar": 0,
-   "subquery": [
-    0
-   ]
+   "subquery": 0
   },
   {
    "bar": 1,
-   "subquery": [
-    1
-   ]
+   "subquery": 1
   },
   {
    "bar": 2,
-   "subquery": [
-    2
-   ]
+   "subquery": 2
   }
  ],
  "017 Create Let expression: LET result=SELECT * FROM test()": [],
