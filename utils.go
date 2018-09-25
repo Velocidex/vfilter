@@ -1,10 +1,11 @@
 package vfilter
 
 import (
-	"github.com/alecthomas/repr"
 	"reflect"
 	"sync"
 	"unicode"
+
+	"github.com/alecthomas/repr"
 )
 
 func Debug(arg interface{}) {
@@ -91,6 +92,10 @@ func (self Null) String() string {
 }
 
 func is_null_obj(a Any) bool {
+	if a == nil {
+		return true
+	}
+
 	switch a.(type) {
 	case Null, *Null:
 		return true

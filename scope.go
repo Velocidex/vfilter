@@ -221,6 +221,7 @@ func NewScope() *Scope {
 	result := Scope{}
 	result.functions = make(map[string]FunctionInterface)
 	result.plugins = make(map[string]PluginGeneratorInterface)
+	result.AppendVars(NewDict().Set("NULL", Null{}))
 
 	// Protocol handlers.
 	result.AddProtocolImpl(
