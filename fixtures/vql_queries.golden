@@ -235,5 +235,33 @@
    "value": 4
   }
  ],
- "023 Query plugin with dots: SELECT * FROM Artifact.Linux.Sys()": []
+ "023 Query plugin with dots: SELECT * FROM Artifact.Linux.Sys()": [],
+ "024 Order by: SELECT * FROM test() ORDER BY foo": [
+  {
+   "bar": 0,
+   "foo": 0
+  },
+  {
+   "bar": 1,
+   "foo": 2
+  },
+  {
+   "bar": 2,
+   "foo": 4
+  }
+ ],
+ "025 Order by desc: SELECT * FROM test() ORDER BY foo DESC ": [
+  {
+   "bar": 2,
+   "foo": 4
+  },
+  {
+   "bar": 1,
+   "foo": 2
+  },
+  {
+   "bar": 0,
+   "foo": 0
+  }
+ ]
 }

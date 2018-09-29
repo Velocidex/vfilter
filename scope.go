@@ -227,7 +227,7 @@ func NewScope() *Scope {
 	result.AddProtocolImpl(
 		_NullAssociative{}, _NullEqProtocol{},
 		_BoolImpl{}, _BoolInt{}, _BoolString{}, _BoolSlice{}, _BoolDict{},
-		_NumericLt{},
+		_NumericLt{}, _StringLt{},
 		_StringEq{}, _NumericEq{}, _ArrayEq{}, _DictEq{},
 		_AddStrings{}, _AddFloats{}, _AddSlices{}, _AddSliceAny{},
 		_StoredQueryAdd{},

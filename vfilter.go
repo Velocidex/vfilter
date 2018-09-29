@@ -130,12 +130,14 @@ package vfilter
 
 import (
 	"context"
+	"reflect"
+	"sort"
+	"strconv"
+	"strings"
+
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
 	errors "github.com/pkg/errors"
-	"reflect"
-	"strconv"
-	"strings"
 )
 
 var (
@@ -145,7 +147,7 @@ var (
 			`|(^/[*].*?[*]/$)`+ // C Style comment.
 			`|(^--.*?$)`+ // SQL style one line comment.
 			`|(^//.*?$)`+ // C++ style one line comment.
-			`|(?P<Keyword>(?i)LET |SELECT |FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER|LIMIT|OFFSET|TRUE|FALSE|NULL|IS |NOT |ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN )`+
+			`|(?P<Keyword>(?i)LET |SELECT |FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER +BY|LIMIT|TRUE|FALSE|NULL|IS |NOT |ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN |\\bDESC\\b)`+
 			`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)`+
 			`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
 			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")`+
@@ -238,6 +240,14 @@ func (self VQL) ToString(scope *Scope) string {
 		result += " WHERE " + self.Query.Where.ToString(scope)
 	}
 
+	if self.Query.OrderBy != nil {
+		result += " ORDER BY " + *self.Query.OrderBy
+
+		if self.Query.OrderByDesc != nil && *self.Query.OrderByDesc {
+			result += " DESC "
+		}
+	}
+
 	return result
 }
 
@@ -254,6 +264,8 @@ type _Select struct {
 	Where            *_CommaExpression  `[ "WHERE" @@ ]`
 	Limit            *_CommaExpression  `[ "LIMIT" @@ ]`
 	Offset           *_CommaExpression  `[ "OFFSET" @@ ]`
+	OrderBy          *string            `[ "ORDER BY" @Ident `
+	OrderByDesc      *bool              `  [@"DESC"] ]`
 	GroupBy          *_CommaExpression  `[ "GROUPBY" @@ ]`
 }
 
@@ -284,12 +296,49 @@ func (self _Select) ToString(scope *Scope) string {
 		result += " WHERE " + self.Where.ToString(scope)
 	}
 
+	if self.OrderBy != nil {
+		result += " ORDER BY " + *self.OrderBy
+
+		if self.OrderByDesc != nil && *self.OrderByDesc {
+			result += " DESC "
+		}
+	}
+
 	return result
 }
 
 func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	output_chan := make(chan Row)
 	from_chan := self.From.Eval(ctx, scope)
+
+	if self.OrderBy != nil {
+		result_set := &ResultSet{
+			OrderBy: *self.OrderBy,
+			scope:   scope,
+		}
+
+		if self.OrderByDesc != nil {
+			result_set.Desc = *self.OrderByDesc
+		}
+
+		self.OrderBy = nil
+
+		for row := range self.Eval(ctx, scope) {
+			result_set.Items = append(result_set.Items, row)
+		}
+
+		// Sort the results based on the
+		sort.Sort(result_set)
+
+		go func() {
+			defer close(output_chan)
+
+			for _, row := range result_set.Items {
+				output_chan <- row
+			}
+		}()
+		return output_chan
+	}
 
 	// Gets a row from the FROM clause, then transforms it
 	// according to the SelectExpression. After transformation,

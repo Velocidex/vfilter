@@ -232,6 +232,9 @@ func (self _ArrayEq) Eq(scope *Scope, a Any, b Any) bool {
 
 func is_array(a Any) bool {
 	rt := reflect.TypeOf(a)
+	if rt == nil {
+		return false
+	}
 	return rt.Kind() == reflect.Slice || rt.Kind() == reflect.Array
 }
 
@@ -271,6 +274,21 @@ func (self *_LtDispatcher) AddImpl(elements ...LtProtocol) {
 	for _, impl := range elements {
 		self.impl = append(self.impl, impl)
 	}
+}
+
+type _StringLt struct{}
+
+func (self _StringLt) Lt(scope *Scope, a Any, b Any) bool {
+	a_str, _ := a.(string)
+	b_str, _ := b.(string)
+
+	return a_str < b_str
+}
+
+func (self _StringLt) Applicable(a Any, b Any) bool {
+	_, a_ok := a.(string)
+	_, b_ok := b.(string)
+	return a_ok && b_ok
 }
 
 type _NumericLt struct{}

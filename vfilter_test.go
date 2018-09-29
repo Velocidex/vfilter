@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/sebdah/goldie"
 	"reflect"
 	"testing"
+
+	"github.com/sebdah/goldie"
 )
 
 type execTest struct {
@@ -360,6 +361,8 @@ var vqlTests = []vqlTest{
                 })`},
 
 	{"Query plugin with dots", "Select * from Artifact.Linux.Sys()"},
+	{"Order by", "select * from test() order by foo"},
+	{"Order by desc", "select * from test() order by foo DESC"},
 }
 
 func makeTestScope() *Scope {
