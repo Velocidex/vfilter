@@ -540,6 +540,10 @@ func (self _MembershipDispatcher) Membership(scope *Scope, a Any, b Any) bool {
 	// Default behavior: Test lhs against each member in RHS -
 	// slow but works.
 	rt := reflect.TypeOf(b)
+	if rt == nil {
+		return false
+	}
+
 	kind := rt.Kind()
 	value := reflect.ValueOf(b)
 	if kind == reflect.Slice || kind == reflect.Array {
