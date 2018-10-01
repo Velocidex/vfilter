@@ -130,6 +130,7 @@ package vfilter
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sort"
 	"strconv"
@@ -147,7 +148,7 @@ var (
 			`|(^/[*].*?[*]/$)`+ // C Style comment.
 			`|(^--.*?$)`+ // SQL style one line comment.
 			`|(^//.*?$)`+ // C++ style one line comment.
-			`|(?P<Keyword>(?i)LET |SELECT |FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER +BY|LIMIT|TRUE|FALSE|NULL|IS |NOT |ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN |\\bDESC\\b)`+
+			`|(?i)(?P<Keyword>LET |SELECT |FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER +BY|LIMIT|TRUE|FALSE|NULL|IS |NOT |ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN |\\bDESC\\b)`+
 			`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)`+
 			`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
 			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")`+
@@ -248,6 +249,11 @@ func (self VQL) ToString(scope *Scope) string {
 		}
 	}
 
+	if self.Query.Limit != nil {
+		result += fmt.Sprintf(
+			" LIMIT %d ", int(*self.Query.Limit))
+	}
+
 	return result
 }
 
@@ -262,10 +268,9 @@ type _Select struct {
 	SelectExpression *_SelectExpression `"SELECT " @@`
 	From             *_From             `"FROM" @@`
 	Where            *_CommaExpression  `[ "WHERE" @@ ]`
-	Limit            *_CommaExpression  `[ "LIMIT" @@ ]`
-	Offset           *_CommaExpression  `[ "OFFSET" @@ ]`
 	OrderBy          *string            `[ "ORDER BY" @Ident `
-	OrderByDesc      *bool              `  [@"DESC"] ]`
+	OrderByDesc      *bool              `  [@"DESC" | @"desc"] ]`
+	Limit            *float64           `[ "LIMIT" @Number ]`
 	GroupBy          *_CommaExpression  `[ "GROUPBY" @@ ]`
 }
 
@@ -310,6 +315,30 @@ func (self _Select) ToString(scope *Scope) string {
 func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	output_chan := make(chan Row)
 	from_chan := self.From.Eval(ctx, scope)
+
+	if self.Limit != nil {
+		go func() {
+			defer close(output_chan)
+
+			limit := int(*self.Limit)
+			count := 1
+			self.Limit = nil
+
+			// Cancel the query when we hit the limit.
+			sub_ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+			for row := range self.Eval(sub_ctx, scope) {
+				output_chan <- row
+				count += 1
+				if count > limit {
+					return
+				}
+			}
+		}()
+
+		return output_chan
+	}
 
 	if self.OrderBy != nil {
 		result_set := &ResultSet{

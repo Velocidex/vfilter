@@ -263,5 +263,17 @@
    "bar": 0,
    "foo": 0
   }
+ ],
+ "026 Limit: SELECT * FROM test() LIMIT 1 ": [
+  {
+   "bar": 0,
+   "foo": 0
+  }
+ ],
+ "027 Limit and order: SELECT * FROM test() ORDER BY foo DESC  LIMIT 1 ": [
+  {
+   "bar": 2,
+   "foo": 4
+  }
  ]
 }

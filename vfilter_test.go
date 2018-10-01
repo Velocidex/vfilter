@@ -363,6 +363,8 @@ var vqlTests = []vqlTest{
 	{"Query plugin with dots", "Select * from Artifact.Linux.Sys()"},
 	{"Order by", "select * from test() order by foo"},
 	{"Order by desc", "select * from test() order by foo DESC"},
+	{"Limit", "select * from test() limit 1"},
+	{"Limit and order", "select * from test() order by foo desc limit 1"},
 }
 
 func makeTestScope() *Scope {
