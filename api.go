@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 // A response from VQL queries.
@@ -16,8 +17,12 @@ type VFilterJsonResult struct {
 
 // Returns a channel over which multi part results are sent.
 func GetResponseChannel(
-	vql *VQL, ctx context.Context, scope *Scope,
-	maxrows int) <-chan *VFilterJsonResult {
+	vql *VQL,
+	ctx context.Context,
+	scope *Scope,
+	maxrows int,
+	// Max time to wait before returning some results.
+	max_wait int) <-chan *VFilterJsonResult {
 	result_chan := make(chan *VFilterJsonResult)
 
 	go func() {
@@ -55,44 +60,63 @@ func GetResponseChannel(
 			rows = []Row{}
 			part += 1
 		}
+		// Send the last payload outstanding.
 		defer ship_payload()
-		for row := range row_chan {
-			// Send the payload.
-			if len(rows) > maxrows {
-				ship_payload()
-			}
 
-			if len(*columns) == 0 {
-				rows = append(rows, row)
+		for {
+			select {
+			case <-ctx.Done():
+				return
 
-			} else {
-				new_row := NewDict()
-				for _, key := range *columns {
-					value, pres := scope.Associative(row, key)
-					if pres && !IsNil(value) {
-						var cell Any
-						switch t := value.(type) {
-						case Null:
-							cell = nil
-
-						case fmt.Stringer:
-							cell = value
-
-						case []byte:
-							cell = string(t)
-
-						case StoredQuery:
-							cell = Materialize(scope, t)
-
-						default:
-							// Pass directly to
-							// Json Marshal
-							cell = value
-						}
-						new_row.Set(key, cell)
-					}
+			// If the query takes too long, send
+			// what we have.
+			case <-time.After(time.Duration(max_wait) * time.Second):
+				if len(rows) > 0 {
+					ship_payload()
 				}
-				rows = append(rows, new_row)
+
+			case row, ok := <-row_chan:
+				if !ok {
+					return
+				}
+
+				// Send the payload if it is too full.
+				if len(rows) > maxrows {
+					ship_payload()
+				}
+
+				if len(*columns) == 0 {
+					rows = append(rows, row)
+
+				} else {
+					new_row := NewDict()
+					for _, key := range *columns {
+						value, pres := scope.Associative(row, key)
+						if pres && !IsNil(value) {
+							var cell Any
+							switch t := value.(type) {
+							case Null:
+								cell = nil
+
+							case fmt.Stringer:
+								cell = value
+
+							case []byte:
+								cell = string(t)
+
+							case StoredQuery:
+								cell = Materialize(scope, t)
+
+							default:
+								// Pass directly to
+								// Json Marshal
+								cell = value
+							}
+							new_row.Set(key, cell)
+						}
+					}
+					rows = append(rows, new_row)
+				}
 			}
 		}
 	}()
