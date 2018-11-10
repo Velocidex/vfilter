@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"golang.org/x/text/encoding/unicode"
-	"golang.org/x/text/transform"
 	"io/ioutil"
 	"regexp"
 	"strings"
 	"time"
+
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
 )
 
 type FunctionInterface interface {
@@ -33,7 +34,8 @@ func (self _DictFunc) Call(ctx context.Context, scope *Scope, args *Dict) Any {
 }
 
 type _TimestampArg struct {
-	Epoch int64 `vfilter:"required,field=epoch"`
+	Epoch       int64 `vfilter:"optional,field=epoch"`
+	WinFileTime int64 `vfilter:"optional,field=winfiletime"`
 }
 type _Timestamp struct{}
 
@@ -53,7 +55,15 @@ func (self _Timestamp) Call(ctx context.Context, scope *Scope, args *Dict) Any {
 		return Null{}
 	}
 
-	return time.Unix(arg.Epoch, 0)
+	if arg.Epoch > 0 {
+		return time.Unix(arg.Epoch, 0)
+	}
+
+	if arg.WinFileTime > 0 {
+		return time.Unix((arg.WinFileTime/10000000)-11644473600, 0)
+	}
+
+	return Null{}
 }
 
 type _SubSelectFunctionArgs struct {

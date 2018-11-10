@@ -71,6 +71,24 @@
   revision = "8460e604b9de9da5834c9f198cadf9dca4b05cac"
 
 [[projects]]
+  digest = "1:fb8be2f4db4c5f3fa4b93ec808502d5933c7cf8d8fa285b32ba8c0102c309850"
+  name = "golang.org/x/text"
+  packages = [
+    "encoding",
+    "encoding/internal",
+    "encoding/internal/identifier",
+    "encoding/unicode",
+    "internal/gen",
+    "internal/utf8internal",
+    "runes",
+    "transform",
+    "unicode/cldr",
+  ]
+  pruneopts = "UT"
+  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
+  version = "v0.3.0"
+
+[[projects]]
   digest = "1:c06d9e11d955af78ac3bbb26bd02e01d2f61f689e1a3bce2ef6fb683ef8a7f2d"
   name = "gopkg.in/alecthomas/kingpin.v2"
   packages = ["."]
@@ -88,6 +106,8 @@
     "github.com/cevaris/ordered_map",
     "github.com/pkg/errors",
     "github.com/sebdah/goldie",
+    "golang.org/x/text/encoding/unicode",
+    "golang.org/x/text/transform",
     "gopkg.in/alecthomas/kingpin.v2",
   ]
   solver-name = "gps-cdcl"
