@@ -62,17 +62,21 @@ func GetResponseChannel(
 		}
 		// Send the last payload outstanding.
 		defer ship_payload()
+		deadline := time.After(time.Duration(max_wait) * time.Second)
 
 		for {
+
 			select {
 			case <-ctx.Done():
 				return
 
-			// If the query takes too long, send
-			// what we have.
-			case <-time.After(time.Duration(max_wait) * time.Second):
+			// If the query takes too long, send what we
+			// have.
+			case <-deadline:
 				if len(rows) > 0 {
 					ship_payload()
+					deadline = time.After(time.Duration(max_wait) *
+						time.Second)
 				}
 
 			case row, ok := <-row_chan:
@@ -83,6 +87,8 @@ func GetResponseChannel(
 				// Send the payload if it is too full.
 				if len(rows) > maxrows {
 					ship_payload()
+					deadline = time.After(time.Duration(max_wait) *
+						time.Second)
 				}
 
 				if len(*columns) == 0 {
