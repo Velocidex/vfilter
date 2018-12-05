@@ -132,7 +132,7 @@ func (self TestFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any
 	return self.return_value
 }
 
-func (self TestFunction) Info(type_map *TypeMap) *FunctionInfo {
+func (self TestFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name: "func_foo",
 	}
@@ -244,7 +244,7 @@ func (self _RepeaterPlugin) Call(
 	return output_chan
 }
 
-func (self _RepeaterPlugin) Info(type_map *TypeMap) *PluginInfo {
+func (self _RepeaterPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
 		Name: "repeater",
 	}

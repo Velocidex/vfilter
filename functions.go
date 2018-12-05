@@ -15,14 +15,14 @@ import (
 
 type FunctionInterface interface {
 	Call(ctx context.Context, scope *Scope, args *Dict) Any
-	Info(type_map *TypeMap) *FunctionInfo
+	Info(scope *Scope, type_map *TypeMap) *FunctionInfo
 }
 
 // A helper function to build a dict within the query.
 // e.g. dict(foo=5, bar=6)
 type _DictFunc struct{}
 
-func (self _DictFunc) Info(type_map *TypeMap) *FunctionInfo {
+func (self _DictFunc) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name: "dict",
 		Doc:  "Construct a dict from arbitrary keyword args.",
@@ -39,11 +39,11 @@ type _TimestampArg struct {
 }
 type _Timestamp struct{}
 
-func (self _Timestamp) Info(type_map *TypeMap) *FunctionInfo {
+func (self _Timestamp) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name:    "timestamp",
 		Doc:     "Convert seconds from epoch into a string.",
-		ArgType: type_map.AddType(_TimestampArg{}),
+		ArgType: type_map.AddType(scope, _TimestampArg{}),
 	}
 }
 
@@ -72,11 +72,11 @@ type _SubSelectFunctionArgs struct {
 
 type _SubSelectFunction struct{}
 
-func (self _SubSelectFunction) Info(type_map *TypeMap) *FunctionInfo {
+func (self _SubSelectFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name:    "query",
 		Doc:     "Launch a subquery and materialize it into a list of rows.",
-		ArgType: type_map.AddType(_TimestampArg{}),
+		ArgType: type_map.AddType(scope, _TimestampArg{}),
 	}
 }
 
@@ -96,11 +96,11 @@ type _SplitFunctionArgs struct {
 }
 type _SplitFunction struct{}
 
-func (self _SplitFunction) Info(type_map *TypeMap) *FunctionInfo {
+func (self _SplitFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name:    "split",
 		Doc:     "Splits a string into an array based on a regexp separator.",
-		ArgType: type_map.AddType(_TimestampArg{}),
+		ArgType: type_map.AddType(scope, _TimestampArg{}),
 	}
 }
 
@@ -128,11 +128,11 @@ type _IfFunctionArgs struct {
 
 type _IfFunction struct{}
 
-func (self _IfFunction) Info(type_map *TypeMap) *FunctionInfo {
+func (self _IfFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name:    "if",
 		Doc:     "If condition is true, return the 'then' value otherwise the 'else' value.",
-		ArgType: type_map.AddType(_IfFunctionArgs{}),
+		ArgType: type_map.AddType(scope, _IfFunctionArgs{}),
 	}
 }
 
@@ -164,11 +164,11 @@ type _GetFunctionArgs struct {
 
 type _GetFunction struct{}
 
-func (self _GetFunction) Info(type_map *TypeMap) *FunctionInfo {
+func (self _GetFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name:    "get",
 		Doc:     "Gets the member field from item.",
-		ArgType: type_map.AddType(_GetFunctionArgs{}),
+		ArgType: type_map.AddType(scope, _GetFunctionArgs{}),
 	}
 }
 
@@ -199,11 +199,11 @@ type _EncodeFunctionArgs struct {
 
 type _EncodeFunction struct{}
 
-func (self _EncodeFunction) Info(type_map *TypeMap) *FunctionInfo {
+func (self _EncodeFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name:    "encode",
 		Doc:     "Encodes a string as as different type. Currently supported types include 'hex', 'base64'.",
-		ArgType: type_map.AddType(_EncodeFunctionArgs{}),
+		ArgType: type_map.AddType(scope, _EncodeFunctionArgs{}),
 	}
 }
 

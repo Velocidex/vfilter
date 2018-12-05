@@ -3,9 +3,10 @@ package vfilter
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/cevaris/ordered_map"
 	"reflect"
 	"strings"
+
+	"github.com/cevaris/ordered_map"
 )
 
 // A concerete implementation of a row - similar to Python's OrderedDict.

@@ -56,7 +56,7 @@ func (self TestGeneratorPlugin) Call(
 	return output_chan
 }
 
-func (self TestGeneratorPlugin) Info(type_map *TypeMap) *PluginInfo {
+func (self TestGeneratorPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
 		Name: "test_plugin",
 	}

@@ -116,13 +116,13 @@ func (self _FlattenPluginImpl) Name() string {
 	return "foreach"
 }
 
-func (self _FlattenPluginImpl) Info(type_map *TypeMap) *PluginInfo {
+func (self _FlattenPluginImpl) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
 		Name: "flatten",
 		Doc: "Flatten the columns in query. If any column repeats " +
 			"then we repeat the entire row once for each item.",
 
-		ArgType: type_map.AddType(&_FlattenPluginImpl{}),
+		ArgType: type_map.AddType(scope, &_FlattenPluginImpl{}),
 
 		// Our type is not known - it depends on the
 		// delegate's type.

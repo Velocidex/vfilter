@@ -7,7 +7,7 @@ import (
 
 type PluginGeneratorInterface interface {
 	Call(ctx context.Context, scope *Scope, args *Dict) <-chan Row
-	Info(type_map *TypeMap) *PluginInfo
+	Info(scope *Scope, type_map *TypeMap) *PluginInfo
 }
 
 // Generic synchronous plugins just return all their rows at once.
@@ -64,18 +64,18 @@ func (self GenericListPlugin) Name() string {
 	return self.PluginName
 }
 
-func (self GenericListPlugin) Info(type_map *TypeMap) *PluginInfo {
+func (self GenericListPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
 	result := &PluginInfo{
 		Name: self.PluginName,
 		Doc:  self.Doc,
 	}
 
 	if self.RowType != nil {
-		result.RowType = type_map.AddType(self.RowType)
+		result.RowType = type_map.AddType(scope, self.RowType)
 	}
 
 	if self.ArgType != nil {
-		result.ArgType = type_map.AddType(self.ArgType)
+		result.ArgType = type_map.AddType(scope, self.ArgType)
 	}
 
 	return result
@@ -111,11 +111,11 @@ func (self SubSelectFunction) Call(
 	return output_chan
 }
 
-func (self SubSelectFunction) Info(type_map *TypeMap) *PluginInfo {
+func (self SubSelectFunction) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
 		Name:    self.PluginName,
 		Doc:     self.Description,
-		RowType: type_map.AddType(self.RowType),
+		RowType: type_map.AddType(scope, self.RowType),
 	}
 }
 
@@ -175,7 +175,7 @@ func (self _IfPlugin) Call(
 	return output_chan
 }
 
-func (self _IfPlugin) Info(type_map *TypeMap) *PluginInfo {
+func (self _IfPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
 		Name: "if",
 		Doc:  "Conditional execution of query",
@@ -183,13 +183,13 @@ func (self _IfPlugin) Info(type_map *TypeMap) *PluginInfo {
 		// Our type is not known - it depends on the
 		// delegate's type.
 		RowType: "",
-		ArgType: type_map.AddType(&_IfPluginArg{}),
+		ArgType: type_map.AddType(scope, &_IfPluginArg{}),
 	}
 }
 
 type _ChainPlugin struct{}
 
-func (self _ChainPlugin) Info(type_map *TypeMap) *PluginInfo {
+func (self _ChainPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
 		Name: "chain",
 		Doc: "Chain the output of several queries into the same table." +

@@ -60,7 +60,6 @@ func (self FileInfo) FileType() string {
 	}
 }
 
-
 // In this example we assume running a Stat operation is very
 // expensive and so we wish to do it sparingly - i.e. only when
 // absolutely required. For example, if the query does not require any
@@ -72,6 +71,7 @@ func (self FileInfo) FileType() string {
 // extend the Associative protocol to inform VFilter about the special
 // handling for the FileInfo struct.
 type FileInfoSpecialHandler struct{}
+
 func (self FileInfoSpecialHandler) Applicable(a vfilter.Any, b vfilter.Any) bool {
 	_, a_ok := a.(FileInfo)
 	b_string, b_ok := b.(string)
@@ -99,7 +99,6 @@ func (self FileInfoSpecialHandler) GetMembers(
 	return vfilter.DefaultAssociative{}.GetMembers(scope, a)
 }
 
-
 // ---------------------------------------------------------------------
 // Plugins - VQL plugins are data sources analogous to tables in
 // SQL. However, VQL allows the user to specify parameters to plugins
@@ -114,10 +113,11 @@ func (self FileInfoSpecialHandler) GetMembers(
 // select * from glob(pattern='/*')
 // select * from glob() where info.Path =~ '.+go'
 type Glob struct{}
+
 func (self Glob) Call(
 	ctx context.Context,
 	scope *vfilter.Scope,
-	args vfilter.Dict) <- chan vfilter.Row {
+	args vfilter.Dict) <-chan vfilter.Row {
 	output_chan := make(chan vfilter.Row)
 	go func() {
 		defer close(output_chan)
@@ -148,14 +148,13 @@ func (self Glob) Name() string {
 	return "glob"
 }
 
-func (self Glob) Info(type_map *vfilter.TypeMap) *vfilter.PluginInfo {
+func (self Glob) Info(scope *Scope, type_map *vfilter.TypeMap) *vfilter.PluginInfo {
 	return &vfilter.PluginInfo{
-		Name: "glob",
-		Doc: "Glob files by expression",
-		RowType: type_map.AddType(FileInfo{}),
+		Name:    "glob",
+		Doc:     "Glob files by expression",
+		RowType: type_map.AddType(scope, FileInfo{}),
 	}
 }
-
 
 func MakeScope() *vfilter.Scope {
 	return vfilter.NewScope().AppendPlugins(Glob{}).
@@ -169,7 +168,7 @@ func evalQuery(vql *vfilter.VQL) {
 
 	output_chan := vql.Eval(ctx, scope)
 	for {
-		row, ok := <- output_chan
+		row, ok := <-output_chan
 		if !ok {
 			return
 		}

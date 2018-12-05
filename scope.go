@@ -57,11 +57,11 @@ func (self *Scope) PrintVars() string {
 func (self *Scope) Describe(type_map *TypeMap) *ScopeInformation {
 	result := &ScopeInformation{}
 	for _, item := range self.plugins {
-		result.Plugins = append(result.Plugins, item.Info(type_map))
+		result.Plugins = append(result.Plugins, item.Info(self, type_map))
 	}
 
 	for _, func_item := range self.functions {
-		result.Functions = append(result.Functions, func_item.Info(type_map))
+		result.Functions = append(result.Functions, func_item.Info(self, type_map))
 	}
 
 	return result
@@ -178,7 +178,7 @@ func (self *Scope) AppendFunctions(functions ...FunctionInterface) *Scope {
 	result := self
 	type_map := NewTypeMap()
 	for _, function := range functions {
-		info := function.Info(type_map)
+		info := function.Info(self, type_map)
 		result.functions[info.Name] = function
 	}
 
@@ -191,7 +191,7 @@ func (self *Scope) AppendPlugins(plugins ...PluginGeneratorInterface) *Scope {
 	result := self
 	type_map := NewTypeMap()
 	for _, plugin := range plugins {
-		info := plugin.Info(type_map)
+		info := plugin.Info(self, type_map)
 		result.plugins[info.Name] = plugin
 	}
 
@@ -200,7 +200,7 @@ func (self *Scope) AppendPlugins(plugins ...PluginGeneratorInterface) *Scope {
 
 func (self *Scope) Info(type_map *TypeMap, name string) (*PluginInfo, bool) {
 	if plugin, pres := self.plugins[name]; pres {
-		return plugin.Info(type_map), true
+		return plugin.Info(self, type_map), true
 	}
 
 	return nil, false

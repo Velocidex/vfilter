@@ -870,7 +870,7 @@ func (self *_Plugin) Columns(scope *Scope) *[]string {
 	if self.Call {
 		type_map := NewTypeMap()
 		if plugin_info, pres := scope.Info(type_map, self.Name); pres {
-			type_ref, pres := type_map.Get(plugin_info.RowType)
+			type_ref, pres := type_map.Get(scope, plugin_info.RowType)
 			if pres {
 				for k, _ := range type_ref.Fields {
 					result = append(result, k)

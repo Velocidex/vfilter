@@ -72,12 +72,12 @@ func (self _ForeachPluginImpl) Name() string {
 	return "foreach"
 }
 
-func (self _ForeachPluginImpl) Info(type_map *TypeMap) *PluginInfo {
+func (self _ForeachPluginImpl) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
 		Name: "foreach",
 		Doc:  "Executes 'query' once for each row in the 'row' query.",
 
-		ArgType: type_map.AddType(&_ForeachPluginImplArgs{}),
+		ArgType: type_map.AddType(scope, &_ForeachPluginImplArgs{}),
 
 		// Our type is not known - it depends on the
 		// delegate's type.

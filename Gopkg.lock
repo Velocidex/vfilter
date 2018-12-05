@@ -13,11 +13,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d97fdb993e291fdabf8cedae0941075c34d49eb286dc18f0606a20d5c000fa81"
+  digest = "1:8b9e086ce740a57d5a949b1a193b52245c669f1d97ee184ae474294599ea1678"
   name = "github.com/alecthomas/repr"
   packages = ["."]
   pruneopts = "UT"
-  revision = "07932d32eb40f059e08923e049c47a7d1e1b5ead"
+  revision = "d37bc2a10ba1a7951e19dd5dc10f7d59b142d8d7"
 
 [[projects]]
   branch = "master"
@@ -68,7 +68,7 @@
   name = "golang.org/x/exp"
   packages = ["ebnf"]
   pruneopts = "UT"
-  revision = "8460e604b9de9da5834c9f198cadf9dca4b05cac"
+  revision = "d319078994ebb455e0e664d34d958d267cddd68e"
 
 [[projects]]
   digest = "1:fb8be2f4db4c5f3fa4b93ec808502d5933c7cf8d8fa285b32ba8c0102c309850"

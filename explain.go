@@ -76,26 +76,28 @@ func canonicalTypeName(a_type reflect.Type) string {
 	return strings.TrimLeft(a_type.String(), "*[]")
 }
 
-func (self *TypeMap) Get(name string) (*TypeDescription, bool) {
+func (self *TypeMap) Get(scope *Scope, name string) (*TypeDescription, bool) {
 	res, pres := self.desc[name]
 	return res, pres
 }
 
 // Introspect the type of the parameter. Add type descriptor to the
 // type map and return the type name.
-func (self *TypeMap) AddType(a Any) string {
+func (self *TypeMap) AddType(scope *Scope, a Any) string {
+	fields := scope.GetMembers(a)
+
 	v := reflect.ValueOf(a)
 	if v.Type().Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
 
 	a_type := v.Type()
-	self.addType(a_type)
+	self.addType(scope, a_type, &fields)
 
 	return canonicalTypeName(a_type)
 }
 
-func (self *TypeMap) addType(a_type reflect.Type) {
+func (self *TypeMap) addType(scope *Scope, a_type reflect.Type, fields *[]string) {
 	if _, pres := self.desc[canonicalTypeName(a_type)]; pres {
 		return
 	}
@@ -104,11 +106,12 @@ func (self *TypeMap) addType(a_type reflect.Type) {
 	}
 	self.desc[canonicalTypeName(a_type)] = &result
 
-	self.addFields(a_type, &result)
-	self.addMethods(a_type, &result)
+	self.addFields(scope, a_type, &result, fields)
+	self.addMethods(scope, a_type, &result, fields)
 }
 
-func (self *TypeMap) addFields(a_type reflect.Type, desc *TypeDescription) {
+func (self *TypeMap) addFields(scope *Scope, a_type reflect.Type, desc *TypeDescription,
+	fields *[]string) {
 	if a_type.Kind() != reflect.Struct {
 		return
 	}
@@ -119,11 +122,16 @@ func (self *TypeMap) addFields(a_type reflect.Type, desc *TypeDescription) {
 		// Embedded structs just merge their fields with this
 		// struct.
 		if field_value.Anonymous {
-			self.addFields(field_value.Type, desc)
+			self.addFields(scope, field_value.Type, desc, fields)
 			continue
 		}
 		// Skip un-exported names.
 		if !is_exported(field_value.Name) {
+			continue
+		}
+
+		// Ignore missing fields.
+		if len(*fields) > 0 && !InString(fields, field_value.Name) {
 			continue
 		}
 
@@ -136,14 +144,14 @@ func (self *TypeMap) addFields(a_type reflect.Type, desc *TypeDescription) {
 		switch return_type.Kind() {
 		case reflect.Array, reflect.Slice:
 			element := return_type.Elem()
-			self.addType(element)
+			self.addType(scope, element, fields)
 			return_type_descriptor.Target = canonicalTypeName(
 				return_type.Elem())
 			return_type_descriptor.Repeated = true
 
 		case reflect.Map, reflect.Ptr:
 			element := return_type.Elem()
-			self.addType(element)
+			self.addType(scope, element, fields)
 			return_type_descriptor.Target = canonicalTypeName(
 				return_type.Elem())
 		}
@@ -158,7 +166,8 @@ func (self *TypeMap) addFields(a_type reflect.Type, desc *TypeDescription) {
 	}
 }
 
-func (self *TypeMap) addMethods(a_type reflect.Type, desc *TypeDescription) {
+func (self *TypeMap) addMethods(scope *Scope, a_type reflect.Type,
+	desc *TypeDescription, fields *[]string) {
 	// If a method has a pointer receiver than we will be able to
 	// reflect on its literal type. We need to work on pointers.
 	if a_type.Kind() != reflect.Ptr {
@@ -170,6 +179,11 @@ func (self *TypeMap) addMethods(a_type reflect.Type, desc *TypeDescription) {
 
 		// Skip un-exported names.
 		if !is_exported(method_value.Name) {
+			continue
+		}
+
+		// Ignore missing fields.
+		if len(*fields) > 0 && !InString(fields, method_value.Name) {
 			continue
 		}
 
@@ -191,14 +205,14 @@ func (self *TypeMap) addMethods(a_type reflect.Type, desc *TypeDescription) {
 			switch return_type.Kind() {
 			case reflect.Array, reflect.Slice:
 				element := return_type.Elem()
-				self.addType(element)
+				self.addType(scope, element, fields)
 				return_type_descriptor.Target = canonicalTypeName(
 					return_type.Elem())
 				return_type_descriptor.Repeated = true
 
 			case reflect.Map, reflect.Ptr:
 				element := return_type.Elem()
-				self.addType(element)
+				self.addType(scope, element, fields)
 				return_type_descriptor.Target = canonicalTypeName(
 					return_type.Elem())
 			}
