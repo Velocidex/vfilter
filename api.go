@@ -75,9 +75,9 @@ func GetResponseChannel(
 			case <-deadline:
 				if len(rows) > 0 {
 					ship_payload()
-					deadline = time.After(time.Duration(max_wait) *
-						time.Second)
 				}
+				// Update the deadline to re-fire next.
+				deadline = time.After(time.Duration(max_wait) * time.Second)
 
 			case row, ok := <-row_chan:
 				if !ok {

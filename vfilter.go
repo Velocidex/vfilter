@@ -866,6 +866,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 func (self *_Plugin) Columns(scope *Scope) *[]string {
 	var result []string
+
 	// If the plugin is a callable then get the scope to list its columns.
 	if self.Call {
 		type_map := NewTypeMap()
@@ -890,11 +891,13 @@ func (self *_Plugin) Columns(scope *Scope) *[]string {
 				return stored_query.Columns(scope)
 			}
 
+			fmt.Printf("Members of %v are %v.", value, scope.GetMembers(value))
 			for _, item := range scope.GetMembers(value) {
 				result = append(result, item)
 			}
 		}
 	}
+
 	return &result
 }
 
