@@ -891,7 +891,6 @@ func (self *_Plugin) Columns(scope *Scope) *[]string {
 				return stored_query.Columns(scope)
 			}
 
-			fmt.Printf("Members of %v are %v.", value, scope.GetMembers(value))
 			for _, item := range scope.GetMembers(value) {
 				result = append(result, item)
 			}
