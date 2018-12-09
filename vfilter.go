@@ -314,7 +314,6 @@ func (self _Select) ToString(scope *Scope) string {
 
 func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	output_chan := make(chan Row)
-	from_chan := self.From.Eval(ctx, scope)
 
 	if self.Limit != nil {
 		go func() {
@@ -375,6 +374,8 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	// be relayed. NOTE: We need to transform the row first in
 	// order to assign aliases.
 	go func() {
+		from_chan := self.From.Eval(ctx, scope)
+
 		defer close(output_chan)
 		for {
 			select {
@@ -726,8 +727,8 @@ func (self _SelectExpression) ToString(scope *Scope) string {
 // according to the Where clause.
 func (self _From) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	output_chan := make(chan Row)
-	input_chan := self.Plugin.Eval(ctx, scope)
 
+	input_chan := self.Plugin.Eval(ctx, scope)
 	go func() {
 		defer close(output_chan)
 		for {
