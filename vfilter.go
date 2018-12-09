@@ -142,19 +142,28 @@ import (
 )
 
 var (
-	sqlLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(
-		`(?ms)`+
-			`(\s+)`+
-			`|(^/[*].*?[*]/$)`+ // C Style comment.
-			`|(^--.*?$)`+ // SQL style one line comment.
-			`|(^//.*?$)`+ // C++ style one line comment.
-			`|(?i)(?P<Keyword>LET |SELECT |FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER +BY|LIMIT|TRUE|FALSE|NULL|IS |NOT |ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN |\\bDESC\\b)`+
-			`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)`+
-			`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
-			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")`+
+	sqlLexer = lexer.Must(lexer.Regexp(
+		`(?ms)` +
+			`(\s+)` +
+			`|(?P<Comment>^/[*].*?[*]/$)` + // C Style comment.
+			`|(?P<Comment>^--.*?$)` + // SQL style one line comment.
+			`|(?P<Comment>^//.*?$)` + // C++ style one line comment.
+			`|(?i)(?P<Keyword>LET |SELECT |FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER +BY|LIMIT|TRUE|FALSE|NULL|IS |NOT |ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN |\\bDESC\\b)` +
+			`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
+			`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)` +
+			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")` +
 			`|(?P<Operators><>|!=|<=|>=|=~|[-+*/%,.()=<>{}\[\]])`,
-	)), "Keyword"), "String")
-	sqlParser = participle.MustBuild(&VQL{}, sqlLexer)
+	))
+
+	sqlParser = participle.MustBuild(
+		&VQL{},
+		participle.Lexer(sqlLexer),
+		participle.Unquote("String"),
+		participle.Upper("Keyword"),
+		participle.Elide("Comment"),
+	// Need to solve left recursion detection first, if possible.
+	// participle.UseLookahead(),
+	)
 )
 
 // Parse the VQL expression. Returns a VQL object which may be

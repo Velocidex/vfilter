@@ -28,11 +28,6 @@
 required = ["gopkg.in/alecthomas/kingpin.v2"]
 
 [[constraint]]
-  name = "github.com/alecthomas/participle"
-  # Fix bug in a4195ba30ed73d8d5f3524e3d5be699c015f06e6
-  revision = "009a95f61c26c01aacb41111275e7a08a409f8c6"
-
-[[constraint]]
   branch = "master"
   name = "github.com/alecthomas/repr"
 

@@ -2,14 +2,15 @@
 
 
 [[projects]]
-  digest = "1:6b46e03f170b172c78b6f8b01510d927e510ff1c70b82c1567f2526a49ce2a84"
+  digest = "1:e81f98d138993c2cc169e08de69f5e8641e06b40909e372176b2076a5c7df04c"
   name = "github.com/alecthomas/participle"
   packages = [
     ".",
     "lexer",
   ]
   pruneopts = "UT"
-  revision = "009a95f61c26c01aacb41111275e7a08a409f8c6"
+  revision = "970ac163e3eaa95cf96536baeb4ed224af005b0a"
+  version = "v0.2.0"
 
 [[projects]]
   branch = "master"
@@ -61,14 +62,6 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "8784dd1ab561dcf43d141f6678e9e41f3d0dff55"
-
-[[projects]]
-  branch = "master"
-  digest = "1:4fa88ce4b5db1fe44fafe915fbcdc14375acf804155ddd6baa4dd54341540247"
-  name = "golang.org/x/exp"
-  packages = ["ebnf"]
-  pruneopts = "UT"
-  revision = "d319078994ebb455e0e664d34d958d267cddd68e"
 
 [[projects]]
   digest = "1:fb8be2f4db4c5f3fa4b93ec808502d5933c7cf8d8fa285b32ba8c0102c309850"
