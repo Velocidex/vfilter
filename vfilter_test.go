@@ -365,6 +365,13 @@ var vqlTests = []vqlTest{
 	{"Order by desc", "select * from test() order by foo DESC"},
 	{"Limit", "select * from test() limit 1"},
 	{"Limit and order", "select * from test() order by foo desc limit 1"},
+	{"Comments Simple", `// This is a single line comment
+select * from test() limit 1`},
+	{"Comments SQL Style", `-- This is a single line comment in sql style
+select * from test() limit 1`},
+	{"Comments Multiline", `/* This is a multiline comment
+this is the rest of the comment */
+select * from test() limit 1`},
 }
 
 func makeTestScope() *Scope {

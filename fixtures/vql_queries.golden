@@ -275,5 +275,23 @@
    "bar": 2,
    "foo": 4
   }
+ ],
+ "028 Comments Simple: SELECT * FROM test() LIMIT 1 ": [
+  {
+   "bar": 0,
+   "foo": 0
+  }
+ ],
+ "029 Comments SQL Style: SELECT * FROM test() LIMIT 1 ": [
+  {
+   "bar": 0,
+   "foo": 0
+  }
+ ],
+ "030 Comments Multiline: SELECT * FROM test() LIMIT 1 ": [
+  {
+   "bar": 0,
+   "foo": 0
+  }
  ]
 }
