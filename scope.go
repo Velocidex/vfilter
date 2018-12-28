@@ -6,6 +6,13 @@ import (
 	"strings"
 )
 
+// Destructors are stored in the root of the scope stack so they may
+// be reached from any nested scope and only destroyed when the root
+// scope is destroyed.
+type _destructors struct {
+	fn []func()
+}
+
 /* The scope is a common environment passed to all plugins, functions
    and operators.
 
@@ -213,6 +220,28 @@ func (self *Scope) Log(format string, a ...interface{}) {
 	}
 }
 
+func (self *Scope) AddDesctructor(fn func()) {
+	destructors_any, _ := self.Resolve("__destructors")
+	destructors, ok := destructors_any.(*_destructors)
+	if ok {
+		destructors.fn = append(destructors.fn, fn)
+	} else {
+		panic("Can not get destructors")
+	}
+}
+
+func (self *Scope) Close() {
+	destructors_any, _ := self.Resolve("__destructors")
+	destructors, ok := destructors_any.(*_destructors)
+	if ok {
+		for _, fn := range destructors.fn {
+			fn()
+		}
+
+		destructors.fn = []func(){}
+	}
+}
+
 // A factory for the default scope. This will add all built in
 // protocols for commonly used code. Clients are expected to add their
 // own specialized protocols, functions and plugins to specialize
@@ -221,7 +250,10 @@ func NewScope() *Scope {
 	result := Scope{}
 	result.functions = make(map[string]FunctionInterface)
 	result.plugins = make(map[string]PluginGeneratorInterface)
-	result.AppendVars(NewDict().Set("NULL", Null{}))
+	result.AppendVars(
+		NewDict().
+			Set("NULL", Null{}).
+			Set("__destructors", &_destructors{}))
 
 	// Protocol handlers.
 	result.AddProtocolImpl(
