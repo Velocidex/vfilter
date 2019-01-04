@@ -172,6 +172,9 @@ func OutputJSON(vql *VQL, ctx context.Context, scope *Scope) ([]byte, error) {
 			}
 			result = append(result, new_row)
 		}
+		if throttle != nil {
+			<-throttle
+		}
 	}
 
 	s, err := json.MarshalIndent(result, "", " ")
