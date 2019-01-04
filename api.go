@@ -28,6 +28,11 @@ func GetResponseChannel(
 	go func() {
 		defer close(result_chan)
 
+		// If the caller provided a throttler in the scope we
+		// use it. We charge 1 op per row.
+		any_throttle, _ := scope.Resolve("$throttle")
+		throttle, _ := any_throttle.(<-chan time.Time)
+
 		part := 0
 		row_chan := vql.Eval(ctx, scope)
 		columns := vql.Columns(scope)
@@ -123,6 +128,11 @@ func GetResponseChannel(
 					}
 					rows = append(rows, new_row)
 				}
+
+				// Throttle if needed.
+				if throttle != nil {
+					<-throttle
+				}
 			}
 		}
 	}()
@@ -135,6 +145,12 @@ func OutputJSON(vql *VQL, ctx context.Context, scope *Scope) ([]byte, error) {
 	output_chan := vql.Eval(ctx, scope)
 	columns := vql.Columns(scope)
 	result := []Row{}
+
+	// If the caller provided a throttler in the scope we
+	// use it. We charge 1 op per row.
+	any_throttle, _ := scope.Resolve("$throttle")
+	throttle, _ := any_throttle.(<-chan time.Time)
+
 	for row := range output_chan {
 		if len(*columns) == 0 {
 			members := scope.GetMembers(row)
