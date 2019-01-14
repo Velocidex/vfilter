@@ -10,34 +10,41 @@ type Throttler interface {
 }
 
 type TimeThrottler struct {
-	ticker *time.Ticker
-	done   chan bool
+	ticker  *time.Ticker
+	done    chan bool
+	running bool
 }
 
-func (self TimeThrottler) ChargeOp() {
+func (self *TimeThrottler) ChargeOp() {
 	select {
 	case <-self.ticker.C:
 	case <-self.done:
 	}
 }
 
-func (self TimeThrottler) Close() {
-	self.ticker.Stop()
-	close(self.done)
+func (self *TimeThrottler) Close() {
+	if self.running {
+		self.ticker.Stop()
+		self.running = false
+		close(self.done)
+	}
 }
 
 func NewTimeThrottler(rate float64) Throttler {
-	if rate > 100 {
-		return TimeThrottler{
-			done: make(chan bool, 1),
-		}
-	}
-
-	return TimeThrottler{
+	result := &TimeThrottler{
 		ticker: time.NewTicker(time.Nanosecond *
 			time.Duration((float64(1000000000) / float64(rate)))),
-		done: make(chan bool, 1),
+		done:    make(chan bool, 1),
+		running: true,
 	}
+
+	// Just ignore rates which are too fast - do not throttle at
+	// all.
+	if rate > 100 {
+		result.Close()
+	}
+
+	return result
 }
 
 func InstallThrottler(scope *Scope, throttler Throttler) {
