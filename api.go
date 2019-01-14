@@ -28,11 +28,6 @@ func GetResponseChannel(
 	go func() {
 		defer close(result_chan)
 
-		// If the caller provided a throttler in the scope we
-		// use it. We charge 1 op per row.
-		any_throttle, _ := scope.Resolve("$throttle")
-		throttle, _ := any_throttle.(<-chan time.Time)
-
 		part := 0
 		row_chan := vql.Eval(ctx, scope)
 		columns := vql.Columns(scope)
@@ -130,9 +125,7 @@ func GetResponseChannel(
 				}
 
 				// Throttle if needed.
-				if throttle != nil {
-					<-throttle
-				}
+				ChargeOp(scope)
 			}
 		}
 	}()
