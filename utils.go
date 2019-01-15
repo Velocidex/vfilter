@@ -131,6 +131,19 @@ func (self _NullEqProtocol) Eq(scope *Scope, a Any, b Any) bool {
 	return false
 }
 
+type _NullBoolProtocol struct{}
+
+func (self _NullBoolProtocol) Applicable(a Any) bool {
+	return is_null_obj(a)
+}
+
+func (self _NullBoolProtocol) Bool(scope *Scope, a Any) bool {
+	if is_null_obj(a) {
+		return false
+	}
+	return true
+}
+
 func InString(hay *[]string, needle string) bool {
 	for _, x := range *hay {
 		if x == needle {

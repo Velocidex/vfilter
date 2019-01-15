@@ -257,7 +257,7 @@ func NewScope() *Scope {
 
 	// Protocol handlers.
 	result.AddProtocolImpl(
-		_NullAssociative{}, _NullEqProtocol{},
+		_NullAssociative{}, _NullEqProtocol{}, _NullBoolProtocol{},
 		_BoolImpl{}, _BoolInt{}, _BoolString{}, _BoolSlice{}, _BoolDict{},
 		_NumericLt{}, _StringLt{},
 		_StringEq{}, _NumericEq{}, _ArrayEq{}, _DictEq{},
