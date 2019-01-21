@@ -584,8 +584,7 @@ type _OpArrayTerm struct {
 
 // Expressions separated by AND.
 type _AndExpression struct {
-	Not   *_OrExpression `("NOT " @@ | `
-	Left  *_OrExpression `@@`
+	Left  *_OrExpression `(@@`
 	Right []*_OpAndTerm  `{ @@ })`
 }
 
@@ -607,7 +606,8 @@ type _OpOrTerm struct {
 
 // Conditional expressions imply comparison.
 type _ConditionOperand struct {
-	Left  *_AdditionExpression `@@`
+	Not   *_ConditionOperand   `("NOT " @@ | `
+	Left  *_AdditionExpression `@@)`
 	Right *_OpComparison       `{ @@ }`
 }
 
@@ -1025,27 +1025,6 @@ func (self _CommaExpression) ToString(scope *Scope) string {
 }
 
 func (self _AndExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
-	if self.Not != nil {
-		output_chan := make(chan Any)
-		go func() {
-			defer close(output_chan)
-
-			select {
-			case <-ctx.Done():
-				return
-
-			case value, ok := <-self.Not.Reduce(ctx, scope):
-				if !ok {
-					output_chan <- Null{}
-					return
-				}
-
-				output_chan <- !scope.Bool(value)
-			}
-		}()
-		return output_chan
-	}
-
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
 	}
@@ -1090,9 +1069,6 @@ func (self _AndExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any 
 }
 
 func (self _AndExpression) ToString(scope *Scope) string {
-	if self.Not != nil {
-		return " NOT " + self.Not.ToString(scope)
-	}
 	result := []string{self.Left.ToString(scope)}
 
 	for _, right := range self.Right {
@@ -1203,6 +1179,27 @@ func (self _AdditionExpression) ToString(scope *Scope) string {
 }
 
 func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) <-chan Any {
+	if self.Not != nil {
+		output_chan := make(chan Any)
+		go func() {
+			defer close(output_chan)
+
+			select {
+			case <-ctx.Done():
+				return
+
+			case value, ok := <-self.Not.Reduce(ctx, scope):
+				if !ok {
+					output_chan <- Null{}
+					return
+				}
+
+				output_chan <- !scope.Bool(value)
+			}
+		}()
+		return output_chan
+	}
+
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
 	}
@@ -1280,6 +1277,10 @@ func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) <-chan A
 }
 
 func (self _ConditionOperand) ToString(scope *Scope) string {
+	if self.Not != nil {
+		return "NOT " + self.Not.ToString(scope)
+	}
+
 	result := self.Left.ToString(scope)
 
 	if self.Right != nil {

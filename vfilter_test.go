@@ -372,6 +372,14 @@ select * from test() limit 1`},
 	{"Comments Multiline", `/* This is a multiline comment
 this is the rest of the comment */
 select * from test() limit 1`},
+	{"Not combined with AND",
+		"select * from test() WHERE 1 and not foo = 2"},
+	{"Not combined with AND 2",
+		"select * from test() WHERE 0 and not foo = 2"},
+	{"Not combined with OR",
+		"select * from test() WHERE 1 or not foo = 20"},
+	{"Not combined with OR 2",
+		"select * from test() WHERE 0 or not foo = 20"},
 }
 
 func makeTestScope() *Scope {

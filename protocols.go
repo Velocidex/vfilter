@@ -773,6 +773,24 @@ func (self _SubstringRegex) Match(scope *Scope, pattern Any, target Any) bool {
 	return matched
 }
 
+type _ArrayRegex struct{}
+
+func (self _ArrayRegex) Applicable(pattern Any, target Any) bool {
+	_, pattern_ok := pattern.(string)
+	return pattern_ok && is_array(target)
+}
+
+func (self _ArrayRegex) Match(scope *Scope, pattern Any, target Any) bool {
+	a_slice := reflect.ValueOf(target)
+	for i := 0; i < a_slice.Len(); i++ {
+		if scope.Match(pattern, a_slice.Index(i).Interface()) {
+			return true
+		}
+	}
+
+	return false
+}
+
 type StringProtocol interface {
 	ToString(scope *Scope) string
 }

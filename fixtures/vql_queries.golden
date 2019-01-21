@@ -61,7 +61,7 @@
    "FooColumn": 2
   }
  ],
- "005 condition on aliases with not: SELECT foo AS FooColumn FROM test() WHERE  NOT FooColumn = 2": [
+ "005 condition on aliases with not: SELECT foo AS FooColumn FROM test() WHERE NOT FooColumn = 2": [
   {
    "FooColumn": 0
   },
@@ -292,6 +292,45 @@
   {
    "bar": 0,
    "foo": 0
+  }
+ ],
+ "031 Not combined with AND: SELECT * FROM test() WHERE 1 AND NOT foo = 2": [
+  {
+   "bar": 0,
+   "foo": 0
+  },
+  {
+   "bar": 2,
+   "foo": 4
+  }
+ ],
+ "032 Not combined with AND 2: SELECT * FROM test() WHERE 0 AND NOT foo = 2": [],
+ "033 Not combined with OR: SELECT * FROM test() WHERE 1 OR NOT foo = 20": [
+  {
+   "bar": 0,
+   "foo": 0
+  },
+  {
+   "bar": 1,
+   "foo": 2
+  },
+  {
+   "bar": 2,
+   "foo": 4
+  }
+ ],
+ "034 Not combined with OR 2: SELECT * FROM test() WHERE 0 OR NOT foo = 20": [
+  {
+   "bar": 0,
+   "foo": 0
+  },
+  {
+   "bar": 1,
+   "foo": 2
+  },
+  {
+   "bar": 2,
+   "foo": 4
   }
  ]
 }

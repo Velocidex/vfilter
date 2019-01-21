@@ -268,7 +268,7 @@ func NewScope() *Scope {
 		_NumericMul{},
 		_NumericDiv{},
 		_DictAssociative{},
-		_SubstringRegex{},
+		_SubstringRegex{}, _ArrayRegex{},
 		_StoredQueryAssociative{}, _StoredQueryBool{},
 		_ScopeAssociative{},
 	)
