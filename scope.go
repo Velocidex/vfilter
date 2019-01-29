@@ -61,6 +61,20 @@ func (self *Scope) PrintVars() string {
 	return fmt.Sprintf("Current Scope is: %s", strings.Join(my_vars, ", "))
 }
 
+func (self *Scope) Keys() []string {
+	result := []string{}
+
+	for _, vars := range self.vars {
+		for _, k := range self.GetMembers(vars) {
+			if !InString(&result, k) {
+				result = append(result, k)
+			}
+		}
+	}
+
+	return result
+}
+
 func (self *Scope) Describe(type_map *TypeMap) *ScopeInformation {
 	result := &ScopeInformation{}
 	for _, item := range self.plugins {
