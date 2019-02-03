@@ -244,26 +244,8 @@ func (self VQL) ToString(scope *Scope) string {
 
 		result += "LET " + self.Let + operator
 	}
-	result += "SELECT " + self.Query.SelectExpression.ToString(scope) +
-		" FROM " + self.Query.From.ToString(scope)
-	if self.Query.Where != nil {
-		result += " WHERE " + self.Query.Where.ToString(scope)
-	}
 
-	if self.Query.OrderBy != nil {
-		result += " ORDER BY " + *self.Query.OrderBy
-
-		if self.Query.OrderByDesc != nil && *self.Query.OrderByDesc {
-			result += " DESC "
-		}
-	}
-
-	if self.Query.Limit != nil {
-		result += fmt.Sprintf(
-			" LIMIT %d ", int(*self.Query.Limit))
-	}
-
-	return result
+	return result + self.Query.ToString(scope)
 }
 
 // Provides a list of column names from this query. These columns will
@@ -280,7 +262,7 @@ type _Select struct {
 	OrderBy          *string            `[ "ORDER BY" @Ident `
 	OrderByDesc      *bool              `  [@"DESC" | @"desc"] ]`
 	Limit            *float64           `[ "LIMIT" @Number ]`
-	GroupBy          *_CommaExpression  `[ "GROUPBY" @@ ]`
+	GroupBy          *string            `[ "GROUP BY" @Ident ]`
 }
 
 // Provides a list of column names from this query. These columns will
@@ -318,11 +300,100 @@ func (self _Select) ToString(scope *Scope) string {
 		}
 	}
 
+	if self.Limit != nil {
+		result += fmt.Sprintf(
+			" LIMIT %d ", int(*self.Limit))
+	}
+
+	if self.GroupBy != nil {
+		result += " GROUP BY " + *self.GroupBy
+	}
+
 	return result
 }
 
 func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	output_chan := make(chan Row)
+
+	if self.GroupBy != nil {
+		go func() {
+			defer close(output_chan)
+
+			group_by := *self.GroupBy
+			self.GroupBy = nil
+
+			// Collect all the rows with the same group_by
+			// member.
+			bins := make(map[Any][]Row)
+
+			sub_ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+			for row := range self.Eval(sub_ctx, scope) {
+				element, pres := scope.Associative(row, group_by)
+				if pres {
+					bins[element] = append(bins[element], row)
+				}
+			}
+
+			result_set := &ResultSet{
+				OrderBy: group_by,
+				scope:   scope,
+			}
+
+			for _, row := range bins {
+				if self.SelectExpression.All {
+					result_set.Items = append(result_set.Items, row)
+					continue
+				}
+
+				new_row := NewDict()
+				for _, expr := range self.SelectExpression.Expressions {
+					member := expr.GetName(scope)
+					if member == group_by {
+						item, pres := scope.Associative(row, member)
+
+						if pres {
+							// Only copy the first item.
+							slice := reflect.ValueOf(item)
+							if slice.Type().Kind() == reflect.Slice &&
+								slice.Len() > 0 {
+								value := slice.Index(0).Interface()
+								new_row.Set(member, value)
+							}
+						}
+					} else if expr.IsAggregate(scope) {
+						new_scope := scope.Copy()
+						new_scope.AppendVars(row)
+
+						expression_chan := expr.Reduce(
+							ctx, new_scope)
+
+						value, ok := <-expression_chan
+						if ok {
+							new_row.Set(member, value)
+						}
+					} else {
+						// Copy the aggregate name to the new row.
+						item, pres := scope.Associative(row, member)
+						if pres {
+							new_row.Set(member, item)
+						}
+					}
+				}
+				result_set.Items = append(result_set.Items, new_row)
+			}
+
+			// Sort the results based on the
+			sort.Sort(result_set)
+
+			for _, row := range result_set.Items {
+				output_chan <- row
+			}
+		}()
+
+		return output_chan
+	}
 
 	if self.Limit != nil {
 		go func() {
@@ -464,6 +535,25 @@ type _AliasedExpression struct {
 	Expression *_AndExpression ` @@ )`
 
 	As string `[ "AS " @Ident ]`
+}
+
+func (self *_AliasedExpression) GetName(scope *Scope) string {
+	if self.As != "" {
+		return self.As
+	}
+	return self.ToString(scope)
+}
+
+func (self *_AliasedExpression) IsAggregate(scope *Scope) bool {
+	if self.SubSelect != nil {
+		return true
+	}
+
+	if self.Expression.IsAggregate(scope) {
+		return true
+	}
+
+	return false
 }
 
 func (self _AliasedExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
@@ -935,6 +1025,14 @@ func (self _Args) ToString(scope *Scope) string {
 	return ""
 }
 
+func (self _MemberExpression) IsAggregate(scope *Scope) bool {
+	if self.Left != nil && self.Left.IsAggregate(scope) {
+		return true
+	}
+
+	return false
+}
+
 func (self _MemberExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
@@ -975,6 +1073,20 @@ func (self _MemberExpression) ToString(scope *Scope) string {
 		result = append(result, right.Term)
 	}
 	return strings.Join(result, ".")
+}
+
+func (self _CommaExpression) IsAggregate(scope *Scope) bool {
+	if self.Left != nil && self.Left.IsAggregate(scope) {
+		return true
+	}
+
+	for _, i := range self.Right {
+		if i.Term != nil && i.Term.IsAggregate(scope) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (self _CommaExpression) Reduce(
@@ -1022,6 +1134,20 @@ func (self _CommaExpression) ToString(scope *Scope) string {
 		result = append(result, right.Term.ToString(scope))
 	}
 	return strings.Join(result, ", ")
+}
+
+func (self *_AndExpression) IsAggregate(scope *Scope) bool {
+	if self.Left.IsAggregate(scope) {
+		return true
+	}
+
+	for _, i := range self.Right {
+		if i.Term != nil && i.Term.IsAggregate(scope) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (self _AndExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
@@ -1077,6 +1203,19 @@ func (self _AndExpression) ToString(scope *Scope) string {
 	return strings.Join(result, " AND ")
 }
 
+func (self *_OrExpression) IsAggregate(scope *Scope) bool {
+	if self.Left.IsAggregate(scope) {
+		return true
+	}
+	for _, i := range self.Right {
+		if i.Term != nil && i.Term.IsAggregate(scope) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (self _OrExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
@@ -1130,6 +1269,19 @@ func (self _OrExpression) ToString(scope *Scope) string {
 	return strings.Join(result, " OR ")
 }
 
+func (self _AdditionExpression) IsAggregate(scope *Scope) bool {
+	if self.Left != nil && self.Left.IsAggregate(scope) {
+		return true
+	}
+
+	for _, i := range self.Right {
+		if i.Term.IsAggregate(scope) {
+			return true
+		}
+	}
+	return false
+}
+
 func (self _AdditionExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
@@ -1176,6 +1328,24 @@ func (self _AdditionExpression) ToString(scope *Scope) string {
 		result += " " + right.Operator + " " + right.Term.ToString(scope)
 	}
 	return result
+}
+
+func (self _ConditionOperand) IsAggregate(scope *Scope) bool {
+	if self.Not != nil && self.Not.IsAggregate(scope) {
+		return true
+	}
+
+	if self.Left != nil && self.Left.IsAggregate(scope) {
+		return true
+	}
+
+	if self.Right != nil &&
+		self.Right.Right != nil &&
+		self.Right.Right.IsAggregate(scope) {
+		return true
+	}
+
+	return false
 }
 
 func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) <-chan Any {
@@ -1291,6 +1461,19 @@ func (self _ConditionOperand) ToString(scope *Scope) string {
 	return result
 }
 
+func (self _MultiplicationExpression) IsAggregate(scope *Scope) bool {
+	if self.Left != nil && self.Left.IsAggregate(scope) {
+		return true
+	}
+
+	for _, i := range self.Right {
+		if i.Factor.IsAggregate(scope) {
+			return true
+		}
+	}
+	return false
+}
+
 func (self _MultiplicationExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
@@ -1332,6 +1515,18 @@ func (self _MultiplicationExpression) ToString(scope *Scope) string {
 		result += " " + right.Operator + " " + right.Factor.ToString(scope)
 	}
 	return result
+}
+
+func (self _Value) IsAggregate(scope *Scope) bool {
+	if self.SymbolRef != nil && self.SymbolRef.IsAggregate(scope) {
+		return true
+	}
+
+	if self.Subexpression != nil && self.Subexpression.IsAggregate(scope) {
+		return true
+	}
+
+	return false
 }
 
 func (self _Value) Reduce(ctx context.Context, scope *Scope) <-chan Any {
@@ -1383,6 +1578,21 @@ func (self _Value) ToString(scope *Scope) string {
 	} else {
 		return "FALSE"
 	}
+}
+
+func (self _SymbolRef) IsAggregate(scope *Scope) bool {
+	// If it is not a function then it can not be an aggregate.
+	if self.Parameters == nil {
+		return false
+	}
+
+	// The symbol is a function.
+	value, pres := scope.functions[self.Symbol]
+	if !pres {
+		return false
+	}
+
+	return value.Info(scope, NewTypeMap()).IsAggregate
 }
 
 func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {

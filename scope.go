@@ -296,6 +296,9 @@ func NewScope() *Scope {
 		_IfFunction{},
 		_GetFunction{},
 		_EncodeFunction{},
+		_CountFunction{},
+		_MinFunction{},
+		_MaxFunction{},
 	)
 
 	result.AppendPlugins(

@@ -4,9 +4,10 @@ package vfilter
 
 import (
 	"fmt"
-	errors "github.com/pkg/errors"
 	"reflect"
 	"strings"
+
+	errors "github.com/pkg/errors"
 )
 
 // Structs may tag fields with this name to control parsing.

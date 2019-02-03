@@ -42,6 +42,12 @@ type FunctionInfo struct {
 	Name    string
 	Doc     string
 	ArgType string
+
+	// This is true for functions which operate on aggregates
+	// (i.e. group by). For any columns which contains such a
+	// function, vfilter will first run the group by clause then
+	// re-evaluate the function on the aggregate column.
+	IsAggregate bool
 }
 
 // Describe a type. This is meant for human consumption so it does not

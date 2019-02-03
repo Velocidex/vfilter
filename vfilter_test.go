@@ -380,6 +380,19 @@ select * from test() limit 1`},
 		"select * from test() WHERE 1 or not foo = 20"},
 	{"Not combined with OR 2",
 		"select * from test() WHERE 0 or not foo = 20"},
+
+	{"Group by 1",
+		"select foo, bar from groupbytest() GROUP BY bar"},
+	{"Group by count",
+		"select foo, bar, count(items=bar) from groupbytest() GROUP BY bar"},
+	{"Group by min",
+		"select foo, bar, min(items=foo) from groupbytest() GROUP BY bar"},
+	{"Group by max",
+		"select foo, bar, max(items=foo) from groupbytest() GROUP BY bar"},
+	{"Group by max of string",
+		"select baz, bar, max(items=baz) from groupbytest() GROUP BY bar"},
+	{"Group by min of string",
+		"select baz, bar, min(items=baz) from groupbytest() GROUP BY bar"},
 }
 
 func makeTestScope() *Scope {
@@ -414,6 +427,20 @@ func makeTestScope() *Scope {
 			Doc:        "Just echo back the args as a dict.",
 			Function: func(scope *Scope, args *Dict) []Row {
 				return []Row{args}
+			},
+		}, GenericListPlugin{
+			PluginName: "groupbytest",
+			Function: func(scope *Scope, args *Dict) []Row {
+				return []Row{
+					NewDict().Set("foo", 1).Set("bar", 5).
+						Set("baz", "a"),
+					NewDict().Set("foo", 2).Set("bar", 5).
+						Set("baz", "b"),
+					NewDict().Set("foo", 3).Set("bar", 2).
+						Set("baz", "c"),
+					NewDict().Set("foo", 4).Set("bar", 2).
+						Set("baz", "d"),
+				}
 			},
 		})
 }
