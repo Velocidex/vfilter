@@ -31,7 +31,7 @@ const tagName = "vfilter"
 // wrong type of args.
 
 // NOTE: In order for the field to be populated by this function, the
-// field my be exported (i.e. name begins with cap) and it must have
+// field must be exported (i.e. name begins with cap) and it must have
 // vfilter tags.
 func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 	v := reflect.ValueOf(value)
@@ -81,7 +81,26 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 			return errors.New(fmt.Sprintf(
 				"Field %s is unsettable.", field_name))
 		}
+		if field_types_value.Type.String() == "vfilter.StoredQuery" {
+			new_value, pres := args.Get(field_name)
+			if !pres {
+				if InString(&directives, "required") {
+					return errors.New(fmt.Sprintf(
+						"Field %s is required.",
+						field_types_value.Name))
+				}
+			}
 
+			stored_query, ok := new_value.(StoredQuery)
+			if !ok {
+				return errors.New(fmt.Sprintf(
+					"Field %s should be a query.",
+					field_types_value.Name))
+			}
+
+			field_value.Set(reflect.ValueOf(stored_query))
+			continue
+		}
 		if field_types_value.Type.String() == "vfilter.Any" {
 			new_value, pres := args.Get(field_name)
 			if !pres {

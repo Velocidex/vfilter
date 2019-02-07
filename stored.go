@@ -30,6 +30,7 @@ import (
 type StoredQuery interface {
 	Eval(ctx context.Context, scope *Scope) <-chan Row
 	Columns(scope *Scope) *[]string
+	ToString(scope *Scope) string
 }
 
 type _StoredQuery struct {
@@ -55,6 +56,10 @@ func (self *_StoredQuery) Columns(scope *Scope) *[]string {
 	}
 
 	return self.query.SelectExpression.Columns(scope)
+}
+
+func (self *_StoredQuery) ToString(scope *Scope) string {
+	return self.query.ToString(scope)
 }
 
 type _StoredQueryAssociative struct{}
@@ -159,6 +164,15 @@ func (self *StoredQueryWrapper) Eval(ctx context.Context, scope *Scope) <-chan R
 
 func (self *StoredQueryWrapper) Columns(scope *Scope) *[]string {
 	return &[]string{}
+}
+
+func (self *StoredQueryWrapper) ToString(scope *Scope) string {
+	stringer, ok := self.delegate.(StringProtocol)
+	if ok {
+		return stringer.ToString(scope)
+	}
+
+	return ""
 }
 
 func Materialize(scope *Scope, stored_query StoredQuery) []Row {
