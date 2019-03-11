@@ -766,11 +766,29 @@ func (self _SubstringRegex) Applicable(pattern Any, target Any) bool {
 }
 
 func (self _SubstringRegex) Match(scope *Scope, pattern Any, target Any) bool {
-	matched, err := regexp.MatchString(pattern.(string), target.(string))
-	if err != nil {
+	pattern_string, ok := pattern.(string)
+	if !ok {
 		return false
 	}
-	return matched
+
+	target_string, ok := target.(string)
+	if !ok {
+		return false
+	}
+
+	re, pres := scope.regexp_cache[pattern_string]
+	if !pres {
+		var err error
+		re, err = regexp.Compile(pattern_string)
+		if err != nil {
+			scope.Log("Compile regexp: %v", err)
+			return false
+		}
+
+		scope.regexp_cache[pattern_string] = re
+	}
+
+	return re.MatchString(target_string)
 }
 
 type _ArrayRegex struct{}

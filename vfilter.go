@@ -135,6 +135,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
@@ -320,20 +321,49 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			defer close(output_chan)
 
 			group_by := *self.GroupBy
-			self.GroupBy = nil
+
+			type AggregateContext struct {
+				row     Row
+				context *Dict
+			}
 
 			// Collect all the rows with the same group_by
-			// member.
-			bins := make(map[Any][]Row)
+			// member. This is a map between unique group
+			// by values and an aggregate row.
+			bins := make(map[Any]*AggregateContext)
 
 			sub_ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			for row := range self.Eval(sub_ctx, scope) {
-				element, pres := scope.Associative(row, group_by)
-				if pres {
-					bins[element] = append(bins[element], row)
+			new_scope := scope.Copy()
+
+			// Append this row to a bin based on a unique
+			// value of the group by column.
+			for row := range self.From.Eval(sub_ctx, scope) {
+				gb_element, pres := scope.Associative(row, group_by)
+				if !pres {
+					// This should not happen -
+					// the group by column is not
+					// present in the row.
+					gb_element = Null{}
 				}
+
+				aggregate_ctx, pres := bins[gb_element]
+				// No previous aggregate_row - initialize with a new context.
+				if !pres {
+					aggregate_ctx = &AggregateContext{
+						context: NewDict(),
+					}
+					bins[gb_element] = aggregate_ctx
+				}
+
+				// The transform function receives
+				// its own unique context for the
+				// specific aggregate group.
+				new_scope.context = aggregate_ctx.context
+
+				// Update the row with the transformed columns
+				aggregate_ctx.row = self.SelectExpression.Transform(ctx, new_scope, row)
 			}
 
 			result_set := &ResultSet{
@@ -341,50 +371,20 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				scope:   scope,
 			}
 
-			for _, row := range bins {
-				if self.SelectExpression.All {
-					result_set.Items = append(result_set.Items, row)
-					continue
-				}
-
-				new_row := NewDict()
-				for _, expr := range self.SelectExpression.Expressions {
-					member := expr.GetName(scope)
-					if member == group_by {
-						item, pres := scope.Associative(row, member)
-
-						if pres {
-							// Only copy the first item.
-							slice := reflect.ValueOf(item)
-							if slice.Type().Kind() == reflect.Slice &&
-								slice.Len() > 0 {
-								value := slice.Index(0).Interface()
-								new_row.Set(member, value)
-							}
-						}
-					} else if expr.IsAggregate(scope) {
-						new_scope := scope.Copy()
-						new_scope.AppendVars(row)
-
-						expression_chan := expr.Reduce(
-							ctx, new_scope)
-
-						value, ok := <-expression_chan
-						if ok {
-							new_row.Set(member, value)
-						}
-					} else {
-						// Copy the aggregate name to the new row.
-						item, pres := scope.Associative(row, member)
-						if pres {
-							new_row.Set(member, item)
-						}
-					}
-				}
-				result_set.Items = append(result_set.Items, new_row)
+			if self.OrderBy != nil {
+				result_set.OrderBy = *self.OrderBy
 			}
 
-			// Sort the results based on the
+			if self.OrderByDesc != nil {
+				result_set.Desc = *self.OrderByDesc
+			}
+
+			// Emit the binned set as a new result set.
+			for _, aggregate_ctx := range bins {
+				result_set.Items = append(result_set.Items, aggregate_ctx.row)
+			}
+
+			// Sort the results based on the OrderBy
 			sort.Sort(result_set)
 
 			for _, row := range result_set.Items {
@@ -469,7 +469,7 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					return
 				}
 
-				transformed_row := <-self.SelectExpression.Filter(
+				transformed_row := self.SelectExpression.Transform(
 					ctx, scope, row)
 
 				if self.Where == nil {
@@ -491,13 +491,11 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					new_scope.AppendVars(row)
 					new_scope.AppendVars(transformed_row)
 
-					expression_chan := self.Where.Reduce(ctx, new_scope)
-					expression, ok := <-expression_chan
-
+					expression := self.Where.Reduce(ctx, new_scope)
 					// If the filtered expression returns
 					// a bool true, then pass the row to
 					// the output.
-					if ok && scope.Bool(expression) {
+					if expression != nil && scope.Bool(expression) {
 						output_chan <- transformed_row
 					}
 				}
@@ -556,41 +554,35 @@ func (self *_AliasedExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _AliasedExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
+func (self _AliasedExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	if self.Expression != nil {
 		return self.Expression.Reduce(ctx, scope)
 	}
 
 	if self.SubSelect != nil {
-		output_chan := make(chan Any)
-
-		go func() {
-			defer close(output_chan)
-			var rows []Row
-			for item := range self.SubSelect.Eval(ctx, scope) {
-				members := scope.GetMembers(item)
-				if len(members) == 1 {
-					item_column, pres := scope.Associative(item, members[0])
-					if pres {
-						rows = append(rows, item_column)
-					}
-				} else {
-					rows = append(rows, item)
+		var rows []Row
+		for item := range self.SubSelect.Eval(ctx, scope) {
+			members := scope.GetMembers(item)
+			if len(members) == 1 {
+				item_column, pres := scope.Associative(item, members[0])
+				if pres {
+					rows = append(rows, item_column)
 				}
-			}
-
-			// If the subselect returns only a single row
-			// we just pass that item. This allows a
-			// subselect in row spec to just substitute
-			// one value instead of needlessly creating a
-			// slice of one item.
-			if len(rows) == 1 {
-				output_chan <- rows[0]
 			} else {
-				output_chan <- rows
+				rows = append(rows, item)
 			}
-		}()
-		return output_chan
+		}
+
+		// If the subselect returns only a single row
+		// we just pass that item. This allows a
+		// subselect in row spec to just substitute
+		// one value instead of needlessly creating a
+		// slice of one item.
+		if len(rows) == 1 {
+			return rows[0]
+		} else {
+			return rows
+		}
 	}
 
 	return nil
@@ -717,6 +709,9 @@ type _SymbolRef struct {
 	//	Symbol     []string `@Ident { "." @Ident }`
 	Symbol     string   `@Ident`
 	Parameters []*_Args `[ "(" [ @@ { "," @@ } ] ")" ]`
+
+	mu       sync.Mutex
+	function FunctionInterface
 }
 
 type _Value struct {
@@ -743,58 +738,48 @@ type Row interface{}
 
 // Receives a row from the FROM clause and transforms it according to
 // the select expression to produce a new row.
-func (self _SelectExpression) Filter(
-	ctx context.Context, scope *Scope, row Row) <-chan Row {
-	output_chan := make(chan Row)
+func (self _SelectExpression) Transform(
+	ctx context.Context, scope *Scope, row Row) Row {
+	// The select uses a * to relay all the rows without
+	// filtering
+	if self.All {
+		return row
 
-	go func() {
-		defer close(output_chan)
+	} else {
+		// The select expression consists of multiple
+		// columns, each may be an
+		// expression. Expressions may also be
+		// repeated. VQL produces unique column names
+		// so each column must be a unique string.
 
-		// The select uses a * to relay all the rows without
-		// filtering
-		if self.All {
-			output_chan <- row
+		// If an AS keyword is used to name the
+		// column, then we use that name, otherwise we
+		// generate the name by converting the
+		// expression to a string using its ToString()
+		// method.
+		new_row := NewDict()
+		new_scope := scope.Copy()
+		new_scope.AppendVars(row)
 
-		} else {
-			// The select expression consists of multiple
-			// columns, each may be an
-			// expression. Expressions may also be
-			// repeated. VQL produces unique column names
-			// so each column must be a unique string.
-
-			// If an AS keyword is used to name the
-			// column, then we use that name, otherwise we
-			// generate the name by converting the
-			// expression to a string using its ToString()
-			// method.
-			new_row := NewDict()
-			new_scope := scope.Copy()
-			new_scope.AppendVars(row)
-
-			for _, expr := range self.Expressions {
-				expression_chan := expr.Reduce(ctx, new_scope)
-				expression, ok := <-expression_chan
-
-				// If we fail to read we still need to
-				// set something for that column.
-				if !ok {
-					expression = Null{}
-				}
-
-				var column_name string
-				if expr.As != "" {
-					column_name = expr.As
-				} else {
-					column_name = expr.ToString(scope)
-				}
-				new_row.Set(column_name, expression)
+		for _, expr := range self.Expressions {
+			expression := expr.Reduce(ctx, new_scope)
+			// If we fail to read we still need to
+			// set something for that column.
+			if expression == nil {
+				expression = Null{}
 			}
 
-			output_chan <- new_row
+			var column_name string
+			if expr.As != "" {
+				column_name = expr.As
+			} else {
+				column_name = expr.ToString(scope)
+			}
+			new_row.Set(column_name, expression)
 		}
-	}()
 
-	return output_chan
+		return new_row
+	}
 }
 
 func (self *_SelectExpression) Columns(scope *Scope) *[]string {
@@ -927,15 +912,15 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		args := NewDict()
 		for _, arg := range self.Args {
 			if arg.Right != nil {
-				value, ok := <-arg.Right.Reduce(ctx, scope)
-				if !ok {
+				value := arg.Right.Reduce(ctx, scope)
+				if value == nil {
 					return
 				}
 				args.Set(arg.Left, value)
 
 			} else if arg.Array != nil {
-				value, ok := <-arg.Array.Reduce(ctx, scope)
-				if !ok {
+				value := arg.Array.Reduce(ctx, scope)
+				if value == nil {
 					output_chan <- Null{}
 					return
 				}
@@ -1033,38 +1018,21 @@ func (self _MemberExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _MemberExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
+func (self _MemberExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
 	}
 
-	output_chan := make(chan Any)
-	go func() {
-		defer close(output_chan)
-		select {
-		case <-ctx.Done():
-			return
-
-		case lhs, ok := <-self.Left.Reduce(ctx, scope):
-			if !ok {
-				output_chan <- Null{}
-				return
-			}
-
-			for _, term := range self.Right {
-				var pres bool
-				lhs, pres = scope.Associative(lhs, term.Term)
-				if !pres {
-					output_chan <- Null{}
-					return
-				}
-			}
-
-			output_chan <- lhs
+	lhs := self.Left.Reduce(ctx, scope)
+	for _, term := range self.Right {
+		var pres bool
+		lhs, pres = scope.Associative(lhs, term.Term)
+		if !pres {
+			return Null{}
 		}
-	}()
+	}
 
-	return output_chan
+	return lhs
 }
 
 func (self _MemberExpression) ToString(scope *Scope) string {
@@ -1089,42 +1057,23 @@ func (self _CommaExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _CommaExpression) Reduce(
-	ctx context.Context, scope *Scope) <-chan Any {
-
+func (self _CommaExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
 	}
 
-	output_chan := make(chan Any)
-	go func() {
-		defer close(output_chan)
+	lhs := self.Left.Reduce(ctx, scope)
+	if lhs == nil {
+		return Null{}
+	}
 
-		var result []Any
+	var result []Any
+	result = append(result, lhs)
+	for _, term := range self.Right {
+		result = append(result, term.Term.Reduce(ctx, scope))
+	}
 
-		select {
-		case <-ctx.Done():
-			return
-
-		case lhs, ok := <-self.Left.Reduce(ctx, scope):
-			if !ok {
-				output_chan <- Null{}
-				return
-			}
-
-			result = append(result, lhs)
-			for _, term := range self.Right {
-				rhs, ok := <-term.Term.Reduce(ctx, scope)
-				if ok {
-					result = append(result, rhs)
-				}
-			}
-
-			output_chan <- result
-		}
-	}()
-
-	return output_chan
+	return result
 }
 
 func (self _CommaExpression) ToString(scope *Scope) string {
@@ -1150,48 +1099,23 @@ func (self *_AndExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _AndExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
+func (self _AndExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
 	}
 
-	output_chan := make(chan Any)
-	go func() {
-		defer close(output_chan)
-		var result Any = false
+	var result Any = self.Left.Reduce(ctx, scope)
+	if scope.Bool(result) == false {
+		return false
+	}
 
-		inputs := []<-chan Any{self.Left.Reduce(ctx, scope)}
-
-		for _, term := range self.Right {
-			inputs = append(inputs, term.Term.Reduce(ctx, scope))
+	for _, term := range self.Right {
+		if scope.Bool(term.Term.Reduce(ctx, scope)) == false {
+			return false
 		}
+	}
 
-		merged_channel := merge_channels(inputs)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-
-				// If any of the channels returns a
-				// false value, we return false and
-				// quit.
-			case item, ok := <-merged_channel:
-				if !ok {
-					output_chan <- result
-					return
-				}
-
-				if scope.Bool(item) == false {
-					output_chan <- false
-					return
-				}
-
-				result = true
-			}
-		}
-	}()
-
-	return output_chan
+	return true
 }
 
 func (self _AndExpression) ToString(scope *Scope) string {
@@ -1216,48 +1140,24 @@ func (self *_OrExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _OrExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
+func (self _OrExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
 	}
 
-	output_chan := make(chan Any)
+	var result Any = self.Left.Reduce(ctx, scope)
+	if scope.Bool(result) == true {
+		return true
+	}
 
-	go func() {
-		defer close(output_chan)
-		inputs := []<-chan Any{self.Left.Reduce(ctx, scope)}
-		for _, term := range self.Right {
-			inputs = append(inputs, term.Term.Reduce(ctx, scope))
+	for _, term := range self.Right {
+		result = term.Term.Reduce(ctx, scope)
+		if scope.Bool(result) == true {
+			return true
 		}
+	}
 
-		merged_channel := merge_channels(inputs)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-
-				// If any of the channels returns a
-				// true value, we return the value and
-				// quit.
-			case result, ok := <-merged_channel:
-				if !ok {
-					// If we get here we exhausted
-					// the merged channels without
-					// a true result, so we return
-					// false
-					output_chan <- false
-					return
-				}
-
-				if scope.Bool(result) == true {
-					output_chan <- true
-					return
-				}
-			}
-		}
-	}()
-
-	return output_chan
+	return false
 }
 
 func (self _OrExpression) ToString(scope *Scope) string {
@@ -1282,43 +1182,23 @@ func (self _AdditionExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _AdditionExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
+func (self _AdditionExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
 	}
 
-	output_chan := make(chan Any)
-
-	go func() {
-		defer close(output_chan)
-
-		var term_chans []<-chan Any
-		var operators []string
-		for _, term := range self.Right {
-			term_chans = append(term_chans, term.Term.Reduce(ctx, scope))
-			operators = append(operators, term.Operator)
+	var result Any = self.Left.Reduce(ctx, scope)
+	for _, term := range self.Right {
+		term_value := term.Term.Reduce(ctx, scope)
+		switch term.Operator {
+		case "+":
+			result = scope.Add(result, term_value)
+		case "-":
+			result = scope.Sub(result, term_value)
 		}
+	}
 
-		select {
-		case <-ctx.Done():
-			return
-
-		case lhs := <-self.Left.Reduce(ctx, scope):
-			for idx, term_chan := range term_chans {
-				rhs := <-term_chan
-				op := operators[idx]
-				if op == "+" {
-					lhs = scope.Add(lhs, rhs)
-				} else if op == "-" {
-					lhs = scope.Sub(lhs, rhs)
-				}
-			}
-
-			output_chan <- lhs
-		}
-	}()
-
-	return output_chan
+	return result
 }
 
 func (self _AdditionExpression) ToString(scope *Scope) string {
@@ -1348,102 +1228,45 @@ func (self _ConditionOperand) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) <-chan Any {
+func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) Any {
 	if self.Not != nil {
-		output_chan := make(chan Any)
-		go func() {
-			defer close(output_chan)
-
-			select {
-			case <-ctx.Done():
-				return
-
-			case value, ok := <-self.Not.Reduce(ctx, scope):
-				if !ok {
-					output_chan <- Null{}
-					return
-				}
-
-				output_chan <- !scope.Bool(value)
-			}
-		}()
-		return output_chan
+		value := self.Not.Reduce(ctx, scope)
+		return !scope.Bool(value)
 	}
 
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
 	}
 
-	output_chan := make(chan Any)
+	lhs := self.Left.Reduce(ctx, scope)
+	rhs := self.Right.Right.Reduce(ctx, scope)
 
-	comparator := func(lhs Any, rhs Any) bool {
-		op := self.Right.Operator
-
-		if op == "IN " {
-			return scope.membership.Membership(scope, lhs, rhs)
-		} else if op == "<" {
-			return scope.Lt(lhs, rhs)
+	switch self.Right.Operator {
+	case "IN ":
+		return scope.membership.Membership(scope, lhs, rhs)
+	case "<":
+		return scope.Lt(lhs, rhs)
+	case "=":
+		return scope.Eq(lhs, rhs)
+	case "!=":
+		return !scope.Eq(lhs, rhs)
+	case "<=":
+		return scope.Lt(lhs, rhs) || scope.Eq(lhs, rhs)
+	case ">":
+		// This only works if there is a matching lt
+		// operation.
+		if scope.lt.Applicable(lhs, rhs) && !scope.Eq(lhs, rhs) {
+			return !scope.Lt(lhs, rhs)
 		}
-
-		is_eq := scope.Eq(lhs, rhs)
-
-		if op == "=" {
-			return is_eq
-		} else if op == "!=" {
-			return !is_eq
-		} else if op == "<=" {
-			return scope.Lt(lhs, rhs) || is_eq
-		} else if op == ">" {
-			// This only works if there is a matching lt
-			// operation.
-			if scope.lt.Applicable(lhs, rhs) && !is_eq {
-				return !scope.Lt(lhs, rhs)
-			}
-		} else if op == ">=" {
-			if scope.lt.Applicable(lhs, rhs) {
-				return !scope.Lt(lhs, rhs) || is_eq
-			}
-		} else if op == "=~" {
-			return scope.Match(rhs, lhs)
+	case ">=":
+		if scope.lt.Applicable(lhs, rhs) {
+			return !scope.Lt(lhs, rhs) || scope.Eq(lhs, rhs)
 		}
-
-		return false
+	case "=~":
+		return scope.Match(rhs, lhs)
 	}
 
-	go func() {
-		defer close(output_chan)
-
-		var lhs Any
-		var rhs Any
-		var ok bool
-
-		select {
-		case <-ctx.Done():
-			return
-
-		// Run the Left and Right channels and wait for both.
-		case lhs, ok = <-self.Left.Reduce(ctx, scope):
-			if !ok {
-				output_chan <- Null{}
-				return
-			}
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-
-		case rhs, ok = <-self.Right.Right.Reduce(ctx, scope):
-			if !ok {
-				output_chan <- Null{}
-				return
-			}
-		}
-
-		output_chan <- comparator(lhs, rhs)
-	}()
-
-	return output_chan
+	return false
 }
 
 func (self _ConditionOperand) ToString(scope *Scope) string {
@@ -1474,38 +1297,24 @@ func (self _MultiplicationExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _MultiplicationExpression) Reduce(ctx context.Context, scope *Scope) <-chan Any {
+func (self _MultiplicationExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	if self.Right == nil {
 		return self.Left.Reduce(ctx, scope)
 	}
 
-	output_chan := make(chan Any)
+	var result Any = self.Left.Reduce(ctx, scope)
 
-	go func() {
-		defer close(output_chan)
-
-		var term_chans []<-chan Any
-		var operators []string
-		for _, term := range self.Right {
-			term_chans = append(term_chans, term.Factor.Reduce(ctx, scope))
-			operators = append(operators, term.Operator)
+	for _, term := range self.Right {
+		term_value := term.Factor.Reduce(ctx, scope)
+		switch term.Operator {
+		case "*":
+			result = scope.Mul(result, term_value)
+		case "/":
+			result = scope.Div(result, term_value)
 		}
+	}
 
-		lhs := <-self.Left.Reduce(ctx, scope)
-		for idx, term_chan := range term_chans {
-			rhs := <-term_chan
-			op := operators[idx]
-			if op == "*" {
-				lhs = scope.Mul(lhs, rhs)
-			} else if op == "/" {
-				lhs = scope.Div(lhs, rhs)
-			}
-		}
-
-		output_chan <- lhs
-	}()
-
-	return output_chan
+	return result
 }
 
 func (self _MultiplicationExpression) ToString(scope *Scope) string {
@@ -1529,32 +1338,22 @@ func (self _Value) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _Value) Reduce(ctx context.Context, scope *Scope) <-chan Any {
+func (self _Value) Reduce(ctx context.Context, scope *Scope) Any {
 	if self.Subexpression != nil {
 		return self.Subexpression.Reduce(ctx, scope)
 	} else if self.SymbolRef != nil {
 		return self.SymbolRef.Reduce(ctx, scope)
 	}
 
-	output_chan := make(chan Any)
-
-	go func() {
-		defer close(output_chan)
-
-		if self.String != nil {
-			output_chan <- *self.String
-		} else if self.Number != nil {
-			output_chan <- *self.Number
-		} else if self.Boolean != nil {
-			output_chan <- *self.Boolean == "TRUE"
-		} else if self.Null {
-			output_chan <- nil
-		} else {
-			output_chan <- Null{}
-		}
-	}()
-
-	return output_chan
+	if self.String != nil {
+		return *self.String
+	} else if self.Number != nil {
+		return *self.Number
+	} else if self.Boolean != nil {
+		return *self.Boolean == "TRUE"
+	} else {
+		return Null{}
+	}
 }
 
 func (self _Value) ToString(scope *Scope) string {
@@ -1580,7 +1379,10 @@ func (self _Value) ToString(scope *Scope) string {
 	}
 }
 
-func (self _SymbolRef) IsAggregate(scope *Scope) bool {
+func (self *_SymbolRef) IsAggregate(scope *Scope) bool {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
 	// If it is not a function then it can not be an aggregate.
 	if self.Parameters == nil {
 		return false
@@ -1595,58 +1397,58 @@ func (self _SymbolRef) IsAggregate(scope *Scope) bool {
 	return value.Info(scope, NewTypeMap()).IsAggregate
 }
 
-func (self _SymbolRef) Reduce(ctx context.Context, scope *Scope) <-chan Any {
-	output_chan := make(chan Any)
+func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
+	self.mu.Lock()
+	defer self.mu.Unlock()
 
-	go func() {
-		defer close(output_chan)
+	// Build up the args to pass to the function.
+	args := NewDict()
+	for _, arg := range self.Parameters {
+		if arg.Right != nil {
+			value := arg.Right.Reduce(ctx, scope)
+			args.Set(arg.Left, value)
 
-		// Build up the args to pass to the function.
-		args := NewDict()
-		for _, arg := range self.Parameters {
-			if arg.Right != nil {
-				value, ok := <-arg.Right.Reduce(ctx, scope)
-				if !ok {
-					output_chan <- Null{}
-					return
-				}
-				args.Set(arg.Left, value)
+		} else if arg.Array != nil {
+			value := arg.Array.Reduce(ctx, scope)
+			args.Set(arg.Left, value)
 
-			} else if arg.Array != nil {
-				value, ok := <-arg.Array.Reduce(ctx, scope)
-				if !ok {
-					output_chan <- Null{}
-					return
-				}
-				args.Set(arg.Left, value)
-
-			} else if arg.SubSelect != nil {
-				args.Set(arg.Left, arg.SubSelect)
-			}
+		} else if arg.SubSelect != nil {
+			args.Set(arg.Left, arg.SubSelect)
 		}
+	}
 
-		// Lookup the symbol in the scope. Functions take
-		// precedence over symbols.
+	// If this AST node previously called a function, we use the
+	// same function copy to ensure it may store internal state.
+	if self.function != nil {
+		return self.function.Call(ctx, scope, args)
+	}
 
-		// The symbol is a function.
-		if value, pres := scope.functions[self.Symbol]; pres {
-			output_chan <- value.Call(ctx, scope, args)
+	// Lookup the symbol in the scope. Functions take
+	// precedence over symbols.
 
-			// The symbol is just a constant in the scope.
-		} else if value, pres := scope.Resolve(self.Symbol); pres {
-			output_chan <- value
+	// The symbol is a function.
+	func_obj, pres := scope.functions[self.Symbol]
+	if pres {
+		// Make a copy of the function for next time.
+		self.function = func_obj
+		return self.function.Call(ctx, scope, args)
+	}
 
-		} else {
-			scope.Log("Symbol %v not found. %s", self.Symbol,
-				scope.PrintVars())
-			output_chan <- Null{}
-		}
-	}()
+	// The symbol is just a constant in the scope.
+	value, pres := scope.Resolve(self.Symbol)
+	if pres {
+		return value
+	}
 
-	return output_chan
+	scope.Log("Symbol %v not found. %s", self.Symbol,
+		scope.PrintVars())
+	return Null{}
 }
 
-func (self _SymbolRef) ToString(scope *Scope) string {
+func (self *_SymbolRef) ToString(scope *Scope) string {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
 	symbol := self.Symbol
 	if self.Parameters == nil {
 		return symbol

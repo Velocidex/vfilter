@@ -1,6 +1,7 @@
 package vfilter
 
 import (
+	"fmt"
 	"reflect"
 	"sync"
 	"unicode"
@@ -152,4 +153,9 @@ func InString(hay *[]string, needle string) bool {
 	}
 
 	return false
+}
+
+// Returns a unique ID for the object.
+func GetID(obj Any) string {
+	return fmt.Sprintf("%p", obj)
 }

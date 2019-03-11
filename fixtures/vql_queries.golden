@@ -336,107 +336,89 @@
  "035 Group by 1: SELECT foo, bar FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
-   "foo": [
-    3,
-    4
-   ]
+   "foo": 4
   },
   {
    "bar": 5,
-   "foo": [
-    1,
-    2
-   ]
+   "foo": 2
   }
  ],
  "036 Group by count: SELECT foo, bar, count(items=bar) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
    "count(items=bar)": 2,
-   "foo": [
-    3,
-    4
-   ]
+   "foo": 4
   },
   {
    "bar": 5,
    "count(items=bar)": 2,
-   "foo": [
-    1,
-    2
-   ]
+   "foo": 2
   }
  ],
  "037 Group by min: SELECT foo, bar, min(items=foo) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
-   "foo": [
-    3,
-    4
-   ],
+   "foo": 4,
    "min(items=foo)": 3
   },
   {
    "bar": 5,
-   "foo": [
-    1,
-    2
-   ],
+   "foo": 2,
    "min(items=foo)": 1
   }
  ],
  "038 Group by max: SELECT foo, bar, max(items=foo) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
-   "foo": [
-    3,
-    4
-   ],
+   "foo": 4,
    "max(items=foo)": 4
   },
   {
    "bar": 5,
-   "foo": [
-    1,
-    2
-   ],
+   "foo": 2,
    "max(items=foo)": 2
   }
  ],
  "039 Group by max of string: SELECT baz, bar, max(items=baz) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
-   "baz": [
-    "c",
-    "d"
-   ],
+   "baz": "d",
    "max(items=baz)": "d"
   },
   {
    "bar": 5,
-   "baz": [
-    "a",
-    "b"
-   ],
+   "baz": "b",
    "max(items=baz)": "b"
   }
  ],
  "040 Group by min of string: SELECT baz, bar, min(items=baz) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
-   "baz": [
-    "c",
-    "d"
-   ],
+   "baz": "d",
    "min(items=baz)": "c"
   },
   {
    "bar": 5,
-   "baz": [
+   "baz": "b",
+   "min(items=baz)": "a"
+  }
+ ],
+ "041 Group by enumrate of string: SELECT baz, bar, enumerate(items=baz) FROM groupbytest() GROUP BY bar": [
+  {
+   "bar": 2,
+   "baz": "d",
+   "enumerate(items=baz)": [
+    "c",
+    "d"
+   ]
+  },
+  {
+   "bar": 5,
+   "baz": "b",
+   "enumerate(items=baz)": [
     "a",
     "b"
-   ],
-   "min(items=baz)": "a"
+   ]
   }
  ]
 }

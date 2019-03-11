@@ -3,6 +3,7 @@ package vfilter
 import (
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 )
 
@@ -46,6 +47,29 @@ type Scope struct {
 	regex       _RegexDispatcher
 
 	Logger *log.Logger
+
+	regexp_cache map[string]*regexp.Regexp
+
+	context *Dict
+}
+
+func (self *Scope) GetContext(name string) Any {
+	if self.context == nil {
+		return nil
+	}
+	res, pres := self.context.Get(name)
+	if !pres {
+		return nil
+	}
+
+	return res
+}
+
+func (self *Scope) SetContext(name string, value Any) {
+	if self.context == nil {
+		self.context = NewDict()
+	}
+	self.context.Set(name, value)
 }
 
 func (self *Scope) PrintVars() string {
@@ -261,7 +285,9 @@ func (self *Scope) Close() {
 // own specialized protocols, functions and plugins to specialize
 // their scope objects.
 func NewScope() *Scope {
-	result := Scope{}
+	result := Scope{
+		regexp_cache: make(map[string]*regexp.Regexp),
+	}
 	result.functions = make(map[string]FunctionInterface)
 	result.plugins = make(map[string]PluginGeneratorInterface)
 	result.AppendVars(
@@ -299,6 +325,7 @@ func NewScope() *Scope {
 		_CountFunction{},
 		_MinFunction{},
 		_MaxFunction{},
+		_EnumerateFunction{},
 	)
 
 	result.AppendPlugins(

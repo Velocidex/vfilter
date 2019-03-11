@@ -165,7 +165,7 @@ func TestValue(t *testing.T) {
 	value := _Value{
 		String: &foo,
 	}
-	result := <-value.Reduce(ctx, scope)
+	result := value.Reduce(ctx, scope)
 	defer cancel()
 	if !scope.Eq(result, "foo") {
 		t.Fatalf("Expected %v, got %v", "foo", foo)
@@ -184,12 +184,7 @@ func TestEvalWhereClause(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		output := vql.Query.Where.Reduce(ctx, scope)
-		value, ok := <-output
-		if !ok {
-			t.Fatalf("No output from channel")
-			return
-		}
+		value := vql.Query.Where.Reduce(ctx, scope)
 		if !scope.Eq(value, test.result) {
 			Debug(test.clause)
 			t.Fatalf("%v: Expected %v, got %v", test.clause, test.result, value)
@@ -393,6 +388,9 @@ select * from test() limit 1`},
 		"select baz, bar, max(items=baz) from groupbytest() GROUP BY bar"},
 	{"Group by min of string",
 		"select baz, bar, min(items=baz) from groupbytest() GROUP BY bar"},
+
+	{"Group by enumrate of string",
+		"select baz, bar, enumerate(items=baz) from groupbytest() GROUP BY bar"},
 }
 
 func makeTestScope() *Scope {
