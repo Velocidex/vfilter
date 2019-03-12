@@ -5,6 +5,7 @@ import (
 	"log"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // Destructors are stored in the root of the scope stack so they may
@@ -31,6 +32,8 @@ type _destructors struct {
    referenced by the query.
 */
 type Scope struct {
+	sync.Mutex
+
 	vars      []Row
 	functions map[string]FunctionInterface
 	plugins   map[string]PluginGeneratorInterface
@@ -54,6 +57,9 @@ type Scope struct {
 }
 
 func (self *Scope) GetContext(name string) Any {
+	self.Lock()
+	defer self.Unlock()
+
 	if self.context == nil {
 		return nil
 	}
@@ -66,6 +72,9 @@ func (self *Scope) GetContext(name string) Any {
 }
 
 func (self *Scope) SetContext(name string, value Any) {
+	self.Lock()
+	defer self.Unlock()
+
 	if self.context == nil {
 		self.context = NewDict()
 	}
@@ -73,6 +82,9 @@ func (self *Scope) SetContext(name string, value Any) {
 }
 
 func (self *Scope) PrintVars() string {
+	self.Lock()
+	defer self.Unlock()
+
 	my_vars := []string{}
 	for _, vars := range self.vars {
 		keys := []string{}
@@ -86,6 +98,9 @@ func (self *Scope) PrintVars() string {
 }
 
 func (self *Scope) Keys() []string {
+	self.Lock()
+	defer self.Unlock()
+
 	result := []string{}
 
 	for _, vars := range self.vars {
@@ -100,6 +115,9 @@ func (self *Scope) Keys() []string {
 }
 
 func (self *Scope) Describe(type_map *TypeMap) *ScopeInformation {
+	self.Lock()
+	defer self.Unlock()
+
 	result := &ScopeInformation{}
 	for _, item := range self.plugins {
 		result.Plugins = append(result.Plugins, item.Info(self, type_map))
@@ -167,16 +185,46 @@ func (self *Scope) Match(a Any, b Any) bool {
 	return self.regex.Match(self, a, b)
 }
 
+/*
 func (self Scope) Copy() *Scope {
 	copy_of_vars := append([]Row{}, self.vars...)
 	self.vars = copy_of_vars
 	return &self
+}
+*/
+
+func (self *Scope) Copy() *Scope {
+	self.Lock()
+	defer self.Unlock()
+
+	return &Scope{
+		functions:    self.functions,
+		plugins:      self.plugins,
+		Logger:       self.Logger,
+		regexp_cache: self.regexp_cache,
+		vars:         append([]Row{}, self.vars...),
+		context:      self.context,
+
+		bool:        self.bool,
+		eq:          self.eq,
+		lt:          self.lt,
+		add:         self.add,
+		sub:         self.sub,
+		mul:         self.mul,
+		div:         self.div,
+		membership:  self.membership,
+		associative: self.associative,
+		regex:       self.regex,
+	}
 }
 
 // Add various protocol implementations into this
 // scope. Implementations must be one of the supported protocols or
 // this function will panic.
 func (self *Scope) AddProtocolImpl(implementations ...Any) *Scope {
+	self.Lock()
+	defer self.Unlock()
+
 	for _, imp := range implementations {
 		switch t := imp.(type) {
 		case BoolProtocol:
@@ -210,6 +258,9 @@ func (self *Scope) AddProtocolImpl(implementations ...Any) *Scope {
 
 // Append the variables in Row to the scope.
 func (self *Scope) AppendVars(row Row) *Scope {
+	self.Lock()
+	defer self.Unlock()
+
 	result := self
 
 	result.vars = append(result.vars, row)
@@ -220,6 +271,9 @@ func (self *Scope) AppendVars(row Row) *Scope {
 // Add client function implementations to the scope. Queries using
 // this scope can call these functions from within VQL queries.
 func (self *Scope) AppendFunctions(functions ...FunctionInterface) *Scope {
+	self.Lock()
+	defer self.Unlock()
+
 	result := self
 	type_map := NewTypeMap()
 	for _, function := range functions {
@@ -233,6 +287,9 @@ func (self *Scope) AppendFunctions(functions ...FunctionInterface) *Scope {
 // Add plugins (data sources) to the scope. VQL queries may select
 // from these newly added plugins.
 func (self *Scope) AppendPlugins(plugins ...PluginGeneratorInterface) *Scope {
+	self.Lock()
+	defer self.Unlock()
+
 	result := self
 	type_map := NewTypeMap()
 	for _, plugin := range plugins {
@@ -244,6 +301,9 @@ func (self *Scope) AppendPlugins(plugins ...PluginGeneratorInterface) *Scope {
 }
 
 func (self *Scope) Info(type_map *TypeMap, name string) (*PluginInfo, bool) {
+	self.Lock()
+	defer self.Unlock()
+
 	if plugin, pres := self.plugins[name]; pres {
 		return plugin.Info(self, type_map), true
 	}
@@ -259,6 +319,9 @@ func (self *Scope) Log(format string, a ...interface{}) {
 }
 
 func (self *Scope) AddDesctructor(fn func()) {
+	self.Lock()
+	defer self.Unlock()
+
 	destructors_any, _ := self.Resolve("__destructors")
 	destructors, ok := destructors_any.(*_destructors)
 	if ok {
@@ -269,6 +332,9 @@ func (self *Scope) AddDesctructor(fn func()) {
 }
 
 func (self *Scope) Close() {
+	self.Lock()
+	defer self.Unlock()
+
 	destructors_any, _ := self.Resolve("__destructors")
 	destructors, ok := destructors_any.(*_destructors)
 	if ok {

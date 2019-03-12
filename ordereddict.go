@@ -5,19 +5,28 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/cevaris/ordered_map"
 )
 
 // A concerete implementation of a row - similar to Python's OrderedDict.
 type Dict struct {
+	sync.Mutex
+
 	*ordered_map.OrderedMap
 	default_value    Any
 	case_insensitive bool
 }
 
 func NewDict() *Dict {
-	return &Dict{ordered_map.NewOrderedMap(), nil, false}
+	return &Dict{OrderedMap: ordered_map.NewOrderedMap()}
+}
+
+func (self *Dict) IsCaseInsensitive() bool {
+	self.Lock()
+	defer self.Unlock()
+	return self.case_insensitive
 }
 
 func (self *Dict) MergeFrom(other *Dict) {
@@ -29,25 +38,47 @@ func (self *Dict) MergeFrom(other *Dict) {
 }
 
 func (self *Dict) SetDefault(value Any) *Dict {
+	self.Lock()
+	defer self.Unlock()
+
 	self.default_value = value
 	return self
 }
 
+func (self *Dict) GetDefault() Any {
+	self.Lock()
+	defer self.Unlock()
+
+	return self.default_value
+}
+
 func (self *Dict) SetCaseInsensitive() *Dict {
+	self.Lock()
+	defer self.Unlock()
+
 	self.case_insensitive = true
 	return self
 }
 
 func (self *Dict) Set(key string, value Any) *Dict {
+	self.Lock()
+	defer self.Unlock()
+
 	self.OrderedMap.Set(key, value)
 	return self
 }
 
 func (self *Dict) Get(key string) (Any, bool) {
+	self.Lock()
+	defer self.Unlock()
+
 	return self.OrderedMap.Get(key)
 }
 
 func (self *Dict) ToDict() *map[string]Any {
+	self.Lock()
+	defer self.Unlock()
+
 	result := make(map[string]Any)
 
 	iter := self.IterFunc()
@@ -59,6 +90,9 @@ func (self *Dict) ToDict() *map[string]Any {
 }
 
 func (self *Dict) String() string {
+	self.Lock()
+	defer self.Unlock()
+
 	builder := make([]string, self.Len())
 
 	var index int = 0
@@ -145,7 +179,7 @@ func (self _DictAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool)
 
 	res, pres := value.Get(key)
 	if !pres {
-		if value.case_insensitive {
+		if value.IsCaseInsensitive() {
 			lower_case_key := strings.ToLower(key)
 			for _, member := range scope.GetMembers(value) {
 				if strings.ToLower(member) == lower_case_key {
@@ -158,8 +192,9 @@ func (self _DictAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool)
 
 		// Return the default value but still indicate the
 		// value is not present.
-		if value.default_value != nil {
-			return value.default_value, false
+		default_value := value.GetDefault()
+		if default_value != nil {
+			return default_value, false
 		}
 	}
 	return res, pres
