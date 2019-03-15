@@ -98,7 +98,7 @@ func (self *Dict) String() string {
 	var index int = 0
 	iter := self.IterFunc()
 	for kv, ok := iter(); ok; kv, ok = iter() {
-		val, _ := self.Get(kv.Key.(string))
+		val, _ := self.OrderedMap.Get(kv.Key.(string))
 		builder[index] = fmt.Sprintf("%v:%v, ", kv.Key, val)
 		index++
 	}

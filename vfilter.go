@@ -340,11 +340,19 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			// Append this row to a bin based on a unique
 			// value of the group by column.
 			for row := range self.From.Eval(sub_ctx, scope) {
-				gb_element, pres := scope.Associative(row, group_by)
+				transformed_row := self.SelectExpression.Transform(
+					ctx, scope, row)
+				gb_element, pres := scope.Associative(
+					transformed_row, group_by)
 				if !pres {
 					// This should not happen -
 					// the group by column is not
 					// present in the row.
+					gb_element = Null{}
+				}
+
+				// We can not aggregate by arrays. Should we serialize them?
+				if is_array(gb_element) {
 					gb_element = Null{}
 				}
 
@@ -362,8 +370,14 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				// specific aggregate group.
 				new_scope.context = aggregate_ctx.context
 
-				// Update the row with the transformed columns
-				aggregate_ctx.row = self.SelectExpression.Transform(ctx, new_scope, row)
+				// Update the row with the transformed
+				// columns. Note we must materialize
+				// these rows because evaluating the
+				// row may have side effects (e.g. for
+				// aggregate functions).
+				aggregate_ctx.row = MaterializedLazyRow(
+					self.SelectExpression.Transform(
+						ctx, new_scope, row), scope)
 			}
 
 			result_set := &ResultSet{
@@ -388,7 +402,7 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			sort.Sort(result_set)
 
 			for _, row := range result_set.Items {
-				output_chan <- row
+				output_chan <- MaterializedLazyRow(row, new_scope)
 			}
 		}()
 
@@ -473,7 +487,7 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					ctx, scope, row)
 
 				if self.Where == nil {
-					output_chan <- transformed_row
+					output_chan <- MaterializedLazyRow(transformed_row, scope)
 				} else {
 					// If there is a filter clause, we
 					// need to filter the row using a new
@@ -496,7 +510,8 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					// a bool true, then pass the row to
 					// the output.
 					if expression != nil && scope.Bool(expression) {
-						output_chan <- transformed_row
+						output_chan <- MaterializedLazyRow(
+							transformed_row, new_scope)
 					}
 				}
 			}
@@ -757,25 +772,33 @@ func (self _SelectExpression) Transform(
 		// generate the name by converting the
 		// expression to a string using its ToString()
 		// method.
-		new_row := NewDict()
+		new_row := NewLazyRow(ctx)
 		new_scope := scope.Copy()
 		new_scope.AppendVars(row)
 
-		for _, expr := range self.Expressions {
-			expression := expr.Reduce(ctx, new_scope)
-			// If we fail to read we still need to
-			// set something for that column.
-			if expression == nil {
-				expression = Null{}
-			}
+		for _, expr_ := range self.Expressions {
+			// A copy of the expression for the lambda capture.
+			expr := expr_
 
+			// Figure out the column name.
 			var column_name string
 			if expr.As != "" {
 				column_name = expr.As
 			} else {
 				column_name = expr.ToString(scope)
 			}
-			new_row.Set(column_name, expression)
+
+			new_row.AddColumn(
+				column_name,
+
+				// Use the new scope rather than the
+				// callers scope since the lazy row
+				// may be accessed in any scope but
+				// needs to resolve members in the
+				// scope it was created from.
+				func(ctx context.Context, scope *Scope) Any {
+					return expr.Reduce(ctx, new_scope)
+				})
 		}
 
 		return new_row

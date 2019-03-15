@@ -420,5 +420,11 @@
     "b"
    ]
   }
+ ],
+ "042 Lazy row evaluation (Shoud panic if foo=2: SELECT foo, panic(column=foo, value=2) FROM test() WHERE foo = 4": [
+  {
+   "foo": 4,
+   "panic(column=foo, value=2)": 2
+  }
  ]
 }

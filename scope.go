@@ -376,7 +376,7 @@ func NewScope() *Scope {
 		_DictAssociative{},
 		_SubstringRegex{}, _ArrayRegex{},
 		_StoredQueryAssociative{}, _StoredQueryBool{},
-		_ScopeAssociative{},
+		_ScopeAssociative{}, _LazyRowAssociative{},
 	)
 
 	// Built in functions.

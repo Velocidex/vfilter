@@ -138,6 +138,31 @@ func (self TestFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	}
 }
 
+type PanicFunction struct{}
+
+// Panic if we get an arg of a=2
+func (self PanicFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any {
+	column, pres := args.Get("column")
+	if !pres {
+		return Null{}
+	}
+	value, pres := args.Get("value")
+	if !pres {
+		return Null{}
+	}
+	if scope.Eq(value, column) {
+		panic(fmt.Sprintf("Panic because I got %v!", value))
+	}
+
+	return value
+}
+
+func (self PanicFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
+	return &FunctionInfo{
+		Name: "panic",
+	}
+}
+
 func makeScope() *Scope {
 	return NewScope().AppendVars(NewDict().
 		Set("const_foo", 1).
@@ -147,6 +172,7 @@ func makeScope() *Scope {
 			Set("bar2", 7)),
 	).AppendFunctions(
 		TestFunction{1},
+		PanicFunction{},
 	).AppendPlugins(
 		GenericListPlugin{
 			PluginName: "range",
@@ -391,6 +417,9 @@ select * from test() limit 1`},
 
 	{"Group by enumrate of string",
 		"select baz, bar, enumerate(items=baz) from groupbytest() GROUP BY bar"},
+
+	{"Lazy row evaluation (Shoud panic if foo=2",
+		"select foo, panic(column=foo, value=2) from test() where foo = 4"},
 }
 
 func makeTestScope() *Scope {

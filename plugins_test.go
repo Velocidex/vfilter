@@ -7,13 +7,13 @@ import (
 
 type execPluginTest struct {
 	query  string
-	result []*Dict
+	result []Row
 }
 
 var execPluginTests = []execPluginTest{
 	execPluginTest{
 		query: "select * from test_plugin() where foo.bar < 2",
-		result: []*Dict{
+		result: []Row{
 			NewDict().
 				Set("foo", NewDict().Set("bar", 1)).
 				Set("foo_2", 2).
@@ -23,7 +23,7 @@ var execPluginTests = []execPluginTest{
 	execPluginTest{
 		query: ("select foo.bar as column1, foo.bar from " +
 			"test_plugin() where foo.bar = 2"),
-		result: []*Dict{
+		result: []Row{
 			NewDict().
 				Set("column1", 2).
 				Set("foo.bar", 2),
