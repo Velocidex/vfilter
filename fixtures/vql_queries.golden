@@ -85,12 +85,12 @@
    "no_such_column": null
   }
  ],
- "009 dict plugin with invalide column in expression: SELECT no_such_column + 'foo' FROM dict(env_var=15, foo=5)": [
+ "009 dict plugin with invalide column in expression: SELECT no_such_column + \"foo\" FROM dict(env_var=15, foo=5)": [
   {
-   "no_such_column + 'foo'": null
+   "no_such_column + \"foo\"": null
   }
  ],
- "010 mix from env and plugin: SELECT env_var + param AS ConCat FROM dict(param='param')": [
+ "010 mix from env and plugin: SELECT env_var + param AS ConCat FROM dict(param=\"param\")": [
   {
    "ConCat": "EnvironmentDataparam"
   }
@@ -425,6 +425,11 @@
   {
    "foo": 4,
    "panic(column=foo, value=2)": 2
+  }
+ ],
+ "043 Quotes strings: SELECT \"foo's quote\" FROM scope()": [
+  {
+   "\"foo's quote\"": "foo's quote"
   }
  ]
 }

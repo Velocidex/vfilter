@@ -420,6 +420,8 @@ select * from test() limit 1`},
 
 	{"Lazy row evaluation (Shoud panic if foo=2",
 		"select foo, panic(column=foo, value=2) from test() where foo = 4"},
+	{"Quotes strings",
+		"select 'foo\\'s quote' from scope()"},
 }
 
 func makeTestScope() *Scope {

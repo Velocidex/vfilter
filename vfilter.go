@@ -1390,7 +1390,7 @@ func (self _Value) ToString(scope *Scope) string {
 	} else if self.Subexpression != nil {
 		return "(" + self.Subexpression.ToString(scope) + ")"
 	} else if self.String != nil {
-		return "'" + *self.String + "'"
+		return strconv.Quote(*self.String)
 	} else if self.Number != nil {
 		return strconv.FormatFloat(factor**self.Number, 'f', -1, 32)
 	} else if self.Boolean != nil {
