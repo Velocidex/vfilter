@@ -10,6 +10,10 @@ import (
 type LazyRow struct {
 	ctx     context.Context
 	getters map[string]func(ctx context.Context, scope *Scope) Any
+
+	// We need to maintain the order in which columns are added to
+	// preserve column ordering.
+	columns []string
 	cache   *Dict
 
 	mu sync.Mutex
@@ -18,6 +22,7 @@ type LazyRow struct {
 func (self *LazyRow) AddColumn(
 	name string, getter func(ctx context.Context, scope *Scope) Any) {
 	self.getters[name] = getter
+	self.columns = append(self.columns, name)
 }
 
 func NewLazyRow(ctx context.Context) *LazyRow {
@@ -95,16 +100,18 @@ func (self _LazyRowAssociative) GetMembers(scope *Scope, a Any) []string {
 		return []string{}
 	}
 
-	return scope.GetMembers(value.getters)
+	return value.columns
 }
 
 func MaterializedLazyRow(row Row, scope *Scope) Row {
 	lazy_row, ok := row.(*LazyRow)
 	if ok {
 		result := NewDict()
-		for column, getter := range lazy_row.getters {
+		// Preserve column ordering.
+		for _, column := range lazy_row.columns {
 			value, pres := lazy_row.cache.Get(column)
 			if !pres {
+				getter, _ := lazy_row.getters[column]
 				value = getter(lazy_row.ctx, scope)
 			}
 
@@ -115,55 +122,3 @@ func MaterializedLazyRow(row Row, scope *Scope) Row {
 	}
 	return row
 }
-
-/*
-
-type _LazyRowEq struct{}
-
-func (self _LazyRowEq) Eq(scope *Scope, a Any, b Any) bool {
-	var value *LazyRow
-	other := b
-
-	switch t := a.(type) {
-	case LazyRow:
-		value = &t
-
-	case *LazyRow:
-		value = t
-
-	default:
-		other := a
-		switch t := b.(type) {
-		case LazyRow:
-			value = &t
-
-		case *LazyRow:
-			value = t
-
-		default:
-			return false
-		}
-	}
-
-
-
-}
-
-func (self _LazyRowEq) Applicable(a Any, b Any) bool {
-	switch a.(type) {
-	case LazyRow, *LazyRow:
-		break
-	default:
-		return false
-	}
-
-	switch b.(type) {
-	case LazyRow, *LazyRow:
-		break
-	default:
-		return false
-	}
-
-	return true
-}
-*/
