@@ -342,6 +342,21 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			for row := range self.From.Eval(sub_ctx, scope) {
 				transformed_row := self.SelectExpression.Transform(
 					ctx, scope, row)
+
+				if self.Where != nil {
+					new_scope := scope.Copy()
+
+					new_scope.AppendVars(row)
+					new_scope.AppendVars(transformed_row)
+
+					expression := self.Where.Reduce(ctx, new_scope)
+					// If the filtered expression returns
+					// a bool false, then skip the row.
+					if expression == nil || !scope.Bool(expression) {
+						continue
+					}
+				}
+
 				gb_element, pres := scope.Associative(
 					transformed_row, group_by)
 				if !pres {

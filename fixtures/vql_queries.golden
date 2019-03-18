@@ -355,7 +355,19 @@
    "foo": 2
   }
  ],
- "037 Group by min: SELECT foo, bar, min(items=foo) FROM groupbytest() GROUP BY bar": [
+ "037 Group by count with where: SELECT foo, bar, count(items=bar) FROM groupbytest() WHERE foo \u003c 4 GROUP BY bar": [
+  {
+   "bar": 2,
+   "count(items=bar)": 1,
+   "foo": 3
+  },
+  {
+   "bar": 5,
+   "count(items=bar)": 2,
+   "foo": 2
+  }
+ ],
+ "038 Group by min: SELECT foo, bar, min(items=foo) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
    "foo": 4,
@@ -367,7 +379,7 @@
    "min(items=foo)": 1
   }
  ],
- "038 Group by max: SELECT foo, bar, max(items=foo) FROM groupbytest() GROUP BY bar": [
+ "039 Group by max: SELECT foo, bar, max(items=foo) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
    "foo": 4,
@@ -379,7 +391,7 @@
    "max(items=foo)": 2
   }
  ],
- "039 Group by max of string: SELECT baz, bar, max(items=baz) FROM groupbytest() GROUP BY bar": [
+ "040 Group by max of string: SELECT baz, bar, max(items=baz) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
    "baz": "d",
@@ -391,7 +403,7 @@
    "max(items=baz)": "b"
   }
  ],
- "040 Group by min of string: SELECT baz, bar, min(items=baz) FROM groupbytest() GROUP BY bar": [
+ "041 Group by min of string: SELECT baz, bar, min(items=baz) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
    "baz": "d",
@@ -403,7 +415,7 @@
    "min(items=baz)": "a"
   }
  ],
- "041 Group by enumrate of string: SELECT baz, bar, enumerate(items=baz) FROM groupbytest() GROUP BY bar": [
+ "042 Group by enumrate of string: SELECT baz, bar, enumerate(items=baz) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
    "baz": "d",
@@ -421,13 +433,13 @@
    ]
   }
  ],
- "042 Lazy row evaluation (Shoud panic if foo=2: SELECT foo, panic(column=foo, value=2) FROM test() WHERE foo = 4": [
+ "043 Lazy row evaluation (Shoud panic if foo=2: SELECT foo, panic(column=foo, value=2) FROM test() WHERE foo = 4": [
   {
    "foo": 4,
    "panic(column=foo, value=2)": 2
   }
  ],
- "043 Quotes strings: SELECT \"foo's quote\" FROM scope()": [
+ "044 Quotes strings: SELECT \"foo's quote\" FROM scope()": [
   {
    "\"foo's quote\"": "foo's quote"
   }
