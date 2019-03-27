@@ -322,9 +322,6 @@ func (self *Scope) Log(format string, a ...interface{}) {
 }
 
 func (self *Scope) AddDesctructor(fn func()) {
-	self.Lock()
-	defer self.Unlock()
-
 	destructors_any, _ := self.Resolve("__destructors")
 	destructors, ok := destructors_any.(*_destructors)
 	if ok {
@@ -335,9 +332,6 @@ func (self *Scope) AddDesctructor(fn func()) {
 }
 
 func (self *Scope) Close() {
-	self.Lock()
-	defer self.Unlock()
-
 	destructors_any, _ := self.Resolve("__destructors")
 	destructors, ok := destructors_any.(*_destructors)
 	if ok {
@@ -415,6 +409,9 @@ func NewScope() *Scope {
 
 // Fetch the field from the scope variables.
 func (self *Scope) Resolve(field string) (interface{}, bool) {
+	self.Lock()
+	defer self.Unlock()
+
 	var default_value Any
 
 	// Walk the scope stack in reverse so more recent vars shadow
