@@ -779,7 +779,7 @@ func (self _SubstringRegex) Match(scope *Scope, pattern Any, target Any) bool {
 	re, pres := scope.regexp_cache[pattern_string]
 	if !pres {
 		var err error
-		re, err = regexp.Compile(pattern_string)
+		re, err = regexp.Compile("(?i)" + pattern_string)
 		if err != nil {
 			scope.Log("Compile regexp: %v", err)
 			return false

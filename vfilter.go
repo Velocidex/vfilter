@@ -223,8 +223,8 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			stored_query := NewStoredQuery(self.Query)
 			scope.AppendVars(NewDict().Set(self.Let, stored_query))
 		case "<=":
-			scope.AppendVars(NewDict().Set(self.Let, Materialize(
-				scope, self.Query)))
+			scope.AppendVars(NewDict().Set(self.Let, MaterializedLazyRow(
+				self.Query, scope)))
 		}
 		close(output_chan)
 		return output_chan

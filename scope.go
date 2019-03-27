@@ -312,6 +312,9 @@ func (self *Scope) Info(type_map *TypeMap, name string) (*PluginInfo, bool) {
 }
 
 func (self *Scope) Log(format string, a ...interface{}) {
+	self.Lock()
+	defer self.Unlock()
+
 	msg := fmt.Sprintf(format, a...)
 	if self.Logger != nil {
 		self.Logger.Print(msg)
