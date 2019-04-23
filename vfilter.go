@@ -149,7 +149,7 @@ var (
 			`|(?P<MLineComment>^/[*].*?[*]/$)` + // C Style comment.
 			`|(?P<SQLComment>^--.*?$)` + // SQL style one line comment.
 			`|(?P<Comment>^//.*?$)` + // C++ style one line comment.
-			`|(?i)(?P<Keyword>LET |SELECT |FROM|TOP|DISTINCT|ALL|WHERE|GROUP +BY|HAVING|UNION|MINUS|EXCEPT|INTERSECT|ORDER +BY|LIMIT|TRUE|FALSE|NULL|IS |NOT |ANY|SOME|BETWEEN|AND |OR |LIKE |AS |IN |\\bDESC\\b)` +
+			`|(?i)(?P<Keyword>LET |SELECT |FROM|WHERE|GROUP +BY|ORDER +BY|LIMIT|TRUE|FALSE|NULL|IS |NOT |AND |OR |LIKE |AS |IN |\\bDESC\\b)` +
 			`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
 			`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)` +
 			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")` +
@@ -260,10 +260,10 @@ type _Select struct {
 	SelectExpression *_SelectExpression `"SELECT " @@`
 	From             *_From             `"FROM" @@`
 	Where            *_CommaExpression  `[ "WHERE" @@ ]`
+	GroupBy          *string            `[ "GROUP BY" @Ident ]`
 	OrderBy          *string            `[ "ORDER BY" @Ident `
 	OrderByDesc      *bool              `  [@"DESC" | @"desc"] ]`
 	Limit            *float64           `[ "LIMIT" @Number ]`
-	GroupBy          *string            `[ "GROUP BY" @Ident ]`
 }
 
 // Provides a list of column names from this query. These columns will
@@ -293,6 +293,10 @@ func (self _Select) ToString(scope *Scope) string {
 		result += " WHERE " + self.Where.ToString(scope)
 	}
 
+	if self.GroupBy != nil {
+		result += " GROUP BY " + *self.GroupBy
+	}
+
 	if self.OrderBy != nil {
 		result += " ORDER BY " + *self.OrderBy
 
@@ -304,10 +308,6 @@ func (self _Select) ToString(scope *Scope) string {
 	if self.Limit != nil {
 		result += fmt.Sprintf(
 			" LIMIT %d ", int(*self.Limit))
-	}
-
-	if self.GroupBy != nil {
-		result += " GROUP BY " + *self.GroupBy
 	}
 
 	return result
@@ -322,6 +322,13 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 			group_by := *self.GroupBy
 
+			// Aggregate functions (count, sum etc)
+			// operate by storing data in the scope
+			// context between rows. When we group by we
+			// create a different scope context for each
+			// bin - all the rows with the same group by
+			// value are placed in the same bin and share
+			// the same context.
 			type AggregateContext struct {
 				row     Row
 				context *Dict
@@ -329,7 +336,7 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 			// Collect all the rows with the same group_by
 			// member. This is a map between unique group
-			// by values and an aggregate row.
+			// by values and an aggregate context.
 			bins := make(map[Any]*AggregateContext)
 
 			sub_ctx, cancel := context.WithCancel(ctx)
@@ -346,6 +353,8 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				if self.Where != nil {
 					new_scope := scope.Copy()
 
+					// Order matters - transformed
+					// row may mask original row.
 					new_scope.AppendVars(row)
 					new_scope.AppendVars(transformed_row)
 
@@ -416,7 +425,10 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			// Sort the results based on the OrderBy
 			sort.Sort(result_set)
 
-			for _, row := range result_set.Items {
+			for idx, row := range result_set.Items {
+				if self.Limit != nil && idx >= int(*self.Limit) {
+					break
+				}
 				output_chan <- MaterializedLazyRow(row, new_scope)
 			}
 		}()

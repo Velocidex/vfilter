@@ -60,9 +60,6 @@ func (self *Scope) GetContext(name string) Any {
 	self.Lock()
 	defer self.Unlock()
 
-	if self.context == nil {
-		return nil
-	}
 	res, pres := self.context.Get(name)
 	if !pres {
 		return nil
@@ -74,10 +71,6 @@ func (self *Scope) GetContext(name string) Any {
 func (self *Scope) SetContext(name string, value Any) {
 	self.Lock()
 	defer self.Unlock()
-
-	if self.context == nil {
-		self.context = NewDict()
-	}
 	self.context.Set(name, value)
 }
 
@@ -353,6 +346,7 @@ func NewScope() *Scope {
 	}
 	result.functions = make(map[string]FunctionInterface)
 	result.plugins = make(map[string]PluginGeneratorInterface)
+	result.context = NewDict()
 	result.AppendVars(
 		NewDict().
 			Set("NULL", Null{}).
