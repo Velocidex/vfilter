@@ -651,20 +651,6 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 
 		}
 
-		// An array - we call Associative on each member.
-		if a_type.Kind() == reflect.Slice {
-			var result []Any
-
-			for i := 0; i < a_value.Len(); i++ {
-				element := a_value.Index(i).Interface()
-				if item, pres := scope.Associative(element, b); pres {
-					result = append(result, item)
-				}
-			}
-
-			return result, true
-		}
-
 		// A method we call. Usually this is a Getter.
 		method_value := reflect.ValueOf(a).MethodByName(field_name)
 		if _Callable(method_value, field_name) {
@@ -684,6 +670,20 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 					return res.Interface(), true
 				}
 			}
+		}
+
+		// An array - we call Associative on each member.
+		if a_type.Kind() == reflect.Slice {
+			var result []Any
+
+			for i := 0; i < a_value.Len(); i++ {
+				element := a_value.Index(i).Interface()
+				if item, pres := scope.Associative(element, b); pres {
+					result = append(result, item)
+				}
+			}
+
+			return result, true
 		}
 	}
 
