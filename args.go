@@ -70,28 +70,45 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 			panic("Fields can not be empty")
 		}
 
+		// Get the field. If it is not present but is
+		// required, it is an error.
 		arg, pres := args.Get(field_name)
-		if !pres && InString(&directives, "required") {
-			return errors.New(fmt.Sprintf(
-				"Field %s is required.", field_name))
+		if !pres {
+			if InString(&directives, "required") {
+				return errors.New(fmt.Sprintf(
+					"Field %s is required.", field_name))
+			}
+			// Field is optional and not provided.
+			continue
 		}
 
+		// Now cast the arg into the correct type to go into
+		// the value output struct.
 		field_value := v.Field(field_types_value.Index[0])
 		if !field_value.IsValid() || !field_value.CanSet() {
 			return errors.New(fmt.Sprintf(
 				"Field %s is unsettable.", field_name))
 		}
-		if field_types_value.Type.String() == "vfilter.StoredQuery" {
-			new_value, pres := args.Get(field_name)
-			if !pres {
-				if InString(&directives, "required") {
-					return errors.New(fmt.Sprintf(
-						"Field %s is required.",
-						field_types_value.Name))
-				}
-			}
 
-			stored_query, ok := new_value.(StoredQuery)
+		// The plugin may specify the arg as being a LazyExpr,
+		// in which case it is completely up to it to evaluate
+		// the expression (if at all).
+		if field_types_value.Type.String() == "vfilter.LazyExpr" {
+			field_value.Set(reflect.ValueOf(arg))
+			continue
+		}
+
+		// From here below, arg has to be non-lazy so we can
+		// deal with its materialized form.
+		lazy_arg, ok := arg.(LazyExpr)
+		if ok {
+			arg = lazy_arg.Reduce()
+		}
+
+		// The target field is a StoredQuery - check that what
+		// was provided is actually one of those.
+		if field_types_value.Type.String() == "vfilter.StoredQuery" {
+			stored_query, ok := arg.(StoredQuery)
 			if !ok {
 				return errors.New(fmt.Sprintf(
 					"Field %s should be a query.",
@@ -101,32 +118,21 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 			field_value.Set(reflect.ValueOf(stored_query))
 			continue
 		}
+
+		// The target field is an Any type - just assign it directly.
 		if field_types_value.Type.String() == "vfilter.Any" {
-			new_value, pres := args.Get(field_name)
-			if !pres {
-				if InString(&directives, "required") {
-					return errors.New(fmt.Sprintf(
-						"Field %s is required.",
-						field_types_value.Name))
-				}
-			} else {
-				field_value.Set(reflect.ValueOf(new_value))
-			}
+			// Evaluate the expression.
+			field_value.Set(reflect.ValueOf(arg))
 			continue
 		}
 
-		// It is a slice.
+		// Supported target field types:
 		switch field_types_value.Type.Kind() {
 
+		// It is a slice.
 		case reflect.Slice:
-			new_value, pres := ExtractStringArray(scope, field_name, args)
-			if !pres {
-				if InString(&directives, "required") {
-					return errors.New(fmt.Sprintf(
-						"Field %s is a required string array.",
-						field_types_value.Name))
-				}
-			} else {
+			new_value, pres := _ExtractStringArray(scope, field_name, args)
+			if pres {
 				field_value.Set(reflect.ValueOf(new_value))
 			}
 
@@ -176,34 +182,19 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 	return nil
 }
 
-func ExtractString(name string, args *Dict) (*string, bool) {
-	if arg, pres := args.Get(name); pres {
-		if arg_string, ok := arg.(string); ok {
-			return &arg_string, true
-		}
-	}
-
-	return nil, false
-}
-
-func ExtractFloat(output *float64, name string, args *Dict) bool {
-	if arg, pres := args.Get(name); pres {
-		if arg_float, ok := to_float(arg); ok {
-			*output = arg_float
-			return true
-		}
-	}
-
-	return false
-}
-
 // Try to retrieve an arg name from the Dict of args. Coerce the arg
 // into something resembling a list of strings.
-func ExtractStringArray(scope *Scope, name string, args *Dict) ([]string, bool) {
+func _ExtractStringArray(scope *Scope, name string, args *Dict) ([]string, bool) {
 	var result []string
 	arg, ok := (*args).Get(name)
 	if !ok {
 		return nil, false
+	}
+
+	// Handle potentially lazy args.
+	lazy_arg, ok := arg.(LazyExpr)
+	if ok {
+		arg = lazy_arg.Reduce()
 	}
 
 	slice := reflect.ValueOf(arg)
@@ -241,21 +232,4 @@ func ExtractStringArray(scope *Scope, name string, args *Dict) ([]string, bool) 
 	}
 
 	return nil, false
-}
-
-func ExtractStoredQuery(scope *Scope, name string, args *Dict) (
-	StoredQuery, bool) {
-	arg, ok := (*args).Get(name)
-	if !ok {
-		return nil, false
-	}
-
-	// Its already a stored query, just return it.
-	stored_query_arg, ok := arg.(StoredQuery)
-	if ok {
-		return stored_query_arg, true
-	}
-
-	// Wrap in a stored query to return that.
-	return &StoredQueryWrapper{arg}, true
 }

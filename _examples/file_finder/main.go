@@ -11,8 +11,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"gitlab.com/velocidex/vfilter"
-	"gopkg.in/alecthomas/kingpin.v2"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
+	"www.velocidex.com/golang/vfilter"
 )
 
 var (
@@ -117,7 +117,7 @@ type Glob struct{}
 func (self Glob) Call(
 	ctx context.Context,
 	scope *vfilter.Scope,
-	args vfilter.Dict) <-chan vfilter.Row {
+	args *vfilter.Dict) <-chan vfilter.Row {
 	output_chan := make(chan vfilter.Row)
 	go func() {
 		defer close(output_chan)
@@ -148,7 +148,7 @@ func (self Glob) Name() string {
 	return "glob"
 }
 
-func (self Glob) Info(scope *Scope, type_map *vfilter.TypeMap) *vfilter.PluginInfo {
+func (self Glob) Info(scope *vfilter.Scope, type_map *vfilter.TypeMap) *vfilter.PluginInfo {
 	return &vfilter.PluginInfo{
 		Name:    "glob",
 		Doc:     "Glob files by expression",

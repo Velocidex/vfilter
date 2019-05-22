@@ -958,15 +958,13 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			return
 		}
 
-		// Build up the args to pass to the function.
+		// Build up the args to pass to the function. The
+		// plugin implementation can extract these using the
+		// ExtractArgs() helper.
 		args := NewDict()
 		for _, arg := range self.Args {
 			if arg.Right != nil {
-				value := arg.Right.Reduce(ctx, scope)
-				if value == nil {
-					return
-				}
-				args.Set(arg.Left, value)
+				args.Set(arg.Left, LazyExpr{arg.Right, ctx, scope})
 
 			} else if arg.Array != nil {
 				value := arg.Array.Reduce(ctx, scope)
@@ -1455,8 +1453,8 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 	args := NewDict()
 	for _, arg := range self.Parameters {
 		if arg.Right != nil {
-			value := arg.Right.Reduce(ctx, scope)
-			args.Set(arg.Left, value)
+			// Lazily evaluate right hand side.
+			args.Set(arg.Left, LazyExpr{arg.Right, ctx, scope})
 
 		} else if arg.Array != nil {
 			value := arg.Array.Reduce(ctx, scope)

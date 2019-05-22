@@ -127,7 +127,8 @@ type TestFunction struct {
 
 func (self TestFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any {
 	if value, pres := args.Get("return"); pres {
-		return value
+		lazy_value := value.(LazyExpr)
+		return lazy_value.Reduce()
 	}
 	return self.return_value
 }
@@ -140,21 +141,21 @@ func (self TestFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 
 type PanicFunction struct{}
 
+type PanicFunctionArgs struct {
+	Column string `vfilter:"optional,field=column"`
+	Value  Any    `vfilter:"optional,field=value"`
+}
+
 // Panic if we get an arg of a=2
 func (self PanicFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any {
-	column, pres := args.Get("column")
-	if !pres {
-		return Null{}
-	}
-	value, pres := args.Get("value")
-	if !pres {
-		return Null{}
-	}
-	if scope.Eq(value, column) {
-		panic(fmt.Sprintf("Panic because I got %v!", value))
+	arg := PanicFunctionArgs{}
+
+	ExtractArgs(scope, args, &arg)
+	if scope.Eq(arg.Value, arg.Column) {
+		panic(fmt.Sprintf("Panic because I got %v!", arg.Value))
 	}
 
-	return value
+	return arg.Value
 }
 
 func (self PanicFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
@@ -243,68 +244,6 @@ func TestSerializaition(t *testing.T) {
 			t.Fatalf("Parsed generated VQL not equivalent: %v vs %v.",
 				preamble+test.clause, vql_string)
 		}
-	}
-}
-
-// Implement some test plugins for testing.
-type _RepeaterPlugin struct{}
-
-func (self _RepeaterPlugin) Call(
-	ctx context.Context,
-	scope *Scope,
-	args *Dict) <-chan Row {
-	output_chan := make(chan Row)
-
-	go func() {
-		defer close(output_chan)
-		if value, pres := scope.Associative(args, "return"); pres {
-			output_chan <- value
-		}
-	}()
-
-	return output_chan
-}
-
-func (self _RepeaterPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
-	return &PluginInfo{
-		Name: "repeater",
-	}
-}
-
-func TestSubselectDefinition(t *testing.T) {
-	// Compile a query which uses 2 args.
-	vql, err := Parse("select value+addand1 as total from repeater(return=dict(value=addand2))")
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	scope := makeScope().AppendPlugins(
-		_RepeaterPlugin{},
-		SubSelectFunction{
-			PluginName: "test1",
-			SubSelect:  vql,
-			RowType:    1,
-		},
-	)
-
-	// Call the pre-baked query with args.
-	vql, err = Parse("select * from test1(addand1=7, addand2=10)")
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	ctx := context.Background()
-	output_chan := vql.Eval(ctx, scope)
-	var result []Row
-	for row := range output_chan {
-		result = append(result, row)
-	}
-
-	if !reflect.DeepEqual(result, []Row{NewDict().
-		Set("total", 17.0),
-	}) {
-		Debug(result)
-		t.Fatalf("failed.")
 	}
 }
 
@@ -426,6 +365,11 @@ select * from test() limit 1`},
 		"select 'foo\\'s quote' from scope()"},
 }
 
+type _RangeArgs struct {
+	Start float64 `vfilter:"required,field=start"`
+	End   float64 `vfilter:"required,field=end"`
+}
+
 func makeTestScope() *Scope {
 	return makeScope().AppendPlugins(
 		GenericListPlugin{
@@ -442,13 +386,10 @@ func makeTestScope() *Scope {
 		}, GenericListPlugin{
 			PluginName: "range",
 			Function: func(scope *Scope, args *Dict) []Row {
-				start := 0.0
-				end := 3.0
-				ExtractFloat(&start, "start", args)
-				ExtractFloat(&end, "end", args)
-
+				arg := &_RangeArgs{}
+				ExtractArgs(scope, args, arg)
 				var result []Row
-				for i := start; i <= end; i++ {
+				for i := arg.Start; i <= arg.End; i++ {
 					result = append(result, NewDict().Set("value", i))
 				}
 				return result
@@ -457,7 +398,18 @@ func makeTestScope() *Scope {
 			PluginName: "dict",
 			Doc:        "Just echo back the args as a dict.",
 			Function: func(scope *Scope, args *Dict) []Row {
-				return []Row{args}
+				result := NewDict()
+				for _, k := range scope.GetMembers(args) {
+					v, _ := args.Get(k)
+					lazy_arg, ok := v.(LazyExpr)
+					if ok {
+						result.Set(k, lazy_arg.Reduce())
+					} else {
+						result.Set(k, v)
+					}
+				}
+
+				return []Row{result}
 			},
 		}, GenericListPlugin{
 			PluginName: "groupbytest",

@@ -16,18 +16,17 @@ func (self _FlattenPluginImpl) Call(ctx context.Context,
 	args *Dict) <-chan Row {
 	output_chan := make(chan Row)
 
-	stored_query, ok := ExtractStoredQuery(scope, "query", args)
-	if !ok {
-		scope.Log("Expecting 'query' parameter to be a stored query (" +
-			"Try using LET)")
-		close(output_chan)
-		return output_chan
-	}
-
 	go func() {
 		defer close(output_chan)
 
-		row_chan := stored_query.Eval(ctx, scope)
+		arg := _FlattenPluginImplArgs{}
+		err := ExtractArgs(scope, args, &arg)
+		if err != nil {
+			scope.Log("flatten: %v", err)
+			return
+		}
+
+		row_chan := arg.Query.Eval(ctx, scope)
 		for {
 			row_item, ok := <-row_chan
 			if !ok {

@@ -122,3 +122,13 @@ func MaterializedLazyRow(row Row, scope *Scope) Row {
 	}
 	return row
 }
+
+type LazyExpr struct {
+	Expr  *_AndExpression
+	ctx   context.Context
+	scope *Scope
+}
+
+func (self *LazyExpr) Reduce() Any {
+	return self.Expr.Reduce(self.ctx, self.scope)
+}

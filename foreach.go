@@ -16,26 +16,17 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 	args *Dict) <-chan Row {
 	output_chan := make(chan Row)
 
-	row_stored_query, ok := ExtractStoredQuery(scope, "row", args)
-	if !ok {
-		scope.Log("Expecting 'row' parameter to be a " +
-			"stored query (Use LET).")
-		close(output_chan)
-		return output_chan
-	}
-
-	stored_query, ok := ExtractStoredQuery(scope, "query", args)
-	if !ok {
-		scope.Log("Expecting 'query' parameter to be a stored query (" +
-			"Try using LET)")
-		close(output_chan)
-		return output_chan
-	}
-
 	go func() {
 		defer close(output_chan)
 
-		row_chan := row_stored_query.Eval(ctx, scope)
+		arg := _ForeachPluginImplArgs{}
+		err := ExtractArgs(scope, args, &arg)
+		if err != nil {
+			scope.Log("foreach: %v", err)
+			return
+		}
+
+		row_chan := arg.Row.Eval(ctx, scope)
 		for {
 			row_item, ok := <-row_chan
 			if !ok {
@@ -48,7 +39,7 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 			child_scope := scope.Copy()
 			child_scope.AppendVars(row_item)
 			child_ctx, cancel := context.WithCancel(ctx)
-			query_chan := stored_query.Eval(child_ctx, child_scope)
+			query_chan := arg.Query.Eval(child_ctx, child_scope)
 			for {
 				query_chan_item, ok := <-query_chan
 				if !ok {

@@ -81,44 +81,6 @@ func (self GenericListPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo 
 	return result
 }
 
-type SubSelectFunction struct {
-	PluginName  string
-	Description string
-	SubSelect   *VQL
-	RowType     Any
-}
-
-func (self SubSelectFunction) Call(
-	ctx context.Context,
-	scope *Scope,
-	args *Dict) <-chan Row {
-
-	// Make a local copy of the scope with the args added as local
-	// variables. This allows the query to refer to args.
-	new_scope := scope.Copy()
-	new_scope.AppendVars(args)
-	in_chan := self.SubSelect.Eval(ctx, new_scope)
-	output_chan := make(chan Row)
-
-	go func() {
-		defer close(output_chan)
-
-		for item := range in_chan {
-			output_chan <- item
-		}
-	}()
-
-	return output_chan
-}
-
-func (self SubSelectFunction) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
-	return &PluginInfo{
-		Name:    self.PluginName,
-		Doc:     self.Description,
-		RowType: type_map.AddType(scope, self.RowType),
-	}
-}
-
 type _IfPluginArg struct {
 	Condition Any         `vfilter:"required,field=condition"`
 	Then      StoredQuery `vfilter:"required,field=then"`
@@ -132,33 +94,21 @@ func (self _IfPlugin) Call(
 	scope *Scope,
 	args *Dict) <-chan Row {
 	output_chan := make(chan Row)
-
-	condition, pres := args.Get("condition")
-	if !pres {
-		scope.Log("Expecting 'condition' parameter")
-		close(output_chan)
-		return output_chan
-	}
-
-	// else_query is optional.
-	else_query, _ := ExtractStoredQuery(scope, "else", args)
-
-	query, pres := ExtractStoredQuery(scope, "then", args)
-	if !pres {
-		scope.Log("Expecting 'then' parameter")
-		Debug(args)
-		close(output_chan)
-		return output_chan
-	}
-
 	go func() {
 		defer close(output_chan)
 
+		arg := &_IfPluginArg{}
+		err := ExtractArgs(scope, args, arg)
+		if err != nil {
+			scope.Log("if: %s", err.Error())
+			return
+		}
+
 		var from_chan <-chan Row
-		if scope.Bool(condition) {
-			from_chan = query.Eval(ctx, scope)
-		} else if else_query != nil {
-			from_chan = else_query.Eval(ctx, scope)
+		if scope.Bool(arg.Condition) {
+			from_chan = arg.Then.Eval(ctx, scope)
+		} else if arg.Else != nil {
+			from_chan = arg.Else.Eval(ctx, scope)
 		} else {
 			return
 		}
@@ -207,19 +157,20 @@ func (self _ChainPlugin) Call(
 	members := scope.GetMembers(args)
 	sort.Strings(members)
 
-	for _, member := range members {
-		query, pres := ExtractStoredQuery(scope, member, args)
-		if !pres {
-			scope.Log("Parameter " + member + " should be a query")
-			close(output_chan)
-			return output_chan
-		}
-
-		queries = append(queries, query)
-	}
-
 	go func() {
 		defer close(output_chan)
+
+		for _, member := range members {
+			member_obj, _ := args.Get(member)
+			query, ok := member_obj.(StoredQuery)
+			if !ok {
+				scope.Log("Parameter " + member +
+					" should be a query")
+				return
+			}
+
+			queries = append(queries, query)
+		}
 
 		for _, query := range queries {
 			new_scope := scope.Copy()

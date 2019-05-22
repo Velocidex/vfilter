@@ -30,7 +30,17 @@ func (self _DictFunc) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 }
 
 func (self _DictFunc) Call(ctx context.Context, scope *Scope, args *Dict) Any {
-	return args
+	result := NewDict()
+	for _, k := range scope.GetMembers(args) {
+		v, _ := args.Get(k)
+		lazy_arg, ok := v.(LazyExpr)
+		if ok {
+			result.Set(k, lazy_arg.Reduce())
+		} else {
+			result.Set(k, v)
+		}
+	}
+	return result
 }
 
 type _TimestampArg struct {
@@ -67,7 +77,7 @@ func (self _Timestamp) Call(ctx context.Context, scope *Scope, args *Dict) Any {
 }
 
 type _SubSelectFunctionArgs struct {
-	VQL Any `vfilter:"required,field=vql"`
+	VQL StoredQuery `vfilter:"required,field=vql"`
 }
 
 type _SubSelectFunction struct{}
@@ -81,13 +91,14 @@ func (self _SubSelectFunction) Info(scope *Scope, type_map *TypeMap) *FunctionIn
 }
 
 func (self _SubSelectFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any {
-	stored_query, ok := ExtractStoredQuery(scope, "vql", args)
-	if !ok {
-		scope.Log("query: vql must be a stored query.")
+	arg := _SubSelectFunctionArgs{}
+	err := ExtractArgs(scope, args, &arg)
+	if err != nil {
+		scope.Log("query: %v.", err)
 		return Null{}
 	}
 
-	return Materialize(scope, stored_query)
+	return Materialize(scope, arg.VQL)
 }
 
 type _SplitFunctionArgs struct {
@@ -121,9 +132,9 @@ func (self _SplitFunction) Call(ctx context.Context, scope *Scope, args *Dict) A
 }
 
 type _IfFunctionArgs struct {
-	Condition Any `vfilter:"required,field=condition"`
-	Then      Any `vfilter:"required,field=then"`
-	Else      Any `vfilter:"optional,field=else"`
+	Condition Any      `vfilter:"required,field=condition"`
+	Then      LazyExpr `vfilter:"required,field=then"`
+	Else      LazyExpr `vfilter:"optional,field=else"`
 }
 
 type _IfFunction struct{}
@@ -140,6 +151,7 @@ func (self _IfFunction) Call(
 	ctx context.Context,
 	scope *Scope,
 	args *Dict) Any {
+
 	arg := &_IfFunctionArgs{}
 	err := ExtractArgs(scope, args, arg)
 	if err != nil {
@@ -148,10 +160,10 @@ func (self _IfFunction) Call(
 	}
 
 	if scope.Bool(arg.Condition) {
-		return arg.Then
+		return arg.Then.Reduce()
 	} else {
-		if arg.Else != nil {
-			return arg.Else
+		if arg.Else.Expr != nil {
+			return arg.Else.Reduce()
 		}
 		return Null{}
 	}
