@@ -162,6 +162,11 @@ func (self _ChainPlugin) Call(
 
 		for _, member := range members {
 			member_obj, _ := args.Get(member)
+			lazy_v, ok := member_obj.(LazyExpr)
+			if ok {
+				member_obj = lazy_v.Reduce()
+			}
+
 			query, ok := member_obj.(StoredQuery)
 			if !ok {
 				scope.Log("Parameter " + member +
