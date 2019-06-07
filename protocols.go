@@ -634,6 +634,14 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 		recover()
 	}()
 	switch field_name := b.(type) {
+	case *float64:
+		a_value := reflect.Indirect(reflect.ValueOf(a))
+		idx := int(*field_name)
+		if idx < 0 || idx > a_value.Len() {
+			return &Null{}, false
+		}
+		return a_value.Index(idx).Interface(), true
+
 	case string:
 		if !is_exported(field_name) {
 			field_name = strings.Title(field_name)

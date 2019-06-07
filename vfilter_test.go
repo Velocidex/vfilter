@@ -118,6 +118,8 @@ var execTests = []execTest{
 	{"foo.bar.baz, foo.bar2", []float64{5, 7}},
 	{"dict(foo=dict(bar=5)).foo.bar", 5},
 	{"1, dict(foo=5).foo", []float64{1, 5}},
+	{"my_list_obj.my_list[2]", 3},
+	{"my_list_obj.my_list[1]", 2},
 }
 
 // Function that returns a value.
@@ -167,6 +169,8 @@ func (self PanicFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 func makeScope() *Scope {
 	return NewScope().AppendVars(NewDict().
 		Set("const_foo", 1).
+		Set("my_list_obj", NewDict().
+			Set("my_list", []int{1, 2, 3})).
 		Set("env_var", "EnvironmentData").
 		Set("foo", NewDict().
 			Set("bar", NewDict().Set("baz", 5)).

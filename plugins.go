@@ -94,34 +94,22 @@ func (self _IfPlugin) Call(
 	scope *Scope,
 	args *Dict) <-chan Row {
 	output_chan := make(chan Row)
-	go func() {
-		defer close(output_chan)
 
-		arg := &_IfPluginArg{}
-		err := ExtractArgs(scope, args, arg)
-		if err != nil {
-			scope.Log("if: %s", err.Error())
-			return
-		}
+	arg := &_IfPluginArg{}
+	err := ExtractArgs(scope, args, arg)
+	if err != nil {
+		scope.Log("if: %s", err.Error())
+		close(output_chan)
+		return output_chan
+	}
 
-		var from_chan <-chan Row
-		if scope.Bool(arg.Condition) {
-			from_chan = arg.Then.Eval(ctx, scope)
-		} else if arg.Else != nil {
-			from_chan = arg.Else.Eval(ctx, scope)
-		} else {
-			return
-		}
+	if scope.Bool(arg.Condition) {
+		return arg.Then.Eval(ctx, scope)
+	} else if arg.Else != nil {
+		return arg.Else.Eval(ctx, scope)
+	}
 
-		for {
-			item, ok := <-from_chan
-			if !ok {
-				return
-			}
-			output_chan <- item
-		}
-	}()
-
+	close(output_chan)
 	return output_chan
 }
 

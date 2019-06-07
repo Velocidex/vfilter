@@ -218,14 +218,22 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	// query and assign to the scope.
 	if len(self.Let) > 0 {
 		output_chan := make(chan Row)
-		switch self.LetOperator {
-		case "=":
-			stored_query := NewStoredQuery(self.Query)
-			scope.AppendVars(NewDict().Set(self.Let, stored_query))
-		case "<=":
-			scope.AppendVars(NewDict().Set(self.Let, MaterializedLazyRow(
-				self.Query, scope)))
+
+		_, pres := scope.Resolve(self.Let)
+		if pres {
+			scope.Log("ERROR: LET query overrides a variable for %s", self.Let)
+
+		} else {
+			switch self.LetOperator {
+			case "=":
+				stored_query := NewStoredQuery(self.Query)
+				scope.AppendVars(NewDict().Set(self.Let, stored_query))
+			case "<=":
+				scope.AppendVars(NewDict().Set(self.Let, MaterializedLazyRow(
+					self.Query, scope)))
+			}
 		}
+
 		close(output_chan)
 		return output_chan
 
@@ -676,7 +684,8 @@ type _OpFactor struct {
 // e.g. x.y.z
 type _MemberExpression struct {
 	Left  *_Value              `@@`
-	Right []*_OpMembershipTerm `{ @@ }`
+	Right []*_OpMembershipTerm `[{ @@ }] `
+	Index *float64             `[ "[" @Number "]"]`
 }
 
 type _OpMembershipTerm struct {
@@ -750,7 +759,7 @@ type _Term struct {
 type _SymbolRef struct {
 	//	Symbol     []string `@Ident { "." @Ident }`
 	Symbol     string   `@Ident`
-	Parameters []*_Args `[ "(" [ @@ { "," @@ } ] ")" ]`
+	Parameters []*_Args `[ "(" [ @@ { "," @@ } ] ")" ] `
 
 	mu       sync.Mutex
 	function FunctionInterface
@@ -1080,15 +1089,30 @@ func (self _MemberExpression) Reduce(ctx context.Context, scope *Scope) Any {
 		}
 	}
 
+	// Slice index implementation via Associative protocol.
+	if self.Index != nil {
+		var pres bool
+		lhs, pres = scope.Associative(lhs, self.Index)
+		if !pres {
+			return Null{}
+		}
+	}
+
 	return lhs
 }
 
 func (self _MemberExpression) ToString(scope *Scope) string {
-	result := []string{self.Left.ToString(scope)}
+	result_comp := []string{self.Left.ToString(scope)}
 	for _, right := range self.Right {
-		result = append(result, right.Term)
+		result_comp = append(result_comp, right.Term)
 	}
-	return strings.Join(result, ".")
+
+	result := strings.Join(result_comp, ".")
+	if self.Index != nil {
+		result += fmt.Sprintf("[%f]", *self.Index)
+	}
+
+	return result
 }
 
 func (self _CommaExpression) IsAggregate(scope *Scope) bool {
