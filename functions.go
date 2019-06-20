@@ -86,7 +86,7 @@ func (self _SubSelectFunction) Info(scope *Scope, type_map *TypeMap) *FunctionIn
 	return &FunctionInfo{
 		Name:    "query",
 		Doc:     "Launch a subquery and materialize it into a list of rows.",
-		ArgType: type_map.AddType(scope, _TimestampArg{}),
+		ArgType: type_map.AddType(scope, _SubSelectFunctionArgs{}),
 	}
 }
 

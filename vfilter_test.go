@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/sebdah/goldie"
+	"github.com/stretchr/testify/assert"
 )
 
 type execTest struct {
@@ -141,6 +142,21 @@ func (self TestFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	}
 }
 
+var CounterFunctionCount = 0
+
+type CounterFunction struct{}
+
+func (self CounterFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any {
+	CounterFunctionCount += 1
+	return CounterFunctionCount
+}
+
+func (self CounterFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
+	return &FunctionInfo{
+		Name: "counter",
+	}
+}
+
 type PanicFunction struct{}
 
 type PanicFunctionArgs struct {
@@ -177,6 +193,7 @@ func makeScope() *Scope {
 			Set("bar2", 7)),
 	).AppendFunctions(
 		TestFunction{1},
+		CounterFunction{},
 		PanicFunction{},
 	).AppendPlugins(
 		GenericListPlugin{
@@ -430,6 +447,45 @@ func makeTestScope() *Scope {
 				}
 			},
 		})
+}
+
+// This checks that lazy queries are not evaluated unnecessarily. We
+// use the counter() function and watch its side effects.
+func TestMaterializedStoredQuery(t *testing.T) {
+	scope := makeTestScope()
+
+	run_query := func(query string) {
+		vql, err := Parse(query)
+		assert.NoError(t, err)
+
+		ctx := context.Background()
+		_, err = OutputJSON(vql, ctx, scope)
+		assert.NoError(t, err)
+	}
+
+	assert.Equal(t, CounterFunctionCount, 0)
+
+	// Running a query directly will evaluate.
+	run_query("SELECT counter() FROM scope()")
+	assert.Equal(t, CounterFunctionCount, 1)
+
+	// Just storing the query does not evaluate.
+	run_query("LET stored = SELECT counter() from scope()")
+	assert.Equal(t, CounterFunctionCount, 1)
+
+	// Using the stored query will cause it to evaluate.
+	run_query("SELECT * FROM stored")
+	assert.Equal(t, CounterFunctionCount, 2)
+
+	// Materializing the query will evaluate it and store it in a
+	// variable.
+	run_query("LET materialized <= SELECT counter() from scope()")
+	assert.Equal(t, CounterFunctionCount, 3)
+
+	// Expanding it wont evaluate since it is already
+	// materialized.
+	run_query("SELECT * FROM materialized")
+	assert.Equal(t, CounterFunctionCount, 3)
 }
 
 func TestVQLQueries(t *testing.T) {
