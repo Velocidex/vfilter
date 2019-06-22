@@ -328,8 +328,10 @@ func (self *Scope) Close() {
 	destructors_any, _ := self.Resolve("__destructors")
 	destructors, ok := destructors_any.(*_destructors)
 	if ok {
-		for _, fn := range destructors.fn {
-			fn()
+		// Destructors are called in reverse order to their
+		// declerations.
+		for i := len(destructors.fn) - 1; i >= 0; i-- {
+			destructors.fn[i]()
 		}
 
 		destructors.fn = []func(){}
