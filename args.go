@@ -165,6 +165,12 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 				field_value.Set(reflect.ValueOf(a))
 			}
 
+		case reflect.Uint64:
+			a, ok := to_int64(arg)
+			if ok {
+				field_value.Set(reflect.ValueOf(uint64(a)))
+			}
+
 		case reflect.Int:
 			a, ok := to_int64(arg)
 			if ok {
@@ -176,6 +182,7 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 				return errors.New(fmt.Sprintf(
 					"Field %s is required.", field_name))
 			}
+			scope.Log("Unsupported type for field %v", field_name)
 		}
 	}
 
