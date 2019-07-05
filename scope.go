@@ -314,7 +314,7 @@ func (self *Scope) Log(format string, a ...interface{}) {
 	}
 }
 
-func (self *Scope) AddDesctructor(fn func()) {
+func (self *Scope) AddDestructor(fn func()) {
 	destructors_any, _ := self.Resolve("__destructors")
 	destructors, ok := destructors_any.(*_destructors)
 	if ok {

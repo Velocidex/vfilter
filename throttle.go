@@ -50,7 +50,7 @@ func NewTimeThrottler(rate float64) Throttler {
 func InstallThrottler(scope *Scope, throttler Throttler) {
 	// Ignore throttles faster than 100 ops per second.
 	scope.AppendVars(NewDict().Set("$throttle", throttler))
-	scope.AddDesctructor(func() {
+	scope.AddDestructor(func() {
 		throttler.Close()
 	})
 }
