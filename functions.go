@@ -195,13 +195,16 @@ func (self _GetFunction) Call(
 		return Null{}
 	}
 
-	if arg.Member != "" {
-		result, pres := scope.Associative(arg.Item, arg.Member)
-		if pres {
-			return result
+	result := arg.Item
+	var pres bool
+	for _, member := range strings.Split(arg.Member, ".") {
+		result, pres = scope.Associative(result, member)
+		if !pres {
+			return Null{}
 		}
 	}
-	return Null{}
+
+	return result
 }
 
 type _EncodeFunctionArgs struct {

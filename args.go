@@ -34,6 +34,11 @@ const tagName = "vfilter"
 // field must be exported (i.e. name begins with cap) and it must have
 // vfilter tags.
 func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
+
+	// Make a copy of the args so we can ensure they are all
+	// provided properly.
+	arg_map := *args.ToDict()
+
 	v := reflect.ValueOf(value)
 
 	if v.Type().Kind() == reflect.Ptr {
@@ -72,14 +77,18 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 
 		// Get the field. If it is not present but is
 		// required, it is an error.
-		arg, pres := args.Get(field_name)
+		arg, pres := arg_map[field_name]
 		if !pres {
 			if InString(&directives, "required") {
 				return errors.New(fmt.Sprintf(
 					"Field %s is required.", field_name))
 			}
+
 			// Field is optional and not provided.
 			continue
+		} else {
+			// Remove the field from the map
+			delete(arg_map, field_name)
 		}
 
 		// Now cast the arg into the correct type to go into
@@ -131,7 +140,8 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 
 		// It is a slice.
 		case reflect.Slice:
-			new_value, pres := _ExtractStringArray(scope, field_name, args)
+			new_value, pres := _ExtractStringArray(
+				scope, field_name, arg)
 			if pres {
 				field_value.Set(reflect.ValueOf(new_value))
 			}
@@ -186,17 +196,21 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 		}
 	}
 
+	// If we get here and there are some args left over, they were
+	// not recognized.
+	if len(arg_map) != 0 {
+		for k, _ := range arg_map {
+			scope.Log("Extra unrecognized arg: %s", k)
+		}
+	}
+
 	return nil
 }
 
 // Try to retrieve an arg name from the Dict of args. Coerce the arg
 // into something resembling a list of strings.
-func _ExtractStringArray(scope *Scope, name string, args *Dict) ([]string, bool) {
+func _ExtractStringArray(scope *Scope, name string, arg Any) ([]string, bool) {
 	var result []string
-	arg, ok := (*args).Get(name)
-	if !ok {
-		return nil, false
-	}
 
 	// Handle potentially lazy args.
 	lazy_arg, ok := arg.(LazyExpr)

@@ -384,6 +384,8 @@ select * from test() limit 1`},
 		"select foo, panic(column=foo, value=2) from test() where foo = 4"},
 	{"Quotes strings",
 		"select 'foo\\'s quote' from scope()"},
+	{"Test get()",
+		"select get(item=[dict(foo=3), 2, 3, 4], member='0.foo') AS Foo from scope()"},
 }
 
 type _RangeArgs struct {

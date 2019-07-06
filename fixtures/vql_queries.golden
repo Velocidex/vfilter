@@ -443,5 +443,8 @@
   {
    "\"foo's quote\"": "foo's quote"
   }
+ ],
+ "045 Test get(): SELECT get(item= [dict(foo=3), 2, 3, 4], member=\"0.foo\") AS Foo FROM scope()": [
+  {}
  ]
 }
