@@ -241,6 +241,9 @@ func _ExtractStringArray(scope *Scope, name string, arg Any) ([]string, bool) {
 					}
 				}
 			}
+
+			// Represent the value as a string.
+			result = append(result, fmt.Sprintf("%v", value))
 		}
 		return result, true
 	}
