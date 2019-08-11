@@ -128,15 +128,6 @@ func (self _StringEq) Applicable(a Any, b Any) bool {
 	return a_ok && b_ok
 }
 
-type _NumericEq struct{}
-
-func (self _NumericEq) Eq(scope *Scope, a Any, b Any) bool {
-	a_val, _ := to_float(a)
-	b_val, _ := to_float(b)
-
-	return a_val == b_val
-}
-
 func to_float(x Any) (float64, bool) {
 	switch t := x.(type) {
 	case bool:
@@ -175,6 +166,17 @@ func to_float(x Any) (float64, bool) {
 	}
 }
 
+// Does x resemble a int?
+func is_int(x Any) bool {
+	switch x.(type) {
+	case bool, int, int8, int16, int32, int64,
+		uint8, uint16, uint32, uint64:
+		return true
+	}
+
+	return false
+}
+
 func to_int64(x Any) (int64, bool) {
 	switch t := x.(type) {
 	case bool:
@@ -202,10 +204,34 @@ func to_int64(x Any) (int64, bool) {
 	}
 }
 
+// Specialized equivalence for integers - it is not reliable to
+// compare floats to ints so we need to special case integers.
+type _IntEq struct{}
+
+func (self _IntEq) Applicable(a Any, b Any) bool {
+	return is_int(a) && is_int(b)
+}
+
+func (self _IntEq) Eq(scope *Scope, a Any, b Any) bool {
+	a_val, _ := to_int64(a)
+	b_val, _ := to_int64(b)
+
+	return a_val == b_val
+}
+
+type _NumericEq struct{}
+
 func (self _NumericEq) Applicable(a Any, b Any) bool {
 	_, a_ok := to_float(a)
 	_, b_ok := to_float(b)
 	return a_ok && b_ok
+}
+
+func (self _NumericEq) Eq(scope *Scope, a Any, b Any) bool {
+	a_val, _ := to_float(a)
+	b_val, _ := to_float(b)
+
+	return a_val == b_val
 }
 
 type _ArrayEq struct{}
@@ -341,6 +367,18 @@ func (self _AddStrings) Add(scope *Scope, a Any, b Any) Any {
 	return a.(string) + b.(string)
 }
 
+type _AddInts struct{}
+
+func (self _AddInts) Applicable(a Any, b Any) bool {
+	return is_int(a) && is_int(b)
+}
+
+func (self _AddInts) Add(scope *Scope, a Any, b Any) Any {
+	a_val, _ := to_int64(a)
+	b_val, _ := to_int64(b)
+	return a_val + b_val
+}
+
 type _AddFloats struct{}
 
 func (self _AddFloats) Applicable(a Any, b Any) bool {
@@ -437,6 +475,18 @@ func (self _SubFloats) Sub(scope *Scope, a Any, b Any) Any {
 	return a_val - b_val
 }
 
+type _SubInts struct{}
+
+func (self _SubInts) Applicable(a Any, b Any) bool {
+	return is_int(a) && is_int(b)
+}
+
+func (self _SubInts) Sub(scope *Scope, a Any, b Any) Any {
+	a_val, _ := to_int64(a)
+	b_val, _ := to_int64(b)
+	return a_val - b_val
+}
+
 // Multiply protocol
 type MulProtocol interface {
 	Applicable(a Any, b Any) bool
@@ -460,6 +510,18 @@ func (self *_MulDispatcher) AddImpl(elements ...MulProtocol) {
 	for _, impl := range elements {
 		self.impl = append(self.impl, impl)
 	}
+}
+
+type _MulInt struct{}
+
+func (self _MulInt) Applicable(a Any, b Any) bool {
+	return is_int(a) && is_int(b)
+}
+
+func (self _MulInt) Mul(scope *Scope, a Any, b Any) Any {
+	a_val, _ := to_int64(a)
+	b_val, _ := to_int64(b)
+	return a_val * b_val
 }
 
 type _NumericMul struct{}
@@ -512,6 +574,22 @@ func (self _NumericDiv) Applicable(a Any, b Any) bool {
 func (self _NumericDiv) Div(scope *Scope, a Any, b Any) Any {
 	a_val, _ := to_float(a)
 	b_val, _ := to_float(b)
+	if b_val == 0 {
+		return false
+	}
+
+	return a_val / b_val
+}
+
+type _DivInt struct{}
+
+func (self _DivInt) Applicable(a Any, b Any) bool {
+	return is_int(a) && is_int(b)
+}
+
+func (self _DivInt) Div(scope *Scope, a Any, b Any) Any {
+	a_val, _ := to_int64(a)
+	b_val, _ := to_int64(b)
 	if b_val == 0 {
 		return false
 	}
@@ -635,6 +713,14 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 	}()
 	switch field_name := b.(type) {
 	case *float64:
+		a_value := reflect.Indirect(reflect.ValueOf(a))
+		idx := int(*field_name)
+		if idx < 0 || idx > a_value.Len() {
+			return &Null{}, false
+		}
+		return a_value.Index(idx).Interface(), true
+
+	case *int64:
 		a_value := reflect.Indirect(reflect.ValueOf(a))
 		idx := int(*field_name)
 		if idx < 0 || idx > a_value.Len() {

@@ -16,7 +16,7 @@ type execTest struct {
 	result Any
 }
 
-var execTests = []execTest{
+var execTestsSerialization = []execTest{
 	{"1 or sleep(a=100)", true},
 
 	// Arithmetic
@@ -72,6 +72,9 @@ var execTests = []execTest{
 	{"1 = const_foo", true},
 	{"1 = TRUE", true},
 
+	// Floats do not compare with integers properly.
+	{"281462092005375 = 65535 * 65535 * 65535", true},
+
 	// Greater than
 	{"const_foo > 1", false},
 	{"const_foo < 2", true},
@@ -91,37 +94,54 @@ var execTests = []execTest{
 	{"func_foo(return = (1 + func_foo(return=2 + 3)))", 6},
 
 	// Arrays
-	{"(1, 2, 3, 4)", []float64{1, 2, 3, 4}},
+	{"(1, 2, 3, 4)", []int64{1, 2, 3, 4}},
+	{"(1, 2.2, 3, 4)", []float64{1, 2.2, 3, 4}},
 	{"2 in (1, 2, 3, 4)", true},
 	{"(1, 2, 3) = (1, 2, 3)", true},
 	{"(1, 2, 3) != (2, 3)", true},
 
 	// Dicts
 	{"dict(foo=1) = dict(foo=1)", true},
-	{"dict(foo=1)", NewDict().Set("foo", 1.0)},
-	{"dict(foo=1, bar=2)", NewDict().Set("foo", 1.0).Set("bar", 2.0)},
+	{"dict(foo=1)", NewDict().Set("foo", int64(1))},
+	{"dict(foo=1.0)", NewDict().Set("foo", 1.0)},
+	{"dict(foo=1, bar=2)", NewDict().
+		Set("foo", int64(1)).
+		Set("bar", int64(2))},
 	{"dict(foo=1, bar=2, baz=3)", NewDict().
-		Set("foo", 1.0).
-		Set("bar", 2.0).
-		Set("baz", 3.0)},
+		Set("foo", int64(1)).
+		Set("bar", int64(2)).
+		Set("baz", int64(3))},
 
 	// Expression as parameter.
 	{"dict(foo=1, bar=( 2 + 3 ))", NewDict().
-		Set("foo", 1.0).Set("bar", 5.0)},
+		Set("foo", int64(1)).Set("bar", int64(5))},
+
+	// Mixing floats and ints.
+	{"dict(foo=1.0, bar=( 2.1 + 3 ))", NewDict().
+		Set("foo", float64(1)).Set("bar", 5.1)},
 
 	// List as parameter.
 	{"dict(foo=1, bar= [2 , 3] )", NewDict().
-		Set("foo", 1.0).
-		Set("bar", []Any{2.0, 3.0})},
+		Set("foo", int64(1)).
+		Set("bar", []Any{int64(2), int64(3)})},
 
 	// Associative
 	// Relies on pre-populating the scope with a Dict.
 	{"foo.bar.baz, foo.bar2", []float64{5, 7}},
 	{"dict(foo=dict(bar=5)).foo.bar", 5},
 	{"1, dict(foo=5).foo", []float64{1, 5}},
+
+	// Support array indexes.
 	{"my_list_obj.my_list[2]", 3},
 	{"my_list_obj.my_list[1]", 2},
 }
+
+// These tests are excluded from serialization tests.
+var execTests = append(execTestsSerialization, []execTest{
+
+	// We now support hex and octal integers directly.
+	{"(0x10, 0x20, 070, -4)", []int64{16, 32, 56, -4}},
+}...)
 
 // Function that returns a value.
 type TestFunction struct {
@@ -235,6 +255,8 @@ func TestEvalWhereClause(t *testing.T) {
 		value := vql.Query.Where.Reduce(ctx, scope)
 		if !scope.Eq(value, test.result) {
 			Debug(test.clause)
+			Debug(test.result)
+			Debug(value)
 			t.Fatalf("%v: Expected %v, got %v", test.clause, test.result, value)
 		}
 	}
@@ -245,7 +267,7 @@ func TestEvalWhereClause(t *testing.T) {
 // that re-parsing this will produce the same AST.
 func TestSerializaition(t *testing.T) {
 	scope := makeScope()
-	for _, test := range execTests {
+	for _, test := range execTestsSerialization {
 		preamble := "select * from plugin() where "
 		vql, err := Parse(preamble + test.clause)
 		if err != nil {

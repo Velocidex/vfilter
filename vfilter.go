@@ -151,7 +151,7 @@ var (
 			`|(?P<Comment>^//.*?$)` + // C++ style one line comment.
 			`|(?i)(?P<Keyword>LET |SELECT |FROM|WHERE|GROUP +BY|ORDER +BY|LIMIT|TRUE|FALSE|NULL|IS |NOT |AND |OR |LIKE |AS |IN |\\bDESC\\b)` +
 			`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
-			`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)` +
+			`|(?P<Number>[-+]?(0x)?\d*\.?\d+([eE][-+]?\d+)?)` +
 			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")` +
 			`|(?P<Operators><>|!=|<=|>=|=~|[-+*/%,.()=<>{}\[\]])`,
 	))
@@ -271,7 +271,7 @@ type _Select struct {
 	GroupBy          *string            `[ "GROUP BY" @Ident ]`
 	OrderBy          *string            `[ "ORDER BY" @Ident `
 	OrderByDesc      *bool              `  [@"DESC" | @"desc"] ]`
-	Limit            *float64           `[ "LIMIT" @Number ]`
+	Limit            *int64             `[ "LIMIT" @Number ]`
 }
 
 // Provides a list of column names from this query. These columns will
@@ -685,7 +685,7 @@ type _OpFactor struct {
 type _MemberExpression struct {
 	Left  *_Value              `@@`
 	Right []*_OpMembershipTerm `[{ @@ }] `
-	Index *float64             `[ "[" @Number "]"]`
+	Index *int64               `[ "[" @Number "]"]`
 }
 
 type _OpMembershipTerm struct {
@@ -769,10 +769,15 @@ type _Value struct {
 	Negated       bool              `[ @"-" | "+" ]`
 	SymbolRef     *_SymbolRef       `( @@ `
 	Subexpression *_CommaExpression `| "(" @@ ")"`
-	Number        *float64          ` | @Number`
-	String        *string           ` | @String`
-	Boolean       *string           ` | @("TRUE" | "FALSE")`
-	Null          bool              ` | @"NULL")`
+
+	// Figure out if this is an int or float.
+	StrNumber *string ` | @Number`
+	Float     *float64
+	Int       *int64
+
+	String  *string ` | @String`
+	Boolean *string ` | @("TRUE" | "FALSE")`
+	Null    bool    ` | @"NULL")`
 }
 
 // A Generic object which may be returned in a row from a plugin.
@@ -1109,7 +1114,7 @@ func (self _MemberExpression) ToString(scope *Scope) string {
 
 	result := strings.Join(result_comp, ".")
 	if self.Index != nil {
-		result += fmt.Sprintf("[%f]", *self.Index)
+		result += fmt.Sprintf("[%d]", *self.Index)
 	}
 
 	return result
@@ -1410,7 +1415,33 @@ func (self _Value) IsAggregate(scope *Scope) bool {
 	return false
 }
 
+func (self *_Value) maybeParseStrNumber(scope *Scope) {
+	if self.Int != nil || self.Float != nil {
+		return
+	}
+
+	if self.StrNumber != nil {
+		// Try to parse it as an integer.
+		value, err := strconv.ParseInt(*self.StrNumber, 0, 64)
+		if err == nil {
+			self.Int = &value
+			return
+		}
+
+		// Try a float now.
+		float_value, err := strconv.ParseFloat(*self.StrNumber, 64)
+		if err == nil {
+			self.Float = &float_value
+			return
+		}
+
+		scope.Log("Unable to parse %s as a number.", *self.StrNumber)
+	}
+}
+
 func (self _Value) Reduce(ctx context.Context, scope *Scope) Any {
+	self.maybeParseStrNumber(scope)
+
 	if self.Subexpression != nil {
 		return self.Subexpression.Reduce(ctx, scope)
 	} else if self.SymbolRef != nil {
@@ -1419,16 +1450,24 @@ func (self _Value) Reduce(ctx context.Context, scope *Scope) Any {
 
 	if self.String != nil {
 		return *self.String
-	} else if self.Number != nil {
-		return *self.Number
+
+	} else if self.Int != nil {
+		return *self.Int
+
+	} else if self.Float != nil {
+		return *self.Float
+
 	} else if self.Boolean != nil {
 		return *self.Boolean == "TRUE"
+
 	} else {
 		return Null{}
 	}
 }
 
 func (self _Value) ToString(scope *Scope) string {
+	self.maybeParseStrNumber(scope)
+
 	factor := 1.0
 	if self.Negated {
 		factor = -1.0
@@ -1438,10 +1477,26 @@ func (self _Value) ToString(scope *Scope) string {
 		return self.SymbolRef.ToString(scope)
 	} else if self.Subexpression != nil {
 		return "(" + self.Subexpression.ToString(scope) + ")"
+
 	} else if self.String != nil {
 		return strconv.Quote(*self.String)
-	} else if self.Number != nil {
-		return strconv.FormatFloat(factor**self.Number, 'f', -1, 32)
+
+	} else if self.Int != nil {
+		factor := int64(1)
+		if self.Negated {
+			factor = -1
+		}
+
+		return strconv.FormatInt(factor**self.Int, 10)
+
+	} else if self.Float != nil {
+		result := strconv.FormatFloat(factor**self.Float, 'f', -1, 64)
+		if !strings.Contains(result, ".") {
+			result = result + ".0"
+		}
+
+		return result
+
 	} else if self.Boolean != nil {
 		return *self.Boolean
 	} else if self.Null {
