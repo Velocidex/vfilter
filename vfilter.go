@@ -151,15 +151,14 @@ var (
 			`|(?P<Comment>^//.*?$)` + // C++ style one line comment.
 			`|(?i)(?P<Keyword>LET |SELECT |FROM|WHERE|GROUP +BY|ORDER +BY|LIMIT|TRUE|FALSE|NULL|IS |NOT |AND |OR |LIKE |AS |IN |\\bDESC\\b)` +
 			`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
-			`|(?P<Number>[-+]?(0x)?\d*\.?\d+([eE][-+]?\d+)?)` +
 			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")` +
+			`|(?P<Number>[-+]?(0x)?\d*\.?\d+([eE][-+]?\d+)?)` +
 			`|(?P<Operators><>|!=|<=|>=|=~|[-+*/%,.()=<>{}\[\]])`,
 	))
 
 	sqlParser = participle.MustBuild(
 		&VQL{},
 		participle.Lexer(sqlLexer),
-		participle.Unquote("String"),
 		participle.Upper("Keyword"),
 		participle.Elide("Comment", "MLineComment", "SQLComment"),
 	// Need to solve left recursion detection first, if possible.
@@ -766,16 +765,17 @@ type _SymbolRef struct {
 }
 
 type _Value struct {
-	Negated       bool              `[ @"-" | "+" ]`
+	Negated       bool              `[ "-" | "+" ]`
 	SymbolRef     *_SymbolRef       `( @@ `
 	Subexpression *_CommaExpression `| "(" @@ ")"`
+
+	String *string ` | @String`
 
 	// Figure out if this is an int or float.
 	StrNumber *string ` | @Number`
 	Float     *float64
 	Int       *int64
 
-	String  *string ` | @String`
 	Boolean *string ` | @("TRUE" | "FALSE")`
 	Null    bool    ` | @"NULL")`
 }
@@ -1439,6 +1439,21 @@ func (self *_Value) maybeParseStrNumber(scope *Scope) {
 	}
 }
 
+func unquote(s string) (string, error) {
+	quote := s[0]
+	s = s[1 : len(s)-1]
+	out := ""
+	for s != "" {
+		value, _, tail, err := strconv.UnquoteChar(s, quote)
+		if err != nil {
+			return "", err
+		}
+		s = tail
+		out += string(value)
+	}
+	return out, nil
+}
+
 func (self _Value) Reduce(ctx context.Context, scope *Scope) Any {
 	self.maybeParseStrNumber(scope)
 
@@ -1449,7 +1464,11 @@ func (self _Value) Reduce(ctx context.Context, scope *Scope) Any {
 	}
 
 	if self.String != nil {
-		return *self.String
+		result, err := unquote(*self.String)
+		if err != nil {
+			return &Null{}
+		}
+		return result
 
 	} else if self.Int != nil {
 		return *self.Int
@@ -1479,7 +1498,7 @@ func (self _Value) ToString(scope *Scope) string {
 		return "(" + self.Subexpression.ToString(scope) + ")"
 
 	} else if self.String != nil {
-		return strconv.Quote(*self.String)
+		return *self.String
 
 	} else if self.Int != nil {
 		factor := int64(1)

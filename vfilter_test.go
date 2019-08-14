@@ -11,6 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	PARSE_ERROR = "PARSE ERROR"
+)
+
 type execTest struct {
 	clause string
 	result Any
@@ -25,6 +29,10 @@ var execTestsSerialization = []execTest{
 	{"1 and 3", true},
 	{"1 = TRUE", true},
 	{"0 = FALSE", true},
+
+	// This should not parse properly. Previously this was parsed
+	// like -2.
+	{"'-' 2", PARSE_ERROR},
 
 	{"1.5", 1.5},
 	{"2 - 1", 1},
@@ -89,6 +97,9 @@ var execTestsSerialization = []execTest{
 	{"func_foo(return =1) = 1", true},
 	{"func_foo(return =1 + 2)", 3},
 	{"func_foo(return = (1 + (2 + 3) * 3))", 16},
+
+	// Previously this was misparsed as the - sign (e.g. -2).
+	{"func_foo(return='-')", "-"},
 
 	// Nested callables.
 	{"func_foo(return = (1 + func_foo(return=2 + 3)))", 6},
@@ -229,12 +240,15 @@ func makeScope() *Scope {
 func TestValue(t *testing.T) {
 	scope := makeScope()
 	ctx, cancel := context.WithCancel(context.Background())
-	foo := "foo"
+	foo := "'foo'"
 	value := _Value{
+		// String now contains quotes to preserve quoting
+		// style on serialization.
 		String: &foo,
 	}
 	result := value.Reduce(ctx, scope)
 	defer cancel()
+
 	if !scope.Eq(result, "foo") {
 		t.Fatalf("Expected %v, got %v", "foo", foo)
 	}
@@ -246,6 +260,9 @@ func TestEvalWhereClause(t *testing.T) {
 		preamble := "select * from plugin() where \n"
 		vql, err := Parse(preamble + test.clause)
 		if err != nil {
+			if test.result == PARSE_ERROR {
+				return
+			}
 			t.Fatalf("Failed to parse %v: %v", test.clause, err)
 		}
 
@@ -271,6 +288,11 @@ func TestSerializaition(t *testing.T) {
 		preamble := "select * from plugin() where "
 		vql, err := Parse(preamble + test.clause)
 		if err != nil {
+			// If we expect a parse error then its ok.
+			if test.result == PARSE_ERROR {
+				continue
+			}
+
 			t.Fatalf("Failed to parse %v: %v", test.clause, err)
 		}
 
