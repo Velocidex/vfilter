@@ -140,13 +140,25 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 
 		// It is a slice.
 		case reflect.Slice:
-			new_value, pres := _ExtractStringArray(
-				scope, field_name, arg)
+			new_value, pres := _ExtractStringArray(scope, arg)
 			if pres {
 				field_value.Set(reflect.ValueOf(new_value))
 			}
 
 		case reflect.String:
+			// If we expect a string and we get an array
+			// of length 1 of strings, we just take the
+			// first element. This allows us to simply
+			// coerce a query into a variable without
+			// using get.
+			if is_array(arg) {
+				new_value, pres := _ExtractStringArray(scope, arg)
+				if pres && len(new_value) == 1 {
+					field_value.Set(reflect.ValueOf(new_value[0]))
+					continue
+				}
+			}
+
 			switch t := arg.(type) {
 			case string:
 				field_value.Set(reflect.ValueOf(t))
@@ -209,7 +221,7 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 
 // Try to retrieve an arg name from the Dict of args. Coerce the arg
 // into something resembling a list of strings.
-func _ExtractStringArray(scope *Scope, name string, arg Any) ([]string, bool) {
+func _ExtractStringArray(scope *Scope, arg Any) ([]string, bool) {
 	var result []string
 
 	// Handle potentially lazy args.
