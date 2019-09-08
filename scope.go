@@ -12,6 +12,8 @@ import (
 // be reached from any nested scope and only destroyed when the root
 // scope is destroyed.
 type _destructors struct {
+	mu sync.Mutex
+
 	fn []func()
 }
 
@@ -328,6 +330,9 @@ func (self *Scope) Close() {
 	destructors_any, _ := self.Resolve("__destructors")
 	destructors, ok := destructors_any.(*_destructors)
 	if ok {
+		destructors.mu.Lock()
+		defer destructors.mu.Unlock()
+
 		// Destructors are called in reverse order to their
 		// declerations.
 		for i := len(destructors.fn) - 1; i >= 0; i-- {

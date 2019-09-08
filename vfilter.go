@@ -994,13 +994,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		}
 
 		if plugin, pres := self.getPlugin(scope, self.Name); pres {
-			plugin_chan := plugin.Call(ctx, scope, args)
-			for {
-				row, ok := <-plugin_chan
-				if !ok {
-					return
-				}
-
+			for row := range plugin.Call(ctx, scope, args) {
 				output_chan <- row
 			}
 		} else {

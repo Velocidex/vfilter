@@ -185,14 +185,22 @@ func to_int64(x Any) (int64, bool) {
 		} else {
 			return 0, true
 		}
-	case int64:
-		return t, true
 	case int:
+		return int64(t), true
+	case uint8:
+		return int64(t), true
+	case int8:
+		return int64(t), true
+	case uint16:
+		return int64(t), true
+	case int16:
 		return int64(t), true
 	case uint32:
 		return int64(t), true
 	case int32:
 		return int64(t), true
+	case int64:
+		return t, true
 	case uint64:
 		return int64(t), true
 
