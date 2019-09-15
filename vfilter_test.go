@@ -385,6 +385,20 @@ var vqlTests = []vqlTest{
                    select bar, foo, value from range(start=bar, end=foo)
                 })`},
 
+	{"Foreach plugin with array", `
+            select * from foreach(
+                row=[dict(bar=1, foo=2), dict(foo=1, bar=2)],
+                query={
+                   select bar, foo from scope()
+                })`},
+
+	{"Foreach plugin with single object", `
+            select * from foreach(
+                row=dict(bar=1, foo=2),
+                query={
+                   select bar, foo from scope()
+                })`},
+
 	{"Query plugin with dots", "Select * from Artifact.Linux.Sys()"},
 	{"Order by", "select * from test() order by foo"},
 	{"Order by desc", "select * from test() order by foo DESC"},

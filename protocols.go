@@ -199,11 +199,10 @@ func to_int64(x Any) (int64, bool) {
 		return int64(t), true
 	case int32:
 		return int64(t), true
-	case int64:
-		return t, true
 	case uint64:
 		return int64(t), true
-
+	case int64:
+		return t, true
 	case float64:
 		return int64(t), true
 

@@ -5,7 +5,7 @@ import (
 )
 
 type _ForeachPluginImplArgs struct {
-	Row   StoredQuery `vfilter:"required,field=row"`
+	Row   Any         `vfilter:"required,field=row"`
 	Query StoredQuery `vfilter:"required,field=query"`
 }
 
@@ -26,13 +26,14 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 			return
 		}
 
-		row_chan := arg.Row.Eval(ctx, scope)
-		for {
-			row_item, ok := <-row_chan
-			if !ok {
-				break
-			}
+		// If it is a stored query call it otherwise wrap the
+		// object - this allows us to iterate on arrays.
+		stored_query, ok := arg.Row.(StoredQuery)
+		if !ok {
+			stored_query = &StoredQueryWrapper{arg.Row}
+		}
 
+		for row_item := range stored_query.Eval(ctx, scope) {
 			// Evaluate the query on a new sub scope. The
 			// query can refer to rows returned by the
 			// "row" query.

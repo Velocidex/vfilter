@@ -235,8 +235,24 @@
    "value": 4
   }
  ],
- "023 Query plugin with dots: SELECT * FROM Artifact.Linux.Sys()": [],
- "024 Order by: SELECT * FROM test() ORDER BY foo": [
+ "023 Foreach plugin with array: SELECT * FROM foreach(row= [dict(bar=1, foo=2), dict(foo=1, bar=2)], query= { SELECT bar, foo FROM scope()})": [
+  {
+   "bar": 1,
+   "foo": 2
+  },
+  {
+   "bar": 2,
+   "foo": 1
+  }
+ ],
+ "024 Foreach plugin with single object: SELECT * FROM foreach(row=dict(bar=1, foo=2), query= { SELECT bar, foo FROM scope()})": [
+  {
+   "bar": 1,
+   "foo": 2
+  }
+ ],
+ "025 Query plugin with dots: SELECT * FROM Artifact.Linux.Sys()": [],
+ "026 Order by: SELECT * FROM test() ORDER BY foo": [
   {
    "bar": 0,
    "foo": 0
@@ -250,7 +266,7 @@
    "foo": 4
   }
  ],
- "025 Order by desc: SELECT * FROM test() ORDER BY foo DESC ": [
+ "027 Order by desc: SELECT * FROM test() ORDER BY foo DESC ": [
   {
    "bar": 2,
    "foo": 4
@@ -264,37 +280,37 @@
    "foo": 0
   }
  ],
- "026 Limit: SELECT * FROM test() LIMIT 1 ": [
+ "028 Limit: SELECT * FROM test() LIMIT 1 ": [
   {
    "bar": 0,
    "foo": 0
   }
  ],
- "027 Limit and order: SELECT * FROM test() ORDER BY foo DESC  LIMIT 1 ": [
+ "029 Limit and order: SELECT * FROM test() ORDER BY foo DESC  LIMIT 1 ": [
   {
    "bar": 2,
    "foo": 4
   }
  ],
- "028 Comments Simple: SELECT * FROM test() LIMIT 1 ": [
+ "030 Comments Simple: SELECT * FROM test() LIMIT 1 ": [
   {
    "bar": 0,
    "foo": 0
   }
  ],
- "029 Comments SQL Style: SELECT * FROM test() LIMIT 1 ": [
+ "031 Comments SQL Style: SELECT * FROM test() LIMIT 1 ": [
   {
    "bar": 0,
    "foo": 0
   }
  ],
- "030 Comments Multiline: SELECT * FROM test() LIMIT 1 ": [
+ "032 Comments Multiline: SELECT * FROM test() LIMIT 1 ": [
   {
    "bar": 0,
    "foo": 0
   }
  ],
- "031 Not combined with AND: SELECT * FROM test() WHERE 1 AND NOT foo = 2": [
+ "033 Not combined with AND: SELECT * FROM test() WHERE 1 AND NOT foo = 2": [
   {
    "bar": 0,
    "foo": 0
@@ -304,8 +320,8 @@
    "foo": 4
   }
  ],
- "032 Not combined with AND 2: SELECT * FROM test() WHERE 0 AND NOT foo = 2": [],
- "033 Not combined with OR: SELECT * FROM test() WHERE 1 OR NOT foo = 20": [
+ "034 Not combined with AND 2: SELECT * FROM test() WHERE 0 AND NOT foo = 2": [],
+ "035 Not combined with OR: SELECT * FROM test() WHERE 1 OR NOT foo = 20": [
   {
    "bar": 0,
    "foo": 0
@@ -319,7 +335,7 @@
    "foo": 4
   }
  ],
- "034 Not combined with OR 2: SELECT * FROM test() WHERE 0 OR NOT foo = 20": [
+ "036 Not combined with OR 2: SELECT * FROM test() WHERE 0 OR NOT foo = 20": [
   {
    "bar": 0,
    "foo": 0
@@ -333,7 +349,7 @@
    "foo": 4
   }
  ],
- "035 Group by 1: SELECT foo, bar FROM groupbytest() GROUP BY bar": [
+ "037 Group by 1: SELECT foo, bar FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
    "foo": 4
@@ -343,7 +359,7 @@
    "foo": 2
   }
  ],
- "036 Group by count: SELECT foo, bar, count(items=bar) FROM groupbytest() GROUP BY bar": [
+ "038 Group by count: SELECT foo, bar, count(items=bar) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
    "count(items=bar)": 2,
@@ -355,7 +371,7 @@
    "foo": 2
   }
  ],
- "037 Group by count with where: SELECT foo, bar, count(items=bar) FROM groupbytest() WHERE foo \u003c 4 GROUP BY bar": [
+ "039 Group by count with where: SELECT foo, bar, count(items=bar) FROM groupbytest() WHERE foo \u003c 4 GROUP BY bar": [
   {
    "bar": 2,
    "count(items=bar)": 1,
@@ -367,7 +383,7 @@
    "foo": 2
   }
  ],
- "038 Group by min: SELECT foo, bar, min(items=foo) FROM groupbytest() GROUP BY bar": [
+ "040 Group by min: SELECT foo, bar, min(items=foo) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
    "foo": 4,
@@ -379,7 +395,7 @@
    "min(items=foo)": 1
   }
  ],
- "039 Group by max: SELECT foo, bar, max(items=foo) FROM groupbytest() GROUP BY bar": [
+ "041 Group by max: SELECT foo, bar, max(items=foo) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
    "foo": 4,
@@ -391,7 +407,7 @@
    "max(items=foo)": 2
   }
  ],
- "040 Group by max of string: SELECT baz, bar, max(items=baz) FROM groupbytest() GROUP BY bar": [
+ "042 Group by max of string: SELECT baz, bar, max(items=baz) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
    "baz": "d",
@@ -403,7 +419,7 @@
    "max(items=baz)": "b"
   }
  ],
- "041 Group by min of string: SELECT baz, bar, min(items=baz) FROM groupbytest() GROUP BY bar": [
+ "043 Group by min of string: SELECT baz, bar, min(items=baz) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
    "baz": "d",
@@ -415,7 +431,7 @@
    "min(items=baz)": "a"
   }
  ],
- "042 Group by enumrate of string: SELECT baz, bar, enumerate(items=baz) FROM groupbytest() GROUP BY bar": [
+ "044 Group by enumrate of string: SELECT baz, bar, enumerate(items=baz) FROM groupbytest() GROUP BY bar": [
   {
    "bar": 2,
    "baz": "d",
@@ -433,18 +449,18 @@
    ]
   }
  ],
- "043 Lazy row evaluation (Shoud panic if foo=2: SELECT foo, panic(column=foo, value=2) FROM test() WHERE foo = 4": [
+ "045 Lazy row evaluation (Shoud panic if foo=2: SELECT foo, panic(column=foo, value=2) FROM test() WHERE foo = 4": [
   {
    "foo": 4,
    "panic(column=foo, value=2)": 2
   }
  ],
- "044 Quotes strings: SELECT 'foo\\'s quote' FROM scope()": [
+ "046 Quotes strings: SELECT 'foo\\'s quote' FROM scope()": [
   {
    "'foo\\'s quote'": "foo's quote"
   }
  ],
- "045 Test get(): SELECT get(item= [dict(foo=3), 2, 3, 4], member='0.foo') AS Foo FROM scope()": [
+ "047 Test get(): SELECT get(item= [dict(foo=3), 2, 3, 4], member='0.foo') AS Foo FROM scope()": [
   {}
  ]
 }
