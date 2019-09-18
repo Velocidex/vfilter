@@ -145,6 +145,9 @@ var execTestsSerialization = []execTest{
 	// Support array indexes.
 	{"my_list_obj.my_list[2]", 3},
 	{"my_list_obj.my_list[1]", 2},
+	{"(my_list_obj.my_list[3]).Foo", "Bar"},
+	{"dict(x=(my_list_obj.my_list[3]).Foo + 'a')",
+		NewDict().Set("x", "Bara")},
 }
 
 // These tests are excluded from serialization tests.
@@ -217,7 +220,9 @@ func makeScope() *Scope {
 	return NewScope().AppendVars(NewDict().
 		Set("const_foo", 1).
 		Set("my_list_obj", NewDict().
-			Set("my_list", []int{1, 2, 3})).
+			Set("my_list", []interface{}{
+				1, 2, 3,
+				NewDict().Set("Foo", "Bar")})).
 		Set("env_var", "EnvironmentData").
 		Set("foo", NewDict().
 			Set("bar", NewDict().Set("baz", 5)).
@@ -261,7 +266,7 @@ func TestEvalWhereClause(t *testing.T) {
 		vql, err := Parse(preamble + test.clause)
 		if err != nil {
 			if test.result == PARSE_ERROR {
-				return
+				continue
 			}
 			t.Fatalf("Failed to parse %v: %v", test.clause, err)
 		}
@@ -297,9 +302,9 @@ func TestSerializaition(t *testing.T) {
 		}
 
 		vql_string := vql.ToString(scope)
-
 		parsed_vql, err := Parse(vql_string)
 		if err != nil {
+			Debug(vql)
 			t.Fatalf("Failed to parse stringified VQL %v: %v (%v)",
 				vql_string, err, test.clause)
 		}
@@ -444,6 +449,10 @@ select * from test() limit 1`},
 		"select 'foo\\'s quote' from scope()"},
 	{"Test get()",
 		"select get(item=[dict(foo=3), 2, 3, 4], member='0.foo') AS Foo from scope()"},
+	{"Test array index",
+		"LET BIN <= SELECT * FROM test()"},
+	{"Test array index 2",
+		"SELECT BIN, BIN[0] FROM scope()"},
 }
 
 type _RangeArgs struct {

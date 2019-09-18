@@ -199,6 +199,7 @@ func Parse(expression string) (*VQL, error) {
 			err,
 			expression[start:pos]+"|"+expression[pos:end])
 	default:
+
 		return sql, err
 	}
 }
@@ -569,7 +570,7 @@ type _Args struct {
 	Left      string            `@Ident "=" `
 	SubSelect *_Select          `( "{" @@ "}" | `
 	Array     *_CommaExpression ` "[" @@ "]" | `
-	Right     *_AndExpression   ` "("@@ ")" | @@ )`
+	Right     *_AndExpression   ` @@ )`
 }
 
 type _SelectExpression struct {
@@ -1075,10 +1076,6 @@ func (self _MemberExpression) IsAggregate(scope *Scope) bool {
 }
 
 func (self _MemberExpression) Reduce(ctx context.Context, scope *Scope) Any {
-	if self.Right == nil {
-		return self.Left.Reduce(ctx, scope)
-	}
-
 	lhs := self.Left.Reduce(ctx, scope)
 	for _, term := range self.Right {
 		var pres bool
@@ -1129,17 +1126,18 @@ func (self _CommaExpression) IsAggregate(scope *Scope) bool {
 }
 
 func (self _CommaExpression) Reduce(ctx context.Context, scope *Scope) Any {
-	if self.Right == nil {
-		return self.Left.Reduce(ctx, scope)
-	}
-
 	lhs := self.Left.Reduce(ctx, scope)
 	if lhs == nil {
 		return Null{}
 	}
 
-	var result []Any
-	result = append(result, lhs)
+	// Where there is no comma we return the actual element and
+	// not an array of length one.
+	if self.Right == nil {
+		return lhs
+	}
+
+	result := []Any{lhs}
 	for _, term := range self.Right {
 		result = append(result, term.Term.Reduce(ctx, scope))
 	}
@@ -1171,11 +1169,11 @@ func (self *_AndExpression) IsAggregate(scope *Scope) bool {
 }
 
 func (self _AndExpression) Reduce(ctx context.Context, scope *Scope) Any {
+	result := self.Left.Reduce(ctx, scope)
 	if self.Right == nil {
-		return self.Left.Reduce(ctx, scope)
+		return result
 	}
 
-	var result Any = self.Left.Reduce(ctx, scope)
 	if scope.Bool(result) == false {
 		return false
 	}
@@ -1212,11 +1210,11 @@ func (self *_OrExpression) IsAggregate(scope *Scope) bool {
 }
 
 func (self _OrExpression) Reduce(ctx context.Context, scope *Scope) Any {
+	result := self.Left.Reduce(ctx, scope)
 	if self.Right == nil {
-		return self.Left.Reduce(ctx, scope)
+		return result
 	}
 
-	var result Any = self.Left.Reduce(ctx, scope)
 	if scope.Bool(result) == true {
 		return true
 	}
@@ -1254,11 +1252,7 @@ func (self _AdditionExpression) IsAggregate(scope *Scope) bool {
 }
 
 func (self _AdditionExpression) Reduce(ctx context.Context, scope *Scope) Any {
-	if self.Right == nil {
-		return self.Left.Reduce(ctx, scope)
-	}
-
-	var result Any = self.Left.Reduce(ctx, scope)
+	result := self.Left.Reduce(ctx, scope)
 	for _, term := range self.Right {
 		term_value := term.Term.Reduce(ctx, scope)
 		switch term.Operator {
@@ -1305,11 +1299,11 @@ func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) Any {
 		return !scope.Bool(value)
 	}
 
+	lhs := self.Left.Reduce(ctx, scope)
 	if self.Right == nil {
-		return self.Left.Reduce(ctx, scope)
+		return lhs
 	}
 
-	lhs := self.Left.Reduce(ctx, scope)
 	rhs := self.Right.Right.Reduce(ctx, scope)
 
 	switch self.Right.Operator {
@@ -1369,12 +1363,7 @@ func (self _MultiplicationExpression) IsAggregate(scope *Scope) bool {
 }
 
 func (self _MultiplicationExpression) Reduce(ctx context.Context, scope *Scope) Any {
-	if self.Right == nil {
-		return self.Left.Reduce(ctx, scope)
-	}
-
-	var result Any = self.Left.Reduce(ctx, scope)
-
+	result := self.Left.Reduce(ctx, scope)
 	for _, term := range self.Right {
 		term_value := term.Factor.Reduce(ctx, scope)
 		switch term.Operator {

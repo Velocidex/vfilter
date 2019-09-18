@@ -71,6 +71,7 @@ func (self _StoredQueryAssociative) Applicable(a Any, b Any) bool {
 
 func (self _StoredQueryAssociative) Associative(
 	scope *Scope, a Any, b Any) (Any, bool) {
+
 	var result []Any
 	stored_query, ok := a.(StoredQuery)
 	if ok {

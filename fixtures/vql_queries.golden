@@ -462,5 +462,28 @@
  ],
  "047 Test get(): SELECT get(item= [dict(foo=3), 2, 3, 4], member='0.foo') AS Foo FROM scope()": [
   {}
+ ],
+ "048 Test array index: LET BIN\u003c=SELECT * FROM test()": [],
+ "049 Test array index 2: SELECT BIN, BIN[0] FROM scope()": [
+  {
+   "BIN": [
+    {
+     "bar": 0,
+     "foo": 0
+    },
+    {
+     "bar": 1,
+     "foo": 2
+    },
+    {
+     "bar": 2,
+     "foo": 4
+    }
+   ],
+   "BIN[0]": {
+    "bar": 0,
+    "foo": 0
+   }
+  }
  ]
 }
