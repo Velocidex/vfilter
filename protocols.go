@@ -423,23 +423,54 @@ func (self _AddSlices) Add(scope *Scope, a Any, b Any) Any {
 	return result
 }
 
+func is_null(a Any) bool {
+	if a == nil {
+		return true
+	}
+
+	switch a.(type) {
+	case Null, *Null:
+		return true
+	}
+
+	return false
+}
+
+// Add a slice to null. We treat null as the empty array.
+type _AddNull struct{}
+
+func (self _AddNull) Applicable(a Any, b Any) bool {
+	return (is_array(a) && is_null(b)) || (is_null(a) && is_array(b))
+}
+
+func (self _AddNull) Add(scope *Scope, a Any, b Any) Any {
+	if is_null(a) {
+		return b
+	}
+	return a
+}
+
 // Add a slice to Any will expand the slice and add each item with the
 // any.
 type _AddSliceAny struct{}
 
 func (self _AddSliceAny) Applicable(a Any, b Any) bool {
-	return is_array(a)
+	return is_array(a) || is_array(b)
 }
 
 func (self _AddSliceAny) Add(scope *Scope, a Any, b Any) Any {
 	var result []Any
-	a_slice := reflect.ValueOf(a)
 
-	for i := 0; i < a_slice.Len(); i++ {
-		result = append(result, scope.Add(a_slice.Index(i).Interface(), b))
+	if is_array(a) {
+		a_slice := reflect.ValueOf(a)
+
+		for i := 0; i < a_slice.Len(); i++ {
+			result = append(result, a_slice.Index(i).Interface())
+		}
+
+		return append(result, b)
 	}
-
-	return result
+	return self.Add(scope, b, a)
 }
 
 // Sub protocol

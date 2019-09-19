@@ -365,7 +365,7 @@ func NewScope() *Scope {
 		_BoolImpl{}, _BoolInt{}, _BoolString{}, _BoolSlice{}, _BoolDict{},
 		_NumericLt{}, _StringLt{},
 		_StringEq{}, _IntEq{}, _NumericEq{}, _ArrayEq{}, _DictEq{},
-		_AddStrings{}, _AddInts{}, _AddFloats{}, _AddSlices{}, _AddSliceAny{},
+		_AddNull{}, _AddStrings{}, _AddInts{}, _AddFloats{}, _AddSlices{}, _AddSliceAny{},
 		_StoredQueryAdd{},
 		_SubInts{}, _SubFloats{},
 		_SubstringMembership{},

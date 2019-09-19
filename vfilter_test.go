@@ -453,6 +453,14 @@ select * from test() limit 1`},
 		"LET BIN <= SELECT * FROM test()"},
 	{"Test array index 2",
 		"SELECT BIN, BIN[0] FROM scope()"},
+	{"Array concatenation",
+		"SELECT (1,2) + (3,4) FROM scope()"},
+	{"Array concatenation to any",
+		"SELECT (1,2) + 4 FROM scope()"},
+	{"Array concatenation with if",
+		"SELECT (1,2) + if(condition=1, then=(3,4)) AS Field FROM scope()"},
+	{"Array concatenation with Null",
+		"SELECT (1,2) + if(condition=0, then=(3,4)) AS Field FROM scope()"},
 }
 
 type _RangeArgs struct {
