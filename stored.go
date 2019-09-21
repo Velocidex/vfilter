@@ -135,8 +135,9 @@ func (self _StoredQueryAdd) Applicable(a Any, b Any) bool {
 }
 
 func (self _StoredQueryAdd) Add(scope *Scope, a Any, b Any) Any {
-	return append(Materialize(scope, a.(StoredQuery)),
-		Materialize(scope, b.(StoredQuery))...)
+	ctx := context.Background()
+	return append(Materialize(ctx, scope, a.(StoredQuery)),
+		Materialize(ctx, scope, b.(StoredQuery))...)
 }
 
 // Wraps any object (e.g. a slice) into a StoredQuery object.
@@ -176,11 +177,10 @@ func (self *StoredQueryWrapper) ToString(scope *Scope) string {
 	return ""
 }
 
-func Materialize(scope *Scope, stored_query StoredQuery) []Row {
+func Materialize(ctx context.Context, scope *Scope, stored_query StoredQuery) []Row {
 	result := []Row{}
 
 	// Materialize both queries to an array.
-	ctx := context.Background()
 	new_scope := scope.Copy()
 	for item := range stored_query.Eval(ctx, new_scope) {
 		result = append(result, item)

@@ -230,7 +230,7 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				scope.AppendVars(NewDict().Set(self.Let, stored_query))
 			case "<=":
 				scope.AppendVars(NewDict().Set(
-					self.Let, Materialize(scope, self.Query)))
+					self.Let, Materialize(ctx, scope, self.Query)))
 			}
 		}
 

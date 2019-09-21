@@ -170,35 +170,44 @@ func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
 			}
 
 		case reflect.Bool:
-			a, ok := arg.(bool)
-			if ok {
-				field_value.Set(reflect.ValueOf(a))
-			}
+			field_value.Set(reflect.ValueOf(scope.Bool(arg)))
 
 		case reflect.Float64:
 			a, ok := to_float(arg)
 			if ok {
 				field_value.Set(reflect.ValueOf(a))
+			} else {
+				return errors.New(fmt.Sprintf(
+					"Field %s should be a float.",
+					field_types_value.Name))
 			}
-
 		case reflect.Int64:
 			a, ok := to_int64(arg)
 			if ok {
 				field_value.Set(reflect.ValueOf(a))
+			} else {
+				return errors.New(fmt.Sprintf(
+					"Field %s should be an int.",
+					field_types_value.Name))
 			}
-
 		case reflect.Uint64:
 			a, ok := to_int64(arg)
 			if ok {
 				field_value.Set(reflect.ValueOf(uint64(a)))
+			} else {
+				return errors.New(fmt.Sprintf(
+					"Field %s should be an int.",
+					field_types_value.Name))
 			}
-
 		case reflect.Int:
 			a, ok := to_int64(arg)
 			if ok {
 				field_value.Set(reflect.ValueOf(int(a)))
+			} else {
+				return errors.New(fmt.Sprintf(
+					"Field %s should be an int.",
+					field_types_value.Name))
 			}
-
 		default:
 			if InString(&directives, "required") {
 				return errors.New(fmt.Sprintf(

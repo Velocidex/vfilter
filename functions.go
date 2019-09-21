@@ -98,7 +98,7 @@ func (self _SubSelectFunction) Call(ctx context.Context, scope *Scope, args *Dic
 		return Null{}
 	}
 
-	return Materialize(scope, arg.VQL)
+	return Materialize(ctx, scope, arg.VQL)
 }
 
 type _SplitFunctionArgs struct {
