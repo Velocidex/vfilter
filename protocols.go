@@ -470,7 +470,15 @@ func (self _AddSliceAny) Add(scope *Scope, a Any, b Any) Any {
 
 		return append(result, b)
 	}
-	return self.Add(scope, b, a)
+
+	result = append(result, a)
+	b_slice := reflect.ValueOf(b)
+
+	for i := 0; i < b_slice.Len(); i++ {
+		result = append(result, b_slice.Index(i).Interface())
+	}
+
+	return result
 }
 
 // Sub protocol

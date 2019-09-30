@@ -111,6 +111,11 @@ var execTestsSerialization = []execTest{
 	{"(1, 2, 3) = (1, 2, 3)", true},
 	{"(1, 2, 3) != (2, 3)", true},
 
+	// Array additions
+	{"(1, 2) + (3, 4)", []int64{1, 2, 3, 4}},
+	{"1 + (3, 4)", []int64{1, 3, 4}},
+	{"(1, 2) + 3", []int64{1, 2, 3}},
+
 	// Dicts
 	{"dict(foo=1) = dict(foo=1)", true},
 	{"dict(foo=1)", NewDict().Set("foo", int64(1))},
