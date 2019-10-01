@@ -331,6 +331,9 @@ var vqlTests = []vqlTest{
 	{"query with dicts", "select * from test()"},
 	{"query with ints", "select * from range(start=10, end=12)"},
 
+	{"query with wild card followed by comma",
+		"select *, 1 AS Extra from test()"},
+
 	// The environment contains a 'foo' and the plugin emits 'foo'
 	// which should shadow it.
 	{"aliases with shadowed var", "select env_var as EnvVar, foo as FooColumn from test()"},

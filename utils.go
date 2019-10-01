@@ -159,3 +159,21 @@ func InString(hay *[]string, needle string) bool {
 func GetID(obj Any) string {
 	return fmt.Sprintf("%p", obj)
 }
+
+func RowToDict(scope *Scope, row Row) *Dict {
+	// If the row is already a dict nothing to do:
+	result, ok := row.(*Dict)
+	if ok {
+		return result
+	}
+
+	result = NewDict()
+	for _, column := range scope.GetMembers(row) {
+		value, pres := scope.Associative(row, column)
+		if pres {
+			result.Set(column, value)
+		}
+	}
+
+	return result
+}

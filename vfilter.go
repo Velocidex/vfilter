@@ -574,8 +574,8 @@ type _Args struct {
 }
 
 type _SelectExpression struct {
-	All         bool                  `  @"*"`
-	Expressions []*_AliasedExpression `| @@ { "," @@ }`
+	All         bool                  ` [ @"*" ","? ] `
+	Expressions []*_AliasedExpression ` [ @@ { "," @@ } ]`
 }
 
 type _AliasedExpression struct {
@@ -799,7 +799,7 @@ func (self _SelectExpression) Transform(
 	ctx context.Context, scope *Scope, row Row) Row {
 	// The select uses a * to relay all the rows without
 	// filtering
-	if self.All {
+	if self.All && self.Expressions == nil {
 		return row
 
 	} else {
@@ -817,6 +817,22 @@ func (self _SelectExpression) Transform(
 		new_row := NewLazyRow(ctx)
 		new_scope := scope.Copy()
 		new_scope.AppendVars(row)
+
+		// If there is a * expression in addition to the
+		// column expressions, this is equivalent to adding
+		// all the columns as defined by the * as if they were
+		// explicitely defined.
+		if self.All {
+			for _, member := range scope.GetMembers(row) {
+				value, pres := scope.Associative(row, member)
+				if pres {
+					new_row.AddColumn(member,
+						func(ctx context.Context, scope *Scope) Any {
+							return value
+						})
+				}
+			}
+		}
 
 		for _, expr_ := range self.Expressions {
 			// A copy of the expression for the lambda capture.
@@ -861,10 +877,10 @@ func (self *_SelectExpression) Columns(scope *Scope) *[]string {
 }
 
 func (self _SelectExpression) ToString(scope *Scope) string {
-	if self.All {
-		return "*"
-	}
 	var substrings []string
+	if self.All {
+		substrings = append(substrings, "*")
+	}
 	for _, item := range self.Expressions {
 		substrings = append(substrings, item.ToString(scope))
 	}

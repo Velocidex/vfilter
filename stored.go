@@ -142,7 +142,7 @@ func (self _StoredQueryAdd) Add(scope *Scope, a Any, b Any) Any {
 
 // Wraps any object (e.g. a slice) into a StoredQuery object.
 type StoredQueryWrapper struct {
-	delegate Any
+	Delegate Any
 }
 
 func (self *StoredQueryWrapper) Eval(ctx context.Context, scope *Scope) <-chan Row {
@@ -151,14 +151,14 @@ func (self *StoredQueryWrapper) Eval(ctx context.Context, scope *Scope) <-chan R
 	go func() {
 		defer close(output_chan)
 
-		slice := reflect.ValueOf(self.delegate)
+		slice := reflect.ValueOf(self.Delegate)
 		if slice.Type().Kind() == reflect.Slice {
 			for i := 0; i < slice.Len(); i++ {
 				value := slice.Index(i).Interface()
 				output_chan <- value
 			}
 		} else {
-			output_chan <- self.delegate
+			output_chan <- self.Delegate
 		}
 	}()
 	return output_chan
@@ -169,7 +169,7 @@ func (self *StoredQueryWrapper) Columns(scope *Scope) *[]string {
 }
 
 func (self *StoredQueryWrapper) ToString(scope *Scope) string {
-	stringer, ok := self.delegate.(StringProtocol)
+	stringer, ok := self.Delegate.(StringProtocol)
 	if ok {
 		return stringer.ToString(scope)
 	}
