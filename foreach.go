@@ -2,11 +2,13 @@ package vfilter
 
 import (
 	"context"
+	"sync"
 )
 
 type _ForeachPluginImplArgs struct {
-	Row   Any         `vfilter:"required,field=row"`
-	Query StoredQuery `vfilter:"required,field=query"`
+	Row   Any         `vfilter:"required,field=row,doc=A query or slice which generates rows."`
+	Query StoredQuery `vfilter:"required,field=query,doc=Run this query for each row."`
+	Async bool        `vfilter:"optional,field=async,doc=If set we run all queries asyncronously."`
 }
 
 type _ForeachPluginImpl struct{}
@@ -33,27 +35,45 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 			stored_query = &StoredQueryWrapper{arg.Row}
 		}
 
+		wg := sync.WaitGroup{}
 		for row_item := range stored_query.Eval(ctx, scope) {
-			// Evaluate the query on a new sub scope. The
-			// query can refer to rows returned by the
-			// "row" query.
-			child_scope := scope.Copy()
-			child_scope.AppendVars(row_item)
-			child_ctx, cancel := context.WithCancel(ctx)
-			query_chan := arg.Query.Eval(child_ctx, child_scope)
-			for {
-				query_chan_item, ok := <-query_chan
-				if !ok {
-					break
+			wg.Add(1)
+
+			run_query := func() {
+				defer wg.Done()
+
+				// Evaluate the query on a new sub scope. The
+				// query can refer to rows returned by the
+				// "row" query.
+				child_scope := scope.Copy()
+				child_scope.AppendVars(row_item)
+				child_ctx, cancel := context.WithCancel(ctx)
+
+				// Cancel the context when the child query is
+				// done. This will force any cleanup functions
+				// used by the child query to be run now
+				// instead of waiting for our parent query to
+				// complete.
+				defer cancel()
+
+				query_chan := arg.Query.Eval(child_ctx, child_scope)
+				for {
+					query_chan_item, ok := <-query_chan
+					if !ok {
+						break
+					}
+					output_chan <- query_chan_item
 				}
-				output_chan <- query_chan_item
 			}
-			// Cancel the context when the child query is
-			// done. This will force any cleanup functions
-			// used by the child query to be run now
-			// instead of waiting for our parent query to
-			// complete.
-			cancel()
+
+			// Maybe run it asyncronously.
+			if arg.Async {
+				go run_query()
+			} else {
+				run_query()
+			}
+
+			wg.Wait()
 		}
 	}()
 

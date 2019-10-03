@@ -1476,7 +1476,7 @@ func (self _Value) Reduce(ctx context.Context, scope *Scope) Any {
 		return *self.Float
 
 	} else if self.Boolean != nil {
-		return *self.Boolean == "TRUE"
+		return strings.ToLower(*self.Boolean) == "true"
 
 	} else {
 		return Null{}
