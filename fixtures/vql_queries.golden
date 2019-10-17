@@ -172,7 +172,7 @@
    "bar": 2
   }
  ],
- "016 Subselect functions in filter.: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM test() WHERE 1 IN  Query.column": [
+ "016 Subselect functions in filter.: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM test() WHERE 1 IN Query.column": [
   {
    "Query": [
     {
@@ -538,6 +538,11 @@
     1,
     2
    ]
+  }
+ ],
+ "055 Spurious line feeds and tabs: SELECT 1 + 2 AS FooBar FROM scope() WHERE FooBar \u003e 1 AND TRUE": [
+  {
+   "FooBar": 3
   }
  ]
 }

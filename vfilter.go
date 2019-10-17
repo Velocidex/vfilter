@@ -149,7 +149,21 @@ var (
 			`|(?P<MLineComment>^/[*].*?[*]/$)` + // C Style comment.
 			`|(?P<SQLComment>^--.*?$)` + // SQL style one line comment.
 			`|(?P<Comment>^//.*?$)` + // C++ style one line comment.
-			`|(?i)(?P<Keyword>LET |SELECT |FROM|WHERE|GROUP +BY|ORDER +BY|LIMIT|TRUE|FALSE|NULL|IS |NOT |AND |OR |LIKE |AS |IN |\\bDESC\\b)` +
+			`|(?ims)(?P<SELECT>\bSELECT\b)` +
+			`|(?ims)(?P<WHERE>\bWHERE\b)` +
+			`|(?ims)(?P<AND>\bAND\b)` +
+			`|(?ims)(?P<OR>\bOR\b)` +
+			`|(?ims)(?P<FROM>\bFROM\b)` +
+			`|(?ims)(?P<NOT>\bNOT\b)` +
+			`|(?ims)(?P<AS>\bAS\b)` +
+			`|(?ims)(?P<IN>\bIN\b)` +
+			`|(?ims)(?P<LIMIT>\bLIMIT\b)` +
+			`|(?ims)(?P<NULL>\bNULL\b)` +
+			`|(?ims)(?P<DESC>\bDESC\b)` +
+			`|(?ims)(?P<GROUPBY>\bGROUP\s+BY\b)` +
+			`|(?ims)(?P<ORDERBY>\bORDER\s+BY\b)` +
+			`|(?ims)(?P<BOOL>\bTRUE\b|\bFALSE\b)` +
+			`|(?ims)(?P<LET>\bLET\b)` +
 			`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
 			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")` +
 			`|(?P<Number>[-+]?(0x)?\d*\.?\d+([eE][-+]?\d+)?)` +
@@ -159,7 +173,7 @@ var (
 	sqlParser = participle.MustBuild(
 		&VQL{},
 		participle.Lexer(sqlLexer),
-		participle.Upper("Keyword"),
+		participle.Upper("IN", "DESC"),
 		participle.Elide("Comment", "MLineComment", "SQLComment"),
 	// Need to solve left recursion detection first, if possible.
 	// participle.UseLookahead(),
@@ -206,7 +220,7 @@ func Parse(expression string) (*VQL, error) {
 
 // An opaque object representing the VQL expression.
 type VQL struct {
-	Let         string   `{ "LET " @Ident `
+	Let         string   `{ LET  @Ident `
 	LetOperator string   ` ( @"=" | @"<=" ) }`
 	Query       *_Select ` @@ `
 }
@@ -221,7 +235,12 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 		_, pres := scope.Resolve(self.Let)
 		if pres {
-			scope.Log("ERROR: LET query overrides a variable for %s", self.Let)
+			// The _ variable is special - it can be
+			// trashed without a warning.
+			if self.Let != "_" {
+				scope.Log("ERROR: LET query overrides a variable for %s",
+					self.Let)
+			}
 
 		} else {
 			switch self.LetOperator {
@@ -265,13 +284,13 @@ func (self *VQL) Columns(scope *Scope) *[]string {
 }
 
 type _Select struct {
-	SelectExpression *_SelectExpression `"SELECT " @@`
-	From             *_From             `"FROM" @@`
-	Where            *_CommaExpression  `[ "WHERE" @@ ]`
-	GroupBy          *string            `[ "GROUP BY" @Ident ]`
-	OrderBy          *string            `[ "ORDER BY" @Ident `
-	OrderByDesc      *bool              `  [@"DESC" | @"desc"] ]`
-	Limit            *int64             `[ "LIMIT" @Number ]`
+	SelectExpression *_SelectExpression `SELECT @@`
+	From             *_From             `FROM @@`
+	Where            *_CommaExpression  `[ WHERE @@ ]`
+	GroupBy          *string            `[ GROUPBY @Ident ]`
+	OrderBy          *string            `[ ORDERBY @Ident `
+	OrderByDesc      *bool              ` [ @DESC ] ]`
+	Limit            *int64             `[ LIMIT @Number ]`
 }
 
 // Provides a list of column names from this query. These columns will
@@ -582,7 +601,7 @@ type _AliasedExpression struct {
 	SubSelect  *_Select        `( "{" @@ "}" |`
 	Expression *_AndExpression ` @@ )`
 
-	As string `[ "AS " @Ident ]`
+	As string `[ AS @Ident ]`
 }
 
 func (self *_AliasedExpression) GetName(scope *Scope) string {
@@ -722,7 +741,7 @@ type _AndExpression struct {
 }
 
 type _OpAndTerm struct {
-	Operator string         `@"AND "`
+	Operator string         ` AND `
 	Term     *_OrExpression `@@`
 }
 
@@ -733,19 +752,19 @@ type _OrExpression struct {
 }
 
 type _OpOrTerm struct {
-	Operator string             `@"OR "`
+	Operator string             `OR `
 	Term     *_ConditionOperand `@@`
 }
 
 // Conditional expressions imply comparison.
 type _ConditionOperand struct {
-	Not   *_ConditionOperand   `("NOT " @@ | `
+	Not   *_ConditionOperand   `(NOT @@ | `
 	Left  *_AdditionExpression `@@)`
 	Right *_OpComparison       `{ @@ }`
 }
 
 type _OpComparison struct {
-	Operator string               `@( "<>" | "<=" | ">=" | "=" | "<" | ">" | "!=" | "IN " | "=~")`
+	Operator string               `@( "<>" | "<=" | ">=" | "=" | "<" | ">" | "!=" | IN | "=~")`
 	Right    *_AdditionExpression `@@`
 }
 
@@ -757,7 +776,6 @@ type _Term struct {
 }
 
 type _SymbolRef struct {
-	//	Symbol     []string `@Ident { "." @Ident }`
 	Symbol     string   `@Ident`
 	Parameters []*_Args `[ "(" [ @@ { "," @@ } ] ")" ] `
 
@@ -777,8 +795,8 @@ type _Value struct {
 	Float     *float64
 	Int       *int64
 
-	Boolean *string ` | @("TRUE" | "FALSE")`
-	Null    bool    ` | @"NULL")`
+	Boolean *string ` | @BOOL `
+	Null    bool    ` | @NULL)`
 }
 
 // A Generic object which may be returned in a row from a plugin.
@@ -1323,7 +1341,7 @@ func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) Any {
 	rhs := self.Right.Right.Reduce(ctx, scope)
 
 	switch self.Right.Operator {
-	case "IN ":
+	case "IN":
 		return scope.membership.Membership(scope, lhs, rhs)
 	case "<":
 		return scope.Lt(lhs, rhs)

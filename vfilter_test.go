@@ -160,6 +160,12 @@ var execTests = append(execTestsSerialization, []execTest{
 
 	// We now support hex and octal integers directly.
 	{"(0x10, 0x20, 070, -4)", []int64{16, 32, 56, -4}},
+
+	// Spurious line breaks should be ignored.
+	{"1 +\n2", 3},
+	{"1 AND\n 2", true},
+	{"NOT\nTRUE", false},
+	{"2 IN\n(1,2)", true},
 }...)
 
 // Function that returns a value.
@@ -469,6 +475,8 @@ select * from test() limit 1`},
 		"SELECT (1,2) + if(condition=1, then=(3,4)) AS Field FROM scope()"},
 	{"Array concatenation with Null",
 		"SELECT (1,2) + if(condition=0, then=(3,4)) AS Field FROM scope()"},
+	{"Spurious line feeds and tabs",
+		"SELECT  \n1\n+\n2\tAS\nFooBar\t\n FROM\n scope(\n)\nWHERE\n FooBar >\n1\nAND\nTRUE\n"},
 }
 
 type _RangeArgs struct {
