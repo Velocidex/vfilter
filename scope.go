@@ -442,7 +442,7 @@ type _ScopeAssociative struct{}
 
 func (self _ScopeAssociative) Applicable(a Any, b Any) bool {
 	_, a_ok := a.(*Scope)
-	_, b_ok := b.(string)
+	_, b_ok := to_string(b)
 	return a_ok && b_ok
 }
 
@@ -467,7 +467,7 @@ func (self _ScopeAssociative) GetMembers(
 
 func (self _ScopeAssociative) Associative(
 	scope *Scope, a Any, b Any) (Any, bool) {
-	b_str, ok := b.(string)
+	b_str, ok := to_string(b)
 	if !ok {
 		return nil, false
 	}

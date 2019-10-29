@@ -244,7 +244,7 @@ func _ExtractStringArray(scope *Scope, arg Any) ([]string, bool) {
 	if slice.Type().Kind() == reflect.Slice {
 		for i := 0; i < slice.Len(); i++ {
 			value := slice.Index(i).Interface()
-			item, ok := value.(string)
+			item, ok := to_string(value)
 			if ok {
 				result = append(result, item)
 				continue
@@ -256,7 +256,7 @@ func _ExtractStringArray(scope *Scope, arg Any) ([]string, bool) {
 			if len(members) == 1 {
 				member, ok := scope.Associative(value, members[0])
 				if ok {
-					item, ok := member.(string)
+					item, ok := to_string(member)
 					if ok {
 						result = append(result, item)
 					}
@@ -270,7 +270,7 @@ func _ExtractStringArray(scope *Scope, arg Any) ([]string, bool) {
 	}
 
 	// A single string just expands into a list of length 1.
-	item, ok := slice.Interface().(string)
+	item, ok := to_string(slice.Interface())
 	if ok {
 		result = append(result, item)
 		return result, true

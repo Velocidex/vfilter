@@ -10,6 +10,10 @@ import (
 	"github.com/cevaris/ordered_map"
 )
 
+// TODO: Since VQL always serializes to JSON it does not make sense to
+// have keys of type Any - JSON keys are always strings. We could get
+// a speedup and code simplification if we introduced this constraint.
+
 // A concerete implementation of a row - similar to Python's OrderedDict.
 type Dict struct {
 	sync.Mutex

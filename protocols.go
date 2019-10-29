@@ -123,9 +123,22 @@ func (self _StringEq) Eq(scope *Scope, a Any, b Any) bool {
 }
 
 func (self _StringEq) Applicable(a Any, b Any) bool {
-	_, a_ok := a.(string)
-	_, b_ok := b.(string)
+	_, a_ok := to_string(a)
+	_, b_ok := to_string(b)
 	return a_ok && b_ok
+}
+
+func to_string(x Any) (string, bool) {
+	switch t := x.(type) {
+	case string:
+		return t, true
+	case *string:
+		return *t, true
+	case []byte:
+		return string(t), true
+	default:
+		return "", false
+	}
 }
 
 func to_float(x Any) (float64, bool) {
@@ -312,15 +325,15 @@ func (self *_LtDispatcher) AddImpl(elements ...LtProtocol) {
 type _StringLt struct{}
 
 func (self _StringLt) Lt(scope *Scope, a Any, b Any) bool {
-	a_str, _ := a.(string)
-	b_str, _ := b.(string)
+	a_str, _ := to_string(a)
+	b_str, _ := to_string(b)
 
 	return a_str < b_str
 }
 
 func (self _StringLt) Applicable(a Any, b Any) bool {
-	_, a_ok := a.(string)
-	_, b_ok := b.(string)
+	_, a_ok := to_string(a)
+	_, b_ok := to_string(b)
 	return a_ok && b_ok
 }
 
@@ -365,13 +378,16 @@ func (self *_AddDispatcher) AddImpl(elements ...AddProtocol) {
 type _AddStrings struct{}
 
 func (self _AddStrings) Applicable(a Any, b Any) bool {
-	_, a_ok := a.(string)
-	_, b_ok := b.(string)
+	_, a_ok := to_string(a)
+	_, b_ok := to_string(b)
 	return a_ok && b_ok
 }
 
 func (self _AddStrings) Add(scope *Scope, a Any, b Any) Any {
-	return a.(string) + b.(string)
+	a_str, _ := to_string(a)
+	b_str, _ := to_string(b)
+
+	return a_str + b_str
 }
 
 type _AddInts struct{}
@@ -691,13 +707,16 @@ func (self *_MembershipDispatcher) AddImpl(elements ...MembershipProtocol) {
 type _SubstringMembership struct{}
 
 func (self _SubstringMembership) Applicable(a Any, b Any) bool {
-	_, a_ok := a.(string)
-	_, b_ok := b.(string)
+	_, a_ok := to_string(a)
+	_, b_ok := to_string(b)
 	return a_ok && b_ok
 }
 
 func (self _SubstringMembership) Membership(scope *Scope, a Any, b Any) bool {
-	return strings.Contains(b.(string), a.(string))
+	a_str, _ := to_string(a)
+	b_str, _ := to_string(b)
+
+	return strings.Contains(b_str, a_str)
 }
 
 // Associative protocol.
@@ -900,21 +919,15 @@ func (self *_RegexDispatcher) AddImpl(elements ...RegexProtocol) {
 type _SubstringRegex struct{}
 
 func (self _SubstringRegex) Applicable(pattern Any, target Any) bool {
-	_, pattern_ok := pattern.(string)
-	_, target_ok := target.(string)
-	return pattern_ok && target_ok
+	_, a_ok := to_string(pattern)
+	_, b_ok := to_string(target)
+
+	return a_ok && b_ok
 }
 
 func (self _SubstringRegex) Match(scope *Scope, pattern Any, target Any) bool {
-	pattern_string, ok := pattern.(string)
-	if !ok {
-		return false
-	}
-
-	target_string, ok := target.(string)
-	if !ok {
-		return false
-	}
+	pattern_string, _ := to_string(pattern)
+	target_string, _ := to_string(target)
 
 	re, pres := scope.regexp_cache[pattern_string]
 	if !pres {
@@ -934,7 +947,7 @@ func (self _SubstringRegex) Match(scope *Scope, pattern Any, target Any) bool {
 type _ArrayRegex struct{}
 
 func (self _ArrayRegex) Applicable(pattern Any, target Any) bool {
-	_, pattern_ok := pattern.(string)
+	_, pattern_ok := to_string(pattern)
 	return pattern_ok && is_array(target)
 }
 
