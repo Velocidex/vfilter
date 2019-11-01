@@ -56,3 +56,17 @@ func TestOrder(t *testing.T) {
 
 	assert.Equal(t, []string{"B", "A"}, scope.GetMembers(test))
 }
+
+func TestCaseInsensitive(t *testing.T) {
+	test := NewDict().SetCaseInsensitive()
+
+	test.Set("FOO", 1)
+
+	value, pres := test.Get("foo")
+	assert.True(t, pres)
+	assert.Equal(t, 1, value)
+
+	test = NewDict().Set("FOO", 1)
+	value, pres = test.Get("foo")
+	assert.False(t, pres)
+}

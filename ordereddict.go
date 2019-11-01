@@ -14,11 +14,11 @@ import (
 type Dict struct {
 	sync.Mutex
 
-	store map[string]interface{}
-	keys  []string
+	store    map[string]interface{}
+	keys     []string
+	case_map map[string]string
 
-	default_value    Any
-	case_insensitive bool
+	default_value Any
 }
 
 func NewDict() *Dict {
@@ -31,7 +31,7 @@ func (self *Dict) IsCaseInsensitive() bool {
 	self.Lock()
 	defer self.Unlock()
 
-	return self.case_insensitive
+	return self.case_map != nil
 }
 
 func (self *Dict) MergeFrom(other *Dict) {
@@ -62,7 +62,7 @@ func (self *Dict) SetCaseInsensitive() *Dict {
 	self.Lock()
 	defer self.Unlock()
 
-	self.case_insensitive = true
+	self.case_map = make(map[string]string)
 	return self
 }
 
@@ -90,6 +90,10 @@ func (self *Dict) Set(key string, value Any) *Dict {
 
 	self.store[key] = value
 
+	if self.case_map != nil {
+		self.case_map[strings.ToLower(key)] = key
+	}
+
 	return self
 }
 
@@ -104,9 +108,16 @@ func (self *Dict) Get(key string) (Any, bool) {
 	self.Lock()
 	defer self.Unlock()
 
+	if self.case_map != nil {
+		real_key, pres := self.case_map[strings.ToLower(key)]
+		if pres {
+			key = real_key
+		}
+	}
+
 	val, ok := self.store[key]
 	if !ok && self.default_value != nil {
-		return self.GetDefault(), false
+		return self.default_value, false
 	}
 
 	return val, ok
@@ -212,17 +223,6 @@ func (self _DictAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool)
 
 	res, pres := value.Get(key)
 	if !pres {
-		if value.IsCaseInsensitive() {
-			lower_case_key := strings.ToLower(key)
-			for _, member := range scope.GetMembers(value) {
-				if strings.ToLower(member) == lower_case_key {
-					value, pres := scope.Associative(value, member)
-					return value, pres
-				}
-			}
-
-		}
-
 		// Return the default value but still indicate the
 		// value is not present.
 		default_value := value.GetDefault()
