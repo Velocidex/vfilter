@@ -94,6 +94,9 @@ func (self *Dict) Set(key string, value Any) *Dict {
 }
 
 func (self *Dict) Len() int {
+	self.Lock()
+	defer self.Unlock()
+
 	return len(self.store)
 }
 
@@ -145,6 +148,9 @@ func (self *Dict) GoString() string {
 }
 
 func (self *Dict) MarshalJSON() ([]byte, error) {
+	self.Lock()
+	defer self.Unlock()
+
 	result := make(map[string]json.RawMessage)
 
 	for _, key := range self.keys {
@@ -232,6 +238,9 @@ func (self _DictAssociative) GetMembers(scope *Scope, a Any) []string {
 	if !ok {
 		return nil
 	}
+
+	value.Lock()
+	defer value.Unlock()
 
 	return value.keys
 }
