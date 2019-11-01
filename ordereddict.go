@@ -6,38 +6,40 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-
-	"github.com/cevaris/ordered_map"
 )
 
-// TODO: Since VQL always serializes to JSON it does not make sense to
-// have keys of type Any - JSON keys are always strings. We could get
-// a speedup and code simplification if we introduced this constraint.
-
-// A concerete implementation of a row - similar to Python's OrderedDict.
+// A concerete implementation of a row - similar to Python's
+// OrderedDict.  Main difference is that delete is not implemented -
+// we just preserve the order of insertions.
 type Dict struct {
 	sync.Mutex
 
-	*ordered_map.OrderedMap
+	store map[string]interface{}
+	keys  []string
+
 	default_value    Any
 	case_insensitive bool
 }
 
 func NewDict() *Dict {
-	return &Dict{OrderedMap: ordered_map.NewOrderedMap()}
+	return &Dict{
+		store: make(map[string]interface{}),
+	}
 }
 
 func (self *Dict) IsCaseInsensitive() bool {
 	self.Lock()
 	defer self.Unlock()
+
 	return self.case_insensitive
 }
 
 func (self *Dict) MergeFrom(other *Dict) {
-	iter := other.IterFunc()
-	for kv, ok := iter(); ok; kv, ok = iter() {
-		key := kv.Key.(string)
-		self.Set(key, kv.Value)
+	for _, key := range other.keys {
+		value, pres := other.Get(key)
+		if pres {
+			self.Set(key, value)
+		}
 	}
 }
 
@@ -64,19 +66,47 @@ func (self *Dict) SetCaseInsensitive() *Dict {
 	return self
 }
 
+func remove(s []string, r string) []string {
+	for i, v := range s {
+		if v == r {
+			return append(s[:i], s[i+1:]...)
+		}
+	}
+	return s
+}
+
 func (self *Dict) Set(key string, value Any) *Dict {
 	self.Lock()
 	defer self.Unlock()
 
-	self.OrderedMap.Set(key, value)
+	// O(n) but for our use case this is faster since Dicts are
+	// typically small and we rarely overwrite a key.
+	_, pres := self.store[key]
+	if pres {
+		self.keys = append(remove(self.keys, key), key)
+	} else {
+		self.keys = append(self.keys, key)
+	}
+
+	self.store[key] = value
+
 	return self
+}
+
+func (self *Dict) Len() int {
+	return len(self.store)
 }
 
 func (self *Dict) Get(key string) (Any, bool) {
 	self.Lock()
 	defer self.Unlock()
 
-	return self.OrderedMap.Get(key)
+	val, ok := self.store[key]
+	if !ok && self.default_value != nil {
+		return self.GetDefault(), false
+	}
+
+	return val, ok
 }
 
 func (self *Dict) ToDict() *map[string]Any {
@@ -85,9 +115,11 @@ func (self *Dict) ToDict() *map[string]Any {
 
 	result := make(map[string]Any)
 
-	iter := self.IterFunc()
-	for kv, ok := iter(); ok; kv, ok = iter() {
-		result[kv.Key.(string)] = kv.Value
+	for _, key := range self.keys {
+		value, pres := self.store[key]
+		if pres {
+			result[key] = value
+		}
 	}
 
 	return &result
@@ -100,10 +132,9 @@ func (self *Dict) String() string {
 	builder := make([]string, self.Len())
 
 	var index int = 0
-	iter := self.IterFunc()
-	for kv, ok := iter(); ok; kv, ok = iter() {
-		val, _ := self.OrderedMap.Get(kv.Key.(string))
-		builder[index] = fmt.Sprintf("%v:%v, ", kv.Key, val)
+	for _, key := range self.keys {
+		val, _ := self.store[key]
+		builder[index] = fmt.Sprintf("%v:%v, ", key, val)
 		index++
 	}
 	return fmt.Sprintf("Dict%v", builder)
@@ -114,7 +145,21 @@ func (self *Dict) GoString() string {
 }
 
 func (self *Dict) MarshalJSON() ([]byte, error) {
-	res, err := json.Marshal(self.ToDict())
+	result := make(map[string]json.RawMessage)
+
+	for _, key := range self.keys {
+		val, pres := self.store[key]
+		if !pres {
+			continue
+		}
+		serialized, err := json.Marshal(val)
+		if err != nil {
+			serialized = []byte("null")
+		}
+		result[key] = json.RawMessage(serialized)
+	}
+
+	res, err := json.Marshal(result)
 	return res, err
 }
 
@@ -127,59 +172,37 @@ func (self _DictEq) Eq(scope *Scope, a Any, b Any) bool {
 	return reflect.DeepEqual(a, b)
 }
 
+func to_dict(a Any) (*Dict, bool) {
+	switch t := a.(type) {
+	case Dict:
+		return &t, true
+	case *Dict:
+		return t, true
+	default:
+		return nil, false
+	}
+}
+
 func (self _DictEq) Applicable(a Any, b Any) bool {
-	switch a.(type) {
-	case Dict, *Dict:
-		break
-	default:
-		return false
-	}
+	_, a_ok := to_dict(a)
+	_, b_ok := to_dict(b)
 
-	switch b.(type) {
-	case Dict, *Dict:
-		break
-	default:
-		return false
-	}
-
-	return true
+	return a_ok && b_ok
 }
 
 type _DictAssociative struct{}
 
 func (self _DictAssociative) Applicable(a Any, b Any) bool {
-	switch a.(type) {
-	case Dict, *Dict:
-		break
-	default:
-		return false
-	}
+	_, a_ok := to_dict(a)
+	_, b_ok := to_string(b)
 
-	switch b.(type) {
-	case string:
-		break
-	default:
-		return false
-	}
-
-	return true
+	return a_ok && b_ok
 }
 
 // Associate object a with key b
 func (self _DictAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool) {
-	key := b.(string)
-	var value *Dict
-
-	switch t := a.(type) {
-	case Dict:
-		value = &t
-
-	case *Dict:
-		value = t
-
-	default:
-		return nil, false
-	}
+	key, _ := to_string(b)
+	value, _ := to_dict(a)
 
 	res, pres := value.Get(key)
 	if !pres {
@@ -205,46 +228,27 @@ func (self _DictAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool)
 }
 
 func (self _DictAssociative) GetMembers(scope *Scope, a Any) []string {
-	var result []string
-
-	var value *Dict
-	switch t := a.(type) {
-	case Dict:
-		value = &t
-
-	case *Dict:
-		value = t
-
-	default:
-		return result
+	value, ok := to_dict(a)
+	if !ok {
+		return nil
 	}
 
-	iter := value.IterFunc()
-	for kv, ok := iter(); ok; kv, ok = iter() {
-		result = append(result, kv.Key.(string))
-	}
-
-	return result
+	return value.keys
 }
 
 type _BoolDict struct{}
 
 func (self _BoolDict) Applicable(a Any) bool {
-	switch a.(type) {
-	case Dict, *Dict:
-		return true
-	}
-	return false
+	_, a_ok := to_dict(a)
+
+	return a_ok
 }
 
 func (self _BoolDict) Bool(scope *Scope, a Any) bool {
-	switch t := a.(type) {
-	case Dict:
-		return t.Len() > 0
-
-	case *Dict:
-		return t.Len() > 0
-
+	value, ok := to_dict(a)
+	if !ok {
+		return false
 	}
-	return false
+
+	return value.Len() > 0
 }

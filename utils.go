@@ -177,3 +177,16 @@ func RowToDict(scope *Scope, row Row) *Dict {
 
 	return result
 }
+
+func RowToMap(scope *Scope, row Row) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	for _, column := range scope.GetMembers(row) {
+		value, pres := scope.Associative(row, column)
+		if pres {
+			result[column] = value
+		}
+	}
+
+	return result
+}
