@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 // A response from VQL queries.
@@ -95,7 +97,7 @@ func GetResponseChannel(
 					rows = append(rows, row)
 
 				} else {
-					new_row := NewDict()
+					new_row := ordereddict.NewDict()
 					for _, key := range *columns {
 						value, pres := scope.Associative(row, key)
 						if pres && !IsNil(value) {
@@ -154,7 +156,7 @@ func OutputJSON(vql *VQL, ctx context.Context, scope *Scope) ([]byte, error) {
 			result = append(result, row)
 
 		} else {
-			new_row := NewDict()
+			new_row := ordereddict.NewDict()
 			for _, key := range *columns {
 				value, pres := scope.Associative(row, key)
 				if pres && !IsNil(value) {

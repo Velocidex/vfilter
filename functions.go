@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Velocidex/ordereddict"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
 
 type FunctionInterface interface {
-	Call(ctx context.Context, scope *Scope, args *Dict) Any
+	Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any
 	Info(scope *Scope, type_map *TypeMap) *FunctionInfo
 }
 
@@ -29,8 +30,8 @@ func (self _DictFunc) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	}
 }
 
-func (self _DictFunc) Call(ctx context.Context, scope *Scope, args *Dict) Any {
-	result := NewDict()
+func (self _DictFunc) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
+	result := ordereddict.NewDict()
 	for _, k := range scope.GetMembers(args) {
 		v, _ := args.Get(k)
 		lazy_arg, ok := v.(LazyExpr)
@@ -57,7 +58,7 @@ func (self _Timestamp) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	}
 }
 
-func (self _Timestamp) Call(ctx context.Context, scope *Scope, args *Dict) Any {
+func (self _Timestamp) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
 	arg := &_TimestampArg{}
 	err := ExtractArgs(scope, args, arg)
 	if err != nil {
@@ -90,7 +91,7 @@ func (self _SubSelectFunction) Info(scope *Scope, type_map *TypeMap) *FunctionIn
 	}
 }
 
-func (self _SubSelectFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any {
+func (self _SubSelectFunction) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
 	arg := _SubSelectFunctionArgs{}
 	err := ExtractArgs(scope, args, &arg)
 	if err != nil {
@@ -115,7 +116,7 @@ func (self _SplitFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	}
 }
 
-func (self _SplitFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any {
+func (self _SplitFunction) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
 	arg := &_SplitFunctionArgs{}
 	err := ExtractArgs(scope, args, arg)
 	if err != nil {
@@ -150,7 +151,7 @@ func (self _IfFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 func (self _IfFunction) Call(
 	ctx context.Context,
 	scope *Scope,
-	args *Dict) Any {
+	args *ordereddict.Dict) Any {
 
 	arg := &_IfFunctionArgs{}
 	err := ExtractArgs(scope, args, arg)
@@ -187,7 +188,7 @@ func (self _GetFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 func (self _GetFunction) Call(
 	ctx context.Context,
 	scope *Scope,
-	args *Dict) Any {
+	args *ordereddict.Dict) Any {
 	arg := &_GetFunctionArgs{}
 	err := ExtractArgs(scope, args, arg)
 	if err != nil {
@@ -225,7 +226,7 @@ func (self _EncodeFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo 
 func (self _EncodeFunction) Call(
 	ctx context.Context,
 	scope *Scope,
-	args *Dict) Any {
+	args *ordereddict.Dict) Any {
 	arg := &_EncodeFunctionArgs{}
 	err := ExtractArgs(scope, args, arg)
 	if err != nil {

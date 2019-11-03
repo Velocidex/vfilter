@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 // Destructors are stored in the root of the scope stack so they may
@@ -55,7 +57,7 @@ type Scope struct {
 
 	regexp_cache map[string]*regexp.Regexp
 
-	context *Dict
+	context *ordereddict.Dict
 }
 
 func (self *Scope) GetContext(name string) Any {
@@ -353,9 +355,9 @@ func NewScope() *Scope {
 	}
 	result.functions = make(map[string]FunctionInterface)
 	result.plugins = make(map[string]PluginGeneratorInterface)
-	result.context = NewDict()
+	result.context = ordereddict.NewDict()
 	result.AppendVars(
-		NewDict().
+		ordereddict.NewDict().
 			Set("NULL", Null{}).
 			Set("__destructors", &_destructors{}))
 
@@ -399,7 +401,7 @@ func NewScope() *Scope {
 		_ForeachPluginImpl{},
 		&GenericListPlugin{
 			PluginName: "scope",
-			Function: func(scope *Scope, args *Dict) []Row {
+			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
 				return []Row{scope}
 			},
 		},

@@ -137,6 +137,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Velocidex/ordereddict"
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
 	errors "github.com/pkg/errors"
@@ -246,9 +247,9 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			switch self.LetOperator {
 			case "=":
 				stored_query := NewStoredQuery(self.Query)
-				scope.AppendVars(NewDict().Set(self.Let, stored_query))
+				scope.AppendVars(ordereddict.NewDict().Set(self.Let, stored_query))
 			case "<=":
-				scope.AppendVars(NewDict().Set(
+				scope.AppendVars(ordereddict.NewDict().Set(
 					self.Let, Materialize(ctx, scope, self.Query)))
 			}
 		}
@@ -358,7 +359,7 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			// the same context.
 			type AggregateContext struct {
 				row     Row
-				context *Dict
+				context *ordereddict.Dict
 			}
 
 			// Collect all the rows with the same group_by
@@ -411,7 +412,7 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				// No previous aggregate_row - initialize with a new context.
 				if !pres {
 					aggregate_ctx = &AggregateContext{
-						context: NewDict(),
+						context: ordereddict.NewDict(),
 					}
 					bins[gb_element] = aggregate_ctx
 				}
@@ -1010,7 +1011,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		// Build up the args to pass to the function. The
 		// plugin implementation can extract these using the
 		// ExtractArgs() helper.
-		args := NewDict()
+		args := ordereddict.NewDict()
 		for _, arg := range self.Args {
 			if arg.Right != nil {
 				args.Set(arg.Left, LazyExpr{arg.Right, ctx, scope})
@@ -1565,7 +1566,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 	defer self.mu.Unlock()
 
 	// Build up the args to pass to the function.
-	args := NewDict()
+	args := ordereddict.NewDict()
 	for _, arg := range self.Parameters {
 		if arg.Right != nil {
 			// Lazily evaluate right hand side.

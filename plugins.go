@@ -3,15 +3,17 @@ package vfilter
 import (
 	"context"
 	"sort"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 type PluginGeneratorInterface interface {
-	Call(ctx context.Context, scope *Scope, args *Dict) <-chan Row
+	Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) <-chan Row
 	Info(scope *Scope, type_map *TypeMap) *PluginInfo
 }
 
 // Generic synchronous plugins just return all their rows at once.
-type FunctionPlugin func(scope *Scope, args *Dict) []Row
+type FunctionPlugin func(scope *Scope, args *ordereddict.Dict) []Row
 
 // A generic plugin based on a function returning a slice of
 // rows. Many simpler plugins do not need an asynchronous interface
@@ -46,7 +48,7 @@ type GenericListPlugin struct {
 func (self GenericListPlugin) Call(
 	ctx context.Context,
 	scope *Scope,
-	args *Dict) <-chan Row {
+	args *ordereddict.Dict) <-chan Row {
 	output_chan := make(chan Row)
 
 	go func() {
@@ -92,7 +94,7 @@ type _IfPlugin struct{}
 func (self _IfPlugin) Call(
 	ctx context.Context,
 	scope *Scope,
-	args *Dict) <-chan Row {
+	args *ordereddict.Dict) <-chan Row {
 	output_chan := make(chan Row)
 
 	arg := &_IfPluginArg{}
@@ -138,7 +140,7 @@ func (self _ChainPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
 func (self _ChainPlugin) Call(
 	ctx context.Context,
 	scope *Scope,
-	args *Dict) <-chan Row {
+	args *ordereddict.Dict) <-chan Row {
 	output_chan := make(chan Row)
 
 	queries := []StoredQuery{}

@@ -1,199 +1,23 @@
 package vfilter
 
 import (
-	"encoding/json"
-	"fmt"
 	"reflect"
-	"strings"
-	"sync"
+
+	"github.com/Velocidex/ordereddict"
 )
 
-// A concerete implementation of a row - similar to Python's
-// OrderedDict.  Main difference is that delete is not implemented -
-// we just preserve the order of insertions.
-type Dict struct {
-	sync.Mutex
-
-	store    map[string]interface{}
-	keys     []string
-	case_map map[string]string
-
-	default_value Any
-}
-
-func NewDict() *Dict {
-	return &Dict{
-		store: make(map[string]interface{}),
-	}
-}
-
-func (self *Dict) IsCaseInsensitive() bool {
-	self.Lock()
-	defer self.Unlock()
-
-	return self.case_map != nil
-}
-
-func (self *Dict) MergeFrom(other *Dict) {
-	for _, key := range other.keys {
-		value, pres := other.Get(key)
-		if pres {
-			self.Set(key, value)
-		}
-	}
-}
-
-func (self *Dict) SetDefault(value Any) *Dict {
-	self.Lock()
-	defer self.Unlock()
-
-	self.default_value = value
-	return self
-}
-
-func (self *Dict) GetDefault() Any {
-	self.Lock()
-	defer self.Unlock()
-
-	return self.default_value
-}
-
-func (self *Dict) SetCaseInsensitive() *Dict {
-	self.Lock()
-	defer self.Unlock()
-
-	self.case_map = make(map[string]string)
-	return self
-}
-
-func remove(s []string, r string) []string {
-	for i, v := range s {
-		if v == r {
-			return append(s[:i], s[i+1:]...)
-		}
-	}
-	return s
-}
-
-func (self *Dict) Set(key string, value Any) *Dict {
-	self.Lock()
-	defer self.Unlock()
-
-	// O(n) but for our use case this is faster since Dicts are
-	// typically small and we rarely overwrite a key.
-	_, pres := self.store[key]
-	if pres {
-		self.keys = append(remove(self.keys, key), key)
-	} else {
-		self.keys = append(self.keys, key)
-	}
-
-	self.store[key] = value
-
-	if self.case_map != nil {
-		self.case_map[strings.ToLower(key)] = key
-	}
-
-	return self
-}
-
-func (self *Dict) Len() int {
-	self.Lock()
-	defer self.Unlock()
-
-	return len(self.store)
-}
-
-func (self *Dict) Get(key string) (Any, bool) {
-	self.Lock()
-	defer self.Unlock()
-
-	if self.case_map != nil {
-		real_key, pres := self.case_map[strings.ToLower(key)]
-		if pres {
-			key = real_key
-		}
-	}
-
-	val, ok := self.store[key]
-	if !ok && self.default_value != nil {
-		return self.default_value, false
-	}
-
-	return val, ok
-}
-
-func (self *Dict) ToDict() *map[string]Any {
-	self.Lock()
-	defer self.Unlock()
-
-	result := make(map[string]Any)
-
-	for _, key := range self.keys {
-		value, pres := self.store[key]
-		if pres {
-			result[key] = value
-		}
-	}
-
-	return &result
-}
-
-func (self *Dict) String() string {
-	self.Lock()
-	defer self.Unlock()
-
-	builder := make([]string, self.Len())
-
-	var index int = 0
-	for _, key := range self.keys {
-		val, _ := self.store[key]
-		builder[index] = fmt.Sprintf("%v:%v, ", key, val)
-		index++
-	}
-	return fmt.Sprintf("Dict%v", builder)
-}
-
-func (self *Dict) GoString() string {
-	return self.String()
-}
-
-func (self *Dict) MarshalJSON() ([]byte, error) {
-	self.Lock()
-	defer self.Unlock()
-
-	result := make(map[string]json.RawMessage)
-
-	for _, key := range self.keys {
-		val, pres := self.store[key]
-		if !pres {
-			continue
-		}
-		serialized, err := json.Marshal(val)
-		if err != nil {
-			serialized = []byte("null")
-		}
-		result[key] = json.RawMessage(serialized)
-	}
-
-	res, err := json.Marshal(result)
-	return res, err
-}
-
-// Protocols:
-
-// Implements Dict equality.
+// Implements ordereddict.Dict equality.
 type _DictEq struct{}
 
 func (self _DictEq) Eq(scope *Scope, a Any, b Any) bool {
 	return reflect.DeepEqual(a, b)
 }
 
-func to_dict(a Any) (*Dict, bool) {
+func to_dict(a Any) (*ordereddict.Dict, bool) {
 	switch t := a.(type) {
-	case Dict:
+	case ordereddict.Dict:
 		return &t, true
-	case *Dict:
+	case *ordereddict.Dict:
 		return t, true
 	default:
 		return nil, false
@@ -239,10 +63,7 @@ func (self _DictAssociative) GetMembers(scope *Scope, a Any) []string {
 		return nil
 	}
 
-	value.Lock()
-	defer value.Unlock()
-
-	return value.keys
+	return value.Keys()
 }
 
 type _BoolDict struct{}

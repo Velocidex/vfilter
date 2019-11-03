@@ -5,28 +5,29 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Velocidex/ordereddict"
 	"github.com/alecthomas/repr"
 	"github.com/stretchr/testify/assert"
 )
 
 type dictSerializationTest struct {
-	dict       *Dict
+	dict       *ordereddict.Dict
 	serialized string
 }
 
 var dictSerializationTests = []dictSerializationTest{
-	{NewDict().Set("Foo", "Bar"), `{"Foo":"Bar"}`},
+	{ordereddict.NewDict().Set("Foo", "Bar"), `{"Foo":"Bar"}`},
 
 	// Test an unserilizable member - This should not prevent the
 	// entire dict from serializing - only that member should be
 	// ignored.
-	{NewDict().Set("Foo", "Bar").
+	{ordereddict.NewDict().Set("Foo", "Bar").
 		Set("Time", time.Unix(3000000000000000, 0)),
 		`{"Foo":"Bar","Time":null}`},
 
 	// Recursive dict
-	{NewDict().Set("Foo",
-		NewDict().Set("Bar", 2).
+	{ordereddict.NewDict().Set("Foo",
+		ordereddict.NewDict().Set("Bar", 2).
 			Set("Time", time.Unix(3000000000000000, 0))),
 		`{"Foo":{"Bar":2,"Time":null}}`},
 }
@@ -44,13 +45,13 @@ func TestDictSerialization(t *testing.T) {
 
 func TestOrder(t *testing.T) {
 	scope := NewScope()
-	test := NewDict().
+	test := ordereddict.NewDict().
 		Set("A", 1).
 		Set("B", 2)
 
 	assert.Equal(t, []string{"A", "B"}, scope.GetMembers(test))
 
-	test = NewDict().
+	test = ordereddict.NewDict().
 		Set("B", 1).
 		Set("A", 2)
 
@@ -58,7 +59,7 @@ func TestOrder(t *testing.T) {
 }
 
 func TestCaseInsensitive(t *testing.T) {
-	test := NewDict().SetCaseInsensitive()
+	test := ordereddict.NewDict().SetCaseInsensitive()
 
 	test.Set("FOO", 1)
 
@@ -66,7 +67,7 @@ func TestCaseInsensitive(t *testing.T) {
 	assert.True(t, pres)
 	assert.Equal(t, 1, value)
 
-	test = NewDict().Set("FOO", 1)
+	test = ordereddict.NewDict().Set("FOO", 1)
 	value, pres = test.Get("foo")
 	assert.False(t, pres)
 }

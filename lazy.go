@@ -5,6 +5,8 @@ package vfilter
 import (
 	"context"
 	"sync"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 type LazyRow struct {
@@ -14,7 +16,7 @@ type LazyRow struct {
 	// We need to maintain the order in which columns are added to
 	// preserve column ordering.
 	columns []string
-	cache   *Dict
+	cache   *ordereddict.Dict
 
 	mu sync.Mutex
 }
@@ -29,7 +31,7 @@ func NewLazyRow(ctx context.Context) *LazyRow {
 	return &LazyRow{
 		ctx:     ctx,
 		getters: make(map[string]func(ctx context.Context, scope *Scope) Any),
-		cache:   NewDict(),
+		cache:   ordereddict.NewDict(),
 	}
 }
 
@@ -106,7 +108,7 @@ func (self _LazyRowAssociative) GetMembers(scope *Scope, a Any) []string {
 func MaterializedLazyRow(row Row, scope *Scope) Row {
 	lazy_row, ok := row.(*LazyRow)
 	if ok {
-		result := NewDict()
+		result := ordereddict.NewDict()
 		// Preserve column ordering.
 		for _, column := range lazy_row.columns {
 			value, pres := lazy_row.cache.Get(column)

@@ -2,6 +2,8 @@ package vfilter
 
 import (
 	"time"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 type Throttler interface {
@@ -49,7 +51,7 @@ func NewTimeThrottler(rate float64) Throttler {
 
 func InstallThrottler(scope *Scope, throttler Throttler) {
 	// Ignore throttles faster than 100 ops per second.
-	scope.AppendVars(NewDict().Set("$throttle", throttler))
+	scope.AppendVars(ordereddict.NewDict().Set("$throttle", throttler))
 	scope.AddDestructor(func() {
 		throttler.Close()
 	})

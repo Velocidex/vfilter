@@ -3,6 +3,8 @@ package vfilter
 import (
 	"context"
 	"reflect"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 type _FlattenPluginImplArgs struct {
@@ -13,7 +15,7 @@ type _FlattenPluginImpl struct{}
 
 func (self _FlattenPluginImpl) Call(ctx context.Context,
 	scope *Scope,
-	args *Dict) <-chan Row {
+	args *ordereddict.Dict) <-chan Row {
 	output_chan := make(chan Row)
 
 	go func() {
@@ -42,13 +44,13 @@ func (self _FlattenPluginImpl) Call(ctx context.Context,
 	return output_chan
 }
 
-func makeDict(scope *Scope, item Any) *Dict {
-	result_dict, ok := item.(*Dict)
+func makeDict(scope *Scope, item Any) *ordereddict.Dict {
+	result_dict, ok := item.(*ordereddict.Dict)
 	if ok {
 		return result_dict
 	}
 
-	result := NewDict()
+	result := ordereddict.NewDict()
 	for _, member := range scope.GetMembers(item) {
 		value, pres := scope.Associative(item, member)
 		if pres {
@@ -58,8 +60,8 @@ func makeDict(scope *Scope, item Any) *Dict {
 	return result
 }
 
-func flatten(scope *Scope, item Row, members []string, idx int) []*Dict {
-	result := []*Dict{}
+func flatten(scope *Scope, item Row, members []string, idx int) []*ordereddict.Dict {
+	result := []*ordereddict.Dict{}
 	if idx >= len(members) {
 		return result
 	}
@@ -81,10 +83,10 @@ func flatten(scope *Scope, item Row, members []string, idx int) []*Dict {
 				if len(tail) == 0 {
 					result = append(
 						result,
-						NewDict().Set(column, original_value))
+						ordereddict.NewDict().Set(column, original_value))
 				} else {
 					for _, subrow := range tail {
-						new_row := NewDict()
+						new_row := ordereddict.NewDict()
 						new_row.Set(column, original_value)
 
 						new_row.MergeFrom(subrow)
@@ -101,7 +103,7 @@ func flatten(scope *Scope, item Row, members []string, idx int) []*Dict {
 	// Not an array - just set this column and pass all the
 	// expansions up the call chain.
 	if len(tail) == 0 {
-		result = append(result, NewDict().Set(column, cell))
+		result = append(result, ordereddict.NewDict().Set(column, cell))
 	} else {
 		for _, subrow := range tail {
 			subrow.Set(column, cell)

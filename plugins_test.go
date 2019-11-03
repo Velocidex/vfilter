@@ -3,6 +3,8 @@ package vfilter
 import (
 	"context"
 	"testing"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 type execPluginTest struct {
@@ -14,8 +16,8 @@ var execPluginTests = []execPluginTest{
 	execPluginTest{
 		query: "select * from test_plugin() where foo.bar < 2",
 		result: []Row{
-			NewDict().
-				Set("foo", NewDict().Set("bar", 1)).
+			ordereddict.NewDict().
+				Set("foo", ordereddict.NewDict().Set("bar", 1)).
 				Set("foo_2", 2).
 				Set("foo_3", 3),
 		},
@@ -24,7 +26,7 @@ var execPluginTests = []execPluginTest{
 		query: ("select foo.bar as column1, foo.bar from " +
 			"test_plugin() where foo.bar = 2"),
 		result: []Row{
-			NewDict().
+			ordereddict.NewDict().
 				Set("column1", 2).
 				Set("foo.bar", 2),
 		},
@@ -37,15 +39,15 @@ type TestGeneratorPlugin struct{}
 func (self TestGeneratorPlugin) Call(
 	ctx context.Context,
 	scope *Scope,
-	args *Dict) <-chan Row {
+	args *ordereddict.Dict) <-chan Row {
 	output_chan := make(chan Row)
 
 	go func() {
 		defer close(output_chan)
 
 		for i := 1; i < 10; i++ {
-			row := NewDict().
-				Set("foo", NewDict().Set("bar", i)).
+			row := ordereddict.NewDict().
+				Set("foo", ordereddict.NewDict().Set("bar", i)).
 				Set("foo_2", i*2).
 				Set("foo_3", i*3)
 			output_chan <- row

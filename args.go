@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/Velocidex/ordereddict"
 	errors "github.com/pkg/errors"
 )
 
@@ -33,7 +34,7 @@ const tagName = "vfilter"
 // NOTE: In order for the field to be populated by this function, the
 // field must be exported (i.e. name begins with cap) and it must have
 // vfilter tags.
-func ExtractArgs(scope *Scope, args *Dict, value interface{}) error {
+func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error {
 
 	// Make a copy of the args so we can ensure they are all
 	// provided properly.

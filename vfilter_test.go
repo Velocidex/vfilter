@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/Velocidex/ordereddict"
 	"github.com/sebdah/goldie"
 	"github.com/stretchr/testify/assert"
 )
@@ -118,26 +119,26 @@ var execTestsSerialization = []execTest{
 
 	// Dicts
 	{"dict(foo=1) = dict(foo=1)", true},
-	{"dict(foo=1)", NewDict().Set("foo", int64(1))},
-	{"dict(foo=1.0)", NewDict().Set("foo", 1.0)},
-	{"dict(foo=1, bar=2)", NewDict().
+	{"dict(foo=1)", ordereddict.NewDict().Set("foo", int64(1))},
+	{"dict(foo=1.0)", ordereddict.NewDict().Set("foo", 1.0)},
+	{"dict(foo=1, bar=2)", ordereddict.NewDict().
 		Set("foo", int64(1)).
 		Set("bar", int64(2))},
-	{"dict(foo=1, bar=2, baz=3)", NewDict().
+	{"dict(foo=1, bar=2, baz=3)", ordereddict.NewDict().
 		Set("foo", int64(1)).
 		Set("bar", int64(2)).
 		Set("baz", int64(3))},
 
 	// Expression as parameter.
-	{"dict(foo=1, bar=( 2 + 3 ))", NewDict().
+	{"dict(foo=1, bar=( 2 + 3 ))", ordereddict.NewDict().
 		Set("foo", int64(1)).Set("bar", int64(5))},
 
 	// Mixing floats and ints.
-	{"dict(foo=1.0, bar=( 2.1 + 3 ))", NewDict().
+	{"dict(foo=1.0, bar=( 2.1 + 3 ))", ordereddict.NewDict().
 		Set("foo", float64(1)).Set("bar", 5.1)},
 
 	// List as parameter.
-	{"dict(foo=1, bar= [2 , 3] )", NewDict().
+	{"dict(foo=1, bar= [2 , 3] )", ordereddict.NewDict().
 		Set("foo", int64(1)).
 		Set("bar", []Any{int64(2), int64(3)})},
 
@@ -152,7 +153,7 @@ var execTestsSerialization = []execTest{
 	{"my_list_obj.my_list[1]", 2},
 	{"(my_list_obj.my_list[3]).Foo", "Bar"},
 	{"dict(x=(my_list_obj.my_list[3]).Foo + 'a')",
-		NewDict().Set("x", "Bara")},
+		ordereddict.NewDict().Set("x", "Bara")},
 }
 
 // These tests are excluded from serialization tests.
@@ -173,7 +174,7 @@ type TestFunction struct {
 	return_value Any
 }
 
-func (self TestFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any {
+func (self TestFunction) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
 	if value, pres := args.Get("return"); pres {
 		lazy_value := value.(LazyExpr)
 		return lazy_value.Reduce()
@@ -191,7 +192,7 @@ var CounterFunctionCount = 0
 
 type CounterFunction struct{}
 
-func (self CounterFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any {
+func (self CounterFunction) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
 	CounterFunctionCount += 1
 	return CounterFunctionCount
 }
@@ -210,7 +211,7 @@ type PanicFunctionArgs struct {
 }
 
 // Panic if we get an arg of a=2
-func (self PanicFunction) Call(ctx context.Context, scope *Scope, args *Dict) Any {
+func (self PanicFunction) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
 	arg := PanicFunctionArgs{}
 
 	ExtractArgs(scope, args, &arg)
@@ -228,15 +229,15 @@ func (self PanicFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 }
 
 func makeScope() *Scope {
-	return NewScope().AppendVars(NewDict().
+	return NewScope().AppendVars(ordereddict.NewDict().
 		Set("const_foo", 1).
-		Set("my_list_obj", NewDict().
+		Set("my_list_obj", ordereddict.NewDict().
 			Set("my_list", []interface{}{
 				1, 2, 3,
-				NewDict().Set("Foo", "Bar")})).
+				ordereddict.NewDict().Set("Foo", "Bar")})).
 		Set("env_var", "EnvironmentData").
-		Set("foo", NewDict().
-			Set("bar", NewDict().Set("baz", 5)).
+		Set("foo", ordereddict.NewDict().
+			Set("bar", ordereddict.NewDict().Set("baz", 5)).
 			Set("bar2", 7)),
 	).AppendFunctions(
 		TestFunction{1},
@@ -245,7 +246,7 @@ func makeScope() *Scope {
 	).AppendPlugins(
 		GenericListPlugin{
 			PluginName: "range",
-			Function: func(scope *Scope, args *Dict) []Row {
+			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
 				return []Row{1, 2, 3, 4}
 			},
 			RowType: 1,
@@ -488,10 +489,10 @@ func makeTestScope() *Scope {
 	return makeScope().AppendPlugins(
 		GenericListPlugin{
 			PluginName: "test",
-			Function: func(scope *Scope, args *Dict) []Row {
+			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
 				var result []Row
 				for i := 0; i < 3; i++ {
-					result = append(result, NewDict().
+					result = append(result, ordereddict.NewDict().
 						Set("foo", i*2).
 						Set("bar", i))
 				}
@@ -499,20 +500,20 @@ func makeTestScope() *Scope {
 			},
 		}, GenericListPlugin{
 			PluginName: "range",
-			Function: func(scope *Scope, args *Dict) []Row {
+			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
 				arg := &_RangeArgs{}
 				ExtractArgs(scope, args, arg)
 				var result []Row
 				for i := arg.Start; i <= arg.End; i++ {
-					result = append(result, NewDict().Set("value", i))
+					result = append(result, ordereddict.NewDict().Set("value", i))
 				}
 				return result
 			},
 		}, GenericListPlugin{
 			PluginName: "dict",
 			Doc:        "Just echo back the args as a dict.",
-			Function: func(scope *Scope, args *Dict) []Row {
-				result := NewDict()
+			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
+				result := ordereddict.NewDict()
 				for _, k := range scope.GetMembers(args) {
 					v, _ := args.Get(k)
 					lazy_arg, ok := v.(LazyExpr)
@@ -527,15 +528,15 @@ func makeTestScope() *Scope {
 			},
 		}, GenericListPlugin{
 			PluginName: "groupbytest",
-			Function: func(scope *Scope, args *Dict) []Row {
+			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
 				return []Row{
-					NewDict().Set("foo", 1).Set("bar", 5).
+					ordereddict.NewDict().Set("foo", 1).Set("bar", 5).
 						Set("baz", "a"),
-					NewDict().Set("foo", 2).Set("bar", 5).
+					ordereddict.NewDict().Set("foo", 2).Set("bar", 5).
 						Set("baz", "b"),
-					NewDict().Set("foo", 3).Set("bar", 2).
+					ordereddict.NewDict().Set("foo", 3).Set("bar", 2).
 						Set("baz", "c"),
-					NewDict().Set("foo", 4).Set("bar", 2).
+					ordereddict.NewDict().Set("foo", 4).Set("bar", 2).
 						Set("baz", "d"),
 				}
 			},
@@ -585,7 +586,7 @@ func TestVQLQueries(t *testing.T) {
 	scope := makeTestScope()
 
 	// Store the result in ordered dict so we have a consistent golden file.
-	result := NewDict()
+	result := ordereddict.NewDict()
 	for i, testCase := range vqlTests {
 		vql, err := Parse(testCase.vql)
 		if err != nil {
@@ -642,12 +643,12 @@ var columnTests = []vqlTest{
 }
 
 func TestColumns(t *testing.T) {
-	env := NewDict().Set("TestDict", []Row{
-		NewDict().Set("Field", 2),
+	env := ordereddict.NewDict().Set("TestDict", []Row{
+		ordereddict.NewDict().Set("Field", 2),
 	})
 	scope := makeTestScope().AppendVars(env)
 
-	result := NewDict()
+	result := ordereddict.NewDict()
 	for i, testCase := range columnTests {
 		vql, err := Parse(testCase.vql)
 		if err != nil {

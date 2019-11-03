@@ -3,6 +3,8 @@ package vfilter
 import (
 	"context"
 	"sync"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 type _ForeachPluginImplArgs struct {
@@ -15,7 +17,7 @@ type _ForeachPluginImpl struct{}
 
 func (self _ForeachPluginImpl) Call(ctx context.Context,
 	scope *Scope,
-	args *Dict) <-chan Row {
+	args *ordereddict.Dict) <-chan Row {
 	output_chan := make(chan Row)
 
 	go func() {

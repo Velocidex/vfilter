@@ -6,6 +6,7 @@ import (
 	"sync"
 	"unicode"
 
+	"github.com/Velocidex/ordereddict"
 	"github.com/alecthomas/repr"
 )
 
@@ -160,14 +161,14 @@ func GetID(obj Any) string {
 	return fmt.Sprintf("%p", obj)
 }
 
-func RowToDict(scope *Scope, row Row) *Dict {
+func RowToDict(scope *Scope, row Row) *ordereddict.Dict {
 	// If the row is already a dict nothing to do:
-	result, ok := row.(*Dict)
+	result, ok := row.(*ordereddict.Dict)
 	if ok {
 		return result
 	}
 
-	result = NewDict()
+	result = ordereddict.NewDict()
 	for _, column := range scope.GetMembers(row) {
 		value, pres := scope.Associative(row, column)
 		if pres {

@@ -4,6 +4,8 @@ package vfilter
 
 import (
 	"context"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 type _CountFunctionArgs struct {
@@ -24,7 +26,7 @@ func (self _CountFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 func (self _CountFunction) Call(
 	ctx context.Context,
 	scope *Scope,
-	args *Dict) Any {
+	args *ordereddict.Dict) Any {
 	arg := &_CountFunctionArgs{}
 	err := ExtractArgs(scope, args, arg)
 	if err != nil {
@@ -58,7 +60,7 @@ func (self _MinFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 func (self _MinFunction) Call(
 	ctx context.Context,
 	scope *Scope,
-	args *Dict) Any {
+	args *ordereddict.Dict) Any {
 	arg := &_CountFunctionArgs{}
 	err := ExtractArgs(scope, args, arg)
 	if err != nil {
@@ -92,7 +94,7 @@ func (self _MaxFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 func (self _MaxFunction) Call(
 	ctx context.Context,
 	scope *Scope,
-	args *Dict) Any {
+	args *ordereddict.Dict) Any {
 	arg := &_CountFunctionArgs{}
 	err := ExtractArgs(scope, args, arg)
 	if err != nil {
@@ -125,7 +127,7 @@ func (self _EnumerateFunction) Info(scope *Scope, type_map *TypeMap) *FunctionIn
 func (self _EnumerateFunction) Call(
 	ctx context.Context,
 	scope *Scope,
-	args *Dict) Any {
+	args *ordereddict.Dict) Any {
 	arg := &_CountFunctionArgs{}
 	err := ExtractArgs(scope, args, arg)
 	if err != nil {
