@@ -234,24 +234,25 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	if len(self.Let) > 0 {
 		output_chan := make(chan Row)
 
-		_, pres := scope.Resolve(self.Let)
-		if pres {
-			// The _ variable is special - it can be
-			// trashed without a warning.
-			if self.Let != "_" {
-				scope.Log("ERROR: LET query overrides a variable for %s",
+		// Check if we are about to trash a scope
+		// variable. The _ variable is special - it can be
+		// trashed without a warning.
+		if self.Let != "_" {
+			_, pres := scope.Resolve(self.Let)
+			if pres {
+				scope.Log("WARNING: LET query overrides a variable for %s",
 					self.Let)
 			}
+		}
 
-		} else {
-			switch self.LetOperator {
-			case "=":
-				stored_query := NewStoredQuery(self.Query)
-				scope.AppendVars(ordereddict.NewDict().Set(self.Let, stored_query))
-			case "<=":
-				scope.AppendVars(ordereddict.NewDict().Set(
-					self.Let, Materialize(ctx, scope, self.Query)))
-			}
+		switch self.LetOperator {
+		case "=":
+			stored_query := NewStoredQuery(self.Query)
+			scope.AppendVars(ordereddict.NewDict().Set(self.Let, stored_query))
+
+		case "<=":
+			scope.AppendVars(ordereddict.NewDict().Set(
+				self.Let, Materialize(ctx, scope, self.Query)))
 		}
 
 		close(output_chan)
@@ -1034,7 +1035,23 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				output_chan <- row
 			}
 		} else {
-			scope.Log("Plugin %v not found", self.Name)
+			options := getSimilarPlugins(scope, self.Name)
+			message := fmt.Sprintf("Plugin %v not found. ", self.Name)
+			if len(options) > 0 {
+				message += fmt.Sprintf(
+					"Did you mean %v? ",
+					strings.Join(options, " "))
+			}
+
+			_, pres := scope.functions[self.Name]
+			if pres {
+				message += fmt.Sprintf(
+					"There is a VQL function called \"%v\" "+
+						"- did you mean to call this "+
+						"function instead?", self.Name)
+			}
+
+			scope.Log("%v", message)
 		}
 	}()
 

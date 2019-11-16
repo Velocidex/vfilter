@@ -3,6 +3,8 @@ package vfilter
 import (
 	"fmt"
 	"reflect"
+	"sort"
+	"strings"
 	"sync"
 	"unicode"
 
@@ -188,6 +190,27 @@ func RowToMap(scope *Scope, row Row) map[string]interface{} {
 			result[column] = value
 		}
 	}
+
+	return result
+}
+
+// Get a list of similar sounding plugins.
+func getSimilarPlugins(scope *Scope, name string) []string {
+	result := []string{}
+	parts := strings.Split(name, "_")
+
+	scope.Lock()
+	defer scope.Unlock()
+
+	for _, part := range parts {
+		for k, _ := range scope.plugins {
+			if strings.Contains(k, part) && !InString(&result, k) {
+				result = append(result, k)
+			}
+		}
+	}
+
+	sort.Strings(result)
 
 	return result
 }
