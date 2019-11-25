@@ -41,15 +41,15 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 		for row_item := range stored_query.Eval(ctx, scope) {
 			wg.Add(1)
 
+			// Evaluate the query on a new sub scope. The
+			// query can refer to rows returned by the
+			// "row" query.
+			child_scope := scope.Copy()
+			child_scope.AppendVars(row_item)
+			child_ctx, cancel := context.WithCancel(ctx)
+
 			run_query := func() {
 				defer wg.Done()
-
-				// Evaluate the query on a new sub scope. The
-				// query can refer to rows returned by the
-				// "row" query.
-				child_scope := scope.Copy()
-				child_scope.AppendVars(row_item)
-				child_ctx, cancel := context.WithCancel(ctx)
 
 				// Cancel the context when the child query is
 				// done. This will force any cleanup functions
@@ -59,11 +59,7 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 				defer cancel()
 
 				query_chan := arg.Query.Eval(child_ctx, child_scope)
-				for {
-					query_chan_item, ok := <-query_chan
-					if !ok {
-						break
-					}
+				for query_chan_item := range query_chan {
 					output_chan <- query_chan_item
 				}
 			}

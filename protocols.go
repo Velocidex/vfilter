@@ -771,7 +771,7 @@ func (self DefaultAssociative) Applicable(a Any, b Any) bool {
 	return false
 }
 
-func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, bool) {
+func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (res Any, pres bool) {
 	defer func() {
 		// If an error occurs we return false - not found.
 		recover()
@@ -783,7 +783,11 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 		if idx < 0 || idx > a_value.Len() {
 			return &Null{}, false
 		}
-		return a_value.Index(idx).Interface(), true
+		value := a_value.Index(idx)
+		if value.Kind() == reflect.Ptr && value.IsNil() {
+			return &Null{}, true
+		}
+		return value.Interface(), true
 
 	case *int64:
 		a_value := reflect.Indirect(reflect.ValueOf(a))
@@ -791,7 +795,11 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 		if idx < 0 || idx > a_value.Len() {
 			return &Null{}, false
 		}
-		return a_value.Index(idx).Interface(), true
+		value := a_value.Index(idx)
+		if value.Kind() == reflect.Ptr && value.IsNil() {
+			return &Null{}, true
+		}
+		return value.Interface(), true
 
 	case string:
 		if !is_exported(field_name) {
@@ -805,9 +813,11 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 		if a_type.Kind() == reflect.Struct {
 			field_value := a_value.FieldByName(field_name)
 			if field_value.IsValid() && field_value.CanInterface() {
+				if field_value.Kind() == reflect.Ptr && field_value.IsNil() {
+					return &Null{}, true
+				}
 				return field_value.Interface(), true
 			}
-
 		}
 
 		// A method we call. Usually this is a Getter.
@@ -826,6 +836,10 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (Any, boo
 			if len(results) == 1 || len(results) == 2 {
 				res := results[0]
 				if res.CanInterface() {
+					if res.Kind() == reflect.Ptr && res.IsNil() {
+						return &Null{}, true
+					}
+
 					return res.Interface(), true
 				}
 			}
@@ -863,27 +877,25 @@ func (self DefaultAssociative) GetMembers(scope *Scope, a Any) []string {
 		}
 	}
 
-	{
-		a_value := reflect.ValueOf(a)
+	a_value = reflect.ValueOf(a)
 
-		// If a value is a slice, we get the members of the
-		// first item. Hopefully they are the same as the
-		// other items. A common use case is storing the
-		// output of a query in the scope environment and then
-		// selecting from it, in which case the value is a
-		// list of Rows, each row has a Dict.
-		if a_value.Type().Kind() == reflect.Slice {
-			for i := 0; i < a_value.Len(); i++ {
-				return scope.GetMembers(a_value.Index(i).Interface())
-			}
+	// If a value is a slice, we get the members of the
+	// first item. Hopefully they are the same as the
+	// other items. A common use case is storing the
+	// output of a query in the scope environment and then
+	// selecting from it, in which case the value is a
+	// list of Rows, each row has a Dict.
+	if a_value.Type().Kind() == reflect.Slice {
+		for i := 0; i < a_value.Len(); i++ {
+			return scope.GetMembers(a_value.Index(i).Interface())
 		}
+	}
 
-		for i := 0; i < a_value.NumMethod(); i++ {
-			method_type := a_value.Type().Method(i)
-			method_value := a_value.Method(i)
-			if _Callable(method_value, method_type.Name) {
-				result = append(result, method_type.Name)
-			}
+	for i := 0; i < a_value.NumMethod(); i++ {
+		method_type := a_value.Type().Method(i)
+		method_value := a_value.Method(i)
+		if _Callable(method_value, method_type.Name) {
+			result = append(result, method_type.Name)
 		}
 	}
 

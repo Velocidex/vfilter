@@ -90,6 +90,10 @@ func (self *TypeMap) Get(scope *Scope, name string) (*TypeDescription, bool) {
 // Introspect the type of the parameter. Add type descriptor to the
 // type map and return the type name.
 func (self *TypeMap) AddType(scope *Scope, a Any) string {
+	if scope == nil {
+		return ""
+	}
+
 	fields := scope.GetMembers(a)
 
 	v := reflect.ValueOf(a)

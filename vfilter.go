@@ -819,68 +819,64 @@ func (self _SelectExpression) Transform(
 	ctx context.Context, scope *Scope, row Row) Row {
 	// The select uses a * to relay all the rows without
 	// filtering
-	if self.All && self.Expressions == nil {
-		return row
 
-	} else {
-		// The select expression consists of multiple
-		// columns, each may be an
-		// expression. Expressions may also be
-		// repeated. VQL produces unique column names
-		// so each column must be a unique string.
+	// The select expression consists of multiple
+	// columns, each may be an
+	// expression. Expressions may also be
+	// repeated. VQL produces unique column names
+	// so each column must be a unique string.
 
-		// If an AS keyword is used to name the
-		// column, then we use that name, otherwise we
-		// generate the name by converting the
-		// expression to a string using its ToString()
-		// method.
-		new_row := NewLazyRow(ctx)
-		new_scope := scope.Copy()
-		new_scope.AppendVars(row)
+	// If an AS keyword is used to name the
+	// column, then we use that name, otherwise we
+	// generate the name by converting the
+	// expression to a string using its ToString()
+	// method.
+	new_row := NewLazyRow(ctx)
+	new_scope := scope.Copy()
+	new_scope.AppendVars(row)
 
-		// If there is a * expression in addition to the
-		// column expressions, this is equivalent to adding
-		// all the columns as defined by the * as if they were
-		// explicitely defined.
-		if self.All {
-			for _, member := range scope.GetMembers(row) {
-				value, pres := scope.Associative(row, member)
-				if pres {
-					new_row.AddColumn(member,
-						func(ctx context.Context, scope *Scope) Any {
-							return value
-						})
-				}
+	// If there is a * expression in addition to the
+	// column expressions, this is equivalent to adding
+	// all the columns as defined by the * as if they were
+	// explicitely defined.
+	if self.All {
+		for _, member := range scope.GetMembers(row) {
+			value, pres := scope.Associative(row, member)
+			if pres {
+				new_row.AddColumn(member,
+					func(ctx context.Context, scope *Scope) Any {
+						return value
+					})
 			}
 		}
-
-		for _, expr_ := range self.Expressions {
-			// A copy of the expression for the lambda capture.
-			expr := expr_
-
-			// Figure out the column name.
-			var column_name string
-			if expr.As != "" {
-				column_name = expr.As
-			} else {
-				column_name = expr.ToString(scope)
-			}
-
-			new_row.AddColumn(
-				column_name,
-
-				// Use the new scope rather than the
-				// callers scope since the lazy row
-				// may be accessed in any scope but
-				// needs to resolve members in the
-				// scope it was created from.
-				func(ctx context.Context, scope *Scope) Any {
-					return expr.Reduce(ctx, new_scope)
-				})
-		}
-
-		return new_row
 	}
+
+	for _, expr_ := range self.Expressions {
+		// A copy of the expression for the lambda capture.
+		expr := expr_
+
+		// Figure out the column name.
+		var column_name string
+		if expr.As != "" {
+			column_name = expr.As
+		} else {
+			column_name = expr.ToString(scope)
+		}
+
+		new_row.AddColumn(
+			column_name,
+
+			// Use the new scope rather than the
+			// callers scope since the lazy row
+			// may be accessed in any scope but
+			// needs to resolve members in the
+			// scope it was created from.
+			func(ctx context.Context, scope *Scope) Any {
+				return expr.Reduce(ctx, new_scope)
+			})
+	}
+
+	return new_row
 }
 
 func (self *_SelectExpression) Columns(scope *Scope) *[]string {
