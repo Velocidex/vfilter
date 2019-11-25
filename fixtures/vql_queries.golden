@@ -212,14 +212,8 @@
    "foo": 4
   }
  ],
- "021 Refer to non existent Let expression: SELECT * FROM no_such_result": [
-  null
- ],
- "022 Refer to non existent Let expression by column: SELECT foobar FROM no_such_result": [
-  {
-   "foobar": null
-  }
- ],
+ "021 Refer to non existent Let expression returns no rows: SELECT * FROM no_such_result": [],
+ "022 Refer to non existent Let expression by column returns no rows: SELECT foobar FROM no_such_result": [],
  "023 Foreach plugin: SELECT * FROM foreach(row= { SELECT * FROM test()}, query= { SELECT bar, foo, value FROM range(start=bar, end=foo)})": [
   {
    "bar": 0,

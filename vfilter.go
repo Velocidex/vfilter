@@ -998,9 +998,6 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				} else {
 					output_chan <- variable
 				}
-
-			} else {
-				output_chan <- Null{}
 			}
 			return
 		}

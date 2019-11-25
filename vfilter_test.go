@@ -393,8 +393,8 @@ var vqlTests = []vqlTest{
 	{"Create Let expression", "let result = select  * from test()"},
 	{"Create Let materialized expression", "let result <= select  * from test()"},
 	{"Refer to Let expression", "select * from result"},
-	{"Refer to non existent Let expression", "select * from no_such_result"},
-	{"Refer to non existent Let expression by column",
+	{"Refer to non existent Let expression returns no rows", "select * from no_such_result"},
+	{"Refer to non existent Let expression by column returns no rows",
 		"select foobar from no_such_result"},
 
 	{"Foreach plugin", `
