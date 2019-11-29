@@ -17,6 +17,7 @@ func (self _BoolDispatcher) Bool(scope *Scope, a Any) bool {
 		}
 	}
 
+	scope.Trace("Protocol Bool not found for %v (%T)", a, a)
 	return false
 }
 
@@ -107,6 +108,9 @@ func (self _EqDispatcher) Eq(scope *Scope, a Any, b Any) bool {
 			return impl.Eq(scope, a, b)
 		}
 	}
+
+	scope.Trace("Protocol Equal not found for %v (%T) and %v (%T)",
+		a, a, b, b)
 	return false
 }
 
@@ -304,15 +308,19 @@ func (self _LtDispatcher) Lt(scope *Scope, a Any, b Any) bool {
 			return impl.Lt(scope, a, b)
 		}
 	}
+
 	return false
 }
 
-func (self _LtDispatcher) Applicable(a Any, b Any) bool {
+func (self _LtDispatcher) Applicable(scope *Scope, a Any, b Any) bool {
 	for _, impl := range self.impl {
 		if impl.Applicable(a, b) {
 			return true
 		}
 	}
+
+	scope.Trace("Protocol LessThan not found for %v (%T) and %v (%T)",
+		a, a, b, b)
 	return false
 }
 
@@ -366,6 +374,8 @@ func (self _AddDispatcher) Add(scope *Scope, a Any, b Any) Any {
 			return impl.Add(scope, a, b)
 		}
 	}
+	scope.Trace("Protocol Add not found for %v (%T) and %v (%T)",
+		a, a, b, b)
 	return Null{}
 }
 
@@ -513,6 +523,9 @@ func (self _SubDispatcher) Sub(scope *Scope, a Any, b Any) Any {
 			return impl.Sub(scope, a, b)
 		}
 	}
+
+	scope.Trace("Protocol Sub not found for %v (%T) and %v (%T)",
+		a, a, b, b)
 	return Null{}
 }
 
@@ -565,6 +578,9 @@ func (self _MulDispatcher) Mul(scope *Scope, a Any, b Any) Any {
 			return impl.Mul(scope, a, b)
 		}
 	}
+	scope.Trace("Protocol Mul not found for %v (%T) and %v (%T)",
+		a, a, b, b)
+
 	return Null{}
 }
 
@@ -616,6 +632,10 @@ func (self _DivDispatcher) Div(scope *Scope, a Any, b Any) Any {
 			return impl.Div(scope, a, b)
 		}
 	}
+
+	scope.Trace("Protocol Div not found for %v (%T) and %v (%T)",
+		a, a, b, b)
+
 	return Null{}
 }
 
@@ -693,6 +713,9 @@ func (self _MembershipDispatcher) Membership(scope *Scope, a Any, b Any) bool {
 				return true
 			}
 		}
+	} else {
+		scope.Trace("Protocol Membership not found for %v (%T) and %v (%T)",
+			a, a, b, b)
 	}
 
 	return false
@@ -918,6 +941,9 @@ func (self _RegexDispatcher) Match(scope *Scope, pattern Any, target Any) bool {
 			return impl.Match(scope, pattern, target)
 		}
 	}
+
+	scope.Trace("Protocol Regex not found for %v (%T) and %v (%T)",
+		pattern, pattern, target, target)
 
 	return false
 }

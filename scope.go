@@ -55,6 +55,10 @@ type Scope struct {
 
 	Logger *log.Logger
 
+	// Very verbose debugging goes here - not generally useful
+	// unless users try to debug VQL expressions.
+	Tracer *log.Logger
+
 	regexp_cache map[string]*regexp.Regexp
 
 	context *ordereddict.Dict
@@ -198,6 +202,7 @@ func (self *Scope) Copy() *Scope {
 		functions:    self.functions,
 		plugins:      self.plugins,
 		Logger:       self.Logger,
+		Tracer:       self.Tracer,
 		regexp_cache: self.regexp_cache,
 		vars:         append([]Row{}, self.vars...),
 		context:      self.context,
@@ -312,9 +317,19 @@ func (self *Scope) Log(format string, a ...interface{}) {
 	self.Lock()
 	defer self.Unlock()
 
-	msg := fmt.Sprintf(format, a...)
 	if self.Logger != nil {
+		msg := fmt.Sprintf(format, a...)
 		self.Logger.Print(msg)
+	}
+}
+
+func (self *Scope) Trace(format string, a ...interface{}) {
+	self.Lock()
+	defer self.Unlock()
+
+	if self.Tracer != nil {
+		msg := fmt.Sprintf(format, a...)
+		self.Tracer.Print(msg)
 	}
 }
 

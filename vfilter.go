@@ -391,6 +391,7 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					// If the filtered expression returns
 					// a bool false, then skip the row.
 					if expression == nil || !scope.Bool(expression) {
+						scope.Trace("During Groupby: Row rejected")
 						continue
 					}
 				}
@@ -568,6 +569,8 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					if expression != nil && scope.Bool(expression) {
 						output_chan <- MaterializedLazyRow(
 							transformed_row, new_scope)
+					} else {
+						scope.Trace("Row rejected")
 					}
 				}
 			}
@@ -982,11 +985,7 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				stored_query, ok := variable.(StoredQuery)
 				if ok {
 					from_chan := stored_query.Eval(ctx, scope)
-					for {
-						row, ok := <-from_chan
-						if !ok {
-							return
-						}
+					for row := range from_chan {
 						output_chan <- row
 					}
 
@@ -998,6 +997,9 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				} else {
 					output_chan <- variable
 				}
+			} else {
+				scope.Log("SELECTing from %v failed! No such var in scope",
+					self.Name)
 			}
 			return
 		}
@@ -1351,32 +1353,36 @@ func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) Any {
 
 	rhs := self.Right.Right.Reduce(ctx, scope)
 
+	var result Any = false
+
 	switch self.Right.Operator {
 	case "IN":
-		return scope.membership.Membership(scope, lhs, rhs)
+		result = scope.membership.Membership(scope, lhs, rhs)
 	case "<":
-		return scope.Lt(lhs, rhs)
+		result = scope.Lt(lhs, rhs)
 	case "=":
-		return scope.Eq(lhs, rhs)
+		result = scope.Eq(lhs, rhs)
 	case "!=":
-		return !scope.Eq(lhs, rhs)
+		result = !scope.Eq(lhs, rhs)
 	case "<=":
-		return scope.Lt(lhs, rhs) || scope.Eq(lhs, rhs)
+		result = scope.Lt(lhs, rhs) || scope.Eq(lhs, rhs)
 	case ">":
 		// This only works if there is a matching lt
 		// operation.
-		if scope.lt.Applicable(lhs, rhs) && !scope.Eq(lhs, rhs) {
-			return !scope.Lt(lhs, rhs)
+		if scope.lt.Applicable(scope, lhs, rhs) && !scope.Eq(lhs, rhs) {
+			result = !scope.Lt(lhs, rhs)
 		}
 	case ">=":
-		if scope.lt.Applicable(lhs, rhs) {
-			return !scope.Lt(lhs, rhs) || scope.Eq(lhs, rhs)
+		if scope.lt.Applicable(scope, lhs, rhs) {
+			result = !scope.Lt(lhs, rhs) || scope.Eq(lhs, rhs)
 		}
 	case "=~":
-		return scope.Match(rhs, lhs)
+		result = scope.Match(rhs, lhs)
 	}
 
-	return false
+	scope.Trace("Operation %v %v %v gave %v", lhs, self.Right.Operator, rhs, result)
+
+	return result
 }
 
 func (self _ConditionOperand) ToString(scope *Scope) string {
