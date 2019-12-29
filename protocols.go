@@ -967,8 +967,14 @@ func (self _SubstringRegex) Match(scope *Scope, pattern Any, target Any) bool {
 	pattern_string, _ := to_string(pattern)
 	target_string, _ := to_string(target)
 
-	re, pres := scope.regexp_cache[pattern_string]
-	if !pres {
+	var re *regexp.Regexp
+	key := "__re" + pattern_string
+
+	re_any, pres := scope.context.Get(key)
+	if pres {
+		re, _ = re_any.(*regexp.Regexp)
+
+	} else {
 		var err error
 		re, err = regexp.Compile("(?i)" + pattern_string)
 		if err != nil {
@@ -976,7 +982,7 @@ func (self _SubstringRegex) Match(scope *Scope, pattern Any, target Any) bool {
 			return false
 		}
 
-		scope.regexp_cache[pattern_string] = re
+		scope.context.Set(key, re)
 	}
 
 	return re.MatchString(target_string)

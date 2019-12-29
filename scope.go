@@ -3,7 +3,6 @@ package vfilter
 import (
 	"fmt"
 	"log"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -58,8 +57,6 @@ type Scope struct {
 	// Very verbose debugging goes here - not generally useful
 	// unless users try to debug VQL expressions.
 	Tracer *log.Logger
-
-	regexp_cache map[string]*regexp.Regexp
 
 	context *ordereddict.Dict
 }
@@ -199,13 +196,12 @@ func (self *Scope) Copy() *Scope {
 	defer self.Unlock()
 
 	return &Scope{
-		functions:    self.functions,
-		plugins:      self.plugins,
-		Logger:       self.Logger,
-		Tracer:       self.Tracer,
-		regexp_cache: self.regexp_cache,
-		vars:         append([]Row{}, self.vars...),
-		context:      self.context,
+		functions: self.functions,
+		plugins:   self.plugins,
+		Logger:    self.Logger,
+		Tracer:    self.Tracer,
+		vars:      append([]Row{}, self.vars...),
+		context:   self.context,
 
 		bool:        self.bool,
 		eq:          self.eq,
@@ -365,9 +361,7 @@ func (self *Scope) Close() {
 // own specialized protocols, functions and plugins to specialize
 // their scope objects.
 func NewScope() *Scope {
-	result := Scope{
-		regexp_cache: make(map[string]*regexp.Regexp),
-	}
+	result := Scope{}
 	result.functions = make(map[string]FunctionInterface)
 	result.plugins = make(map[string]PluginGeneratorInterface)
 	result.context = ordereddict.NewDict()
