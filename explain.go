@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 var (
@@ -56,7 +58,7 @@ type FunctionInfo struct {
 // Velocifilter automatically calls accessor methods so they look like
 // standard exported fields.
 type TypeDescription struct {
-	Fields map[string]*TypeReference
+	Fields *ordereddict.Dict
 }
 
 // This describes what type is returned when we reference this field
@@ -69,12 +71,12 @@ type TypeReference struct {
 
 // Map between type name and its description.
 type TypeMap struct {
-	desc map[string]*TypeDescription
+	desc *ordereddict.Dict
 }
 
 func NewTypeMap() *TypeMap {
 	return &TypeMap{
-		desc: make(map[string]*TypeDescription),
+		desc: ordereddict.NewDict(),
 	}
 }
 
@@ -83,8 +85,11 @@ func canonicalTypeName(a_type reflect.Type) string {
 }
 
 func (self *TypeMap) Get(scope *Scope, name string) (*TypeDescription, bool) {
-	res, pres := self.desc[name]
-	return res, pres
+	res, pres := self.desc.Get(name)
+	if res != nil {
+		return res.(*TypeDescription), pres
+	}
+	return nil, false
 }
 
 // Introspect the type of the parameter. Add type descriptor to the
@@ -108,13 +113,14 @@ func (self *TypeMap) AddType(scope *Scope, a Any) string {
 }
 
 func (self *TypeMap) addType(scope *Scope, a_type reflect.Type, fields *[]string) {
-	if _, pres := self.desc[canonicalTypeName(a_type)]; pres {
+	_, pres := self.desc.Get(canonicalTypeName(a_type))
+	if pres {
 		return
 	}
 	result := TypeDescription{
-		Fields: make(map[string]*TypeReference),
+		Fields: ordereddict.NewDict(),
 	}
-	self.desc[canonicalTypeName(a_type)] = &result
+	self.desc.Set(canonicalTypeName(a_type), &result)
 
 	self.addFields(scope, a_type, &result, fields)
 	self.addMethods(scope, a_type, &result, fields)
@@ -172,7 +178,7 @@ func (self *TypeMap) addFields(scope *Scope, a_type reflect.Type, desc *TypeDesc
 			name = m[1]
 		}
 
-		desc.Fields[name] = &return_type_descriptor
+		desc.Fields.Set(name, &return_type_descriptor)
 	}
 }
 
@@ -227,7 +233,7 @@ func (self *TypeMap) addMethods(scope *Scope, a_type reflect.Type,
 					return_type.Elem())
 			}
 
-			desc.Fields[method_value.Name] = &return_type_descriptor
+			desc.Fields.Set(method_value.Name, &return_type_descriptor)
 		}
 	}
 }
