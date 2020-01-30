@@ -1616,7 +1616,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 
 	// The symbol is just a constant in the scope.
 	value, pres := scope.Resolve(self.Symbol)
-	if pres {
+	if pres && !is_null(value) {
 		return value
 	}
 

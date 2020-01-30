@@ -179,8 +179,8 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 				field_value.Set(reflect.ValueOf(a))
 			} else {
 				return errors.New(fmt.Sprintf(
-					"Field %s should be a float.",
-					field_types_value.Name))
+					"Field %s should be a float not %t.",
+					field_types_value.Name, arg))
 			}
 		case reflect.Int64:
 			a, ok := to_int64(arg)

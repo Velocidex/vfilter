@@ -33,6 +33,11 @@ func (self *TimeThrottler) Close() {
 }
 
 func NewTimeThrottler(rate float64) Throttler {
+	// rate of 0 means no throttling.
+	if rate == 0 || rate > 100 {
+		rate = 100
+	}
+
 	result := &TimeThrottler{
 		ticker: time.NewTicker(time.Nanosecond *
 			time.Duration((float64(1000000000) / float64(rate)))),
@@ -42,7 +47,7 @@ func NewTimeThrottler(rate float64) Throttler {
 
 	// Just ignore rates which are too fast - do not throttle at
 	// all.
-	if rate > 100 {
+	if rate >= 100 {
 		result.Close()
 	}
 

@@ -5,6 +5,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Velocidex/ordereddict"
 )
@@ -15,7 +16,9 @@ import (
 type _destructors struct {
 	mu sync.Mutex
 
-	fn []func()
+	fn           []func()
+	is_destroyed bool
+	wg           sync.WaitGroup
 }
 
 /* The scope is a common environment passed to all plugins, functions
@@ -71,6 +74,13 @@ func (self *Scope) GetContext(name string) Any {
 	}
 
 	return res
+}
+
+func (self *Scope) ClearContext() {
+	self.context = ordereddict.NewDict()
+	self.vars = append(self.vars, ordereddict.NewDict().
+		Set("NULL", Null{}).
+		Set("__destructors", &_destructors{}))
 }
 
 func (self *Scope) SetContext(name string, value Any) {
@@ -203,16 +213,16 @@ func (self *Scope) Copy() *Scope {
 		vars:      append([]Row{}, self.vars...),
 		context:   self.context,
 
-		bool:        self.bool,
-		eq:          self.eq,
-		lt:          self.lt,
-		add:         self.add,
-		sub:         self.sub,
-		mul:         self.mul,
-		div:         self.div,
-		membership:  self.membership,
-		associative: self.associative,
-		regex:       self.regex,
+		bool:        self.bool.Copy(),
+		eq:          self.eq.Copy(),
+		lt:          self.lt.Copy(),
+		add:         self.add.Copy(),
+		sub:         self.sub.Copy(),
+		mul:         self.mul.Copy(),
+		div:         self.div.Copy(),
+		membership:  self.membership.Copy(),
+		associative: self.associative.Copy(),
+		regex:       self.regex.Copy(),
 	}
 }
 
@@ -333,7 +343,15 @@ func (self *Scope) AddDestructor(fn func()) {
 	destructors_any, _ := self.Resolve("__destructors")
 	destructors, ok := destructors_any.(*_destructors)
 	if ok {
-		destructors.fn = append(destructors.fn, fn)
+		destructors.mu.Lock()
+		defer destructors.mu.Unlock()
+
+		// Scope is already destroyed - call the destructor now.
+		if destructors.is_destroyed {
+			fn()
+		} else {
+			destructors.fn = append(destructors.fn, fn)
+		}
 	} else {
 		panic("Can not get destructors")
 	}
@@ -344,15 +362,36 @@ func (self *Scope) Close() {
 	destructors, ok := destructors_any.(*_destructors)
 	if ok {
 		destructors.mu.Lock()
-		defer destructors.mu.Unlock()
+
+		// Stop new destructors from appearing.
+		destructors.is_destroyed = true
+		ds := append(destructors.fn[:0:0], destructors.fn...)
+		destructors.fn = []func(){}
+
+		destructors.mu.Unlock()
 
 		// Destructors are called in reverse order to their
 		// declerations.
-		for i := len(destructors.fn) - 1; i >= 0; i-- {
-			destructors.fn[i]()
+		for i := len(ds) - 1; i >= 0; i-- {
+			destructors.wg.Add(1)
+			go func(dest func()) {
+				defer destructors.wg.Done()
+				select {
+
+				// Destructor stuck - abandon it.
+				case <-time.After(100 * time.Second):
+
+				default:
+					// Wait 100 sec for the
+					// destructor to finish.
+					dest()
+				}
+
+			}(ds[i])
 		}
 
-		destructors.fn = []func(){}
+		// Wait for all destructors to finish.
+		destructors.wg.Wait()
 	}
 }
 
