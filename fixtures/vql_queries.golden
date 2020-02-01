@@ -538,5 +538,42 @@
   {
    "FooBar": 3
   }
+ ],
+ "056 If function and comparison expression: SELECT if(condition=1 + 1 = 2, then=2, else=3), if(condition=1 + 2 = 2, then=2, else=3) FROM scope()": [
+  {
+   "if(condition=1 + 1 = 2, then=2, else=3)": 2,
+   "if(condition=1 + 2 = 2, then=2, else=3)": 3
+  }
+ ],
+ "057 If function and subselects: SELECT if(condition=1, then= { SELECT * FROM test()}) FROM scope()": [
+  {
+   "if(condition=1, then= { SELECT * FROM test()})": [
+    {
+     "bar": 0,
+     "foo": 0
+    },
+    {
+     "bar": 1,
+     "foo": 2
+    },
+    {
+     "bar": 2,
+     "foo": 4
+    }
+   ]
+  }
+ ],
+ "058 If plugin and arrays: SELECT * FROM if(condition=1, then= [dict(Foo=1), dict(Foo=2)])": [
+  {
+   "Foo": 1
+  },
+  {
+   "Foo": 2
+  }
+ ],
+ "059 If plugin and dict: SELECT * FROM if(condition=1, then=dict(Foo=2))": [
+  {
+   "Foo": 2
+  }
  ]
 }

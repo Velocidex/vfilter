@@ -478,6 +478,14 @@ select * from test() limit 1`},
 		"SELECT (1,2) + if(condition=0, then=(3,4)) AS Field FROM scope()"},
 	{"Spurious line feeds and tabs",
 		"SELECT  \n1\n+\n2\tAS\nFooBar\t\n FROM\n scope(\n)\nWHERE\n FooBar >\n1\nAND\nTRUE\n"},
+	{"If function and comparison expression",
+		"SELECT if(condition=1 + 1 = 2, then=2, else=3), if(condition=1 + 2 = 2, then=2, else=3) FROM scope()"},
+	{"If function and subselects",
+		"SELECT if(condition=1, then={ SELECT * FROM test() }) FROM scope()"},
+	{"If plugin and arrays",
+		"SELECT * FROM if(condition=1, then=[dict(Foo=1), dict(Foo=2)])"},
+	{"If plugin and dict",
+		"SELECT * FROM if(condition=1, then=dict(Foo=2))"},
 }
 
 type _RangeArgs struct {

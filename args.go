@@ -104,8 +104,12 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 		// in which case it is completely up to it to evaluate
 		// the expression (if at all).
 		if field_types_value.Type.String() == "vfilter.LazyExpr" {
-			field_value.Set(reflect.ValueOf(arg))
-			continue
+			// Only assign if it really is a LazyExpr
+			_, ok := arg.(LazyExpr)
+			if ok {
+				field_value.Set(reflect.ValueOf(arg))
+				continue
+			}
 		}
 
 		// From here below, arg has to be non-lazy so we can
@@ -120,9 +124,7 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 		if field_types_value.Type.String() == "vfilter.StoredQuery" {
 			stored_query, ok := arg.(StoredQuery)
 			if !ok {
-				return errors.New(fmt.Sprintf(
-					"Field %s should be a query.",
-					field_types_value.Name))
+				stored_query = &StoredQueryWrapper{arg}
 			}
 
 			field_value.Set(reflect.ValueOf(stored_query))
