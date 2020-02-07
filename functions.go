@@ -103,8 +103,8 @@ func (self _SubSelectFunction) Call(ctx context.Context, scope *Scope, args *ord
 }
 
 type _SplitFunctionArgs struct {
-	String string `vfilter:"required,field=string"`
-	Sep    string `vfilter:"required,field=sep"`
+	String string `vfilter:"required,field=string,doc=The value to split"`
+	Sep    string `vfilter:"required,field=sep,doc=The serparator that will be used to split"`
 }
 type _SplitFunction struct{}
 
@@ -112,7 +112,7 @@ func (self _SplitFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name:    "split",
 		Doc:     "Splits a string into an array based on a regexp separator.",
-		ArgType: type_map.AddType(scope, _TimestampArg{}),
+		ArgType: type_map.AddType(scope, _SplitFunctionArgs{}),
 	}
 }
 
