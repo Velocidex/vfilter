@@ -3,6 +3,7 @@
 package vfilter
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -110,6 +111,13 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 				field_value.Set(reflect.ValueOf(arg))
 				continue
 			}
+
+			// It is not a LazyExpr so we wrap it in one.
+			field_value.Set(reflect.ValueOf(LazyExpr{
+				Value: arg,
+				scope: scope,
+				ctx:   context.Background()}))
+			continue
 		}
 
 		// From here below, arg has to be non-lazy so we can

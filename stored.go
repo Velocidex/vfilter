@@ -151,7 +151,14 @@ func (self *StoredQueryWrapper) Eval(ctx context.Context, scope *Scope) <-chan R
 	go func() {
 		defer close(output_chan)
 
-		slice := reflect.ValueOf(self.Delegate)
+		delegate := self.Delegate
+
+		lazy_arg, ok := delegate.(LazyExpr)
+		if ok {
+			delegate = lazy_arg.Reduce()
+		}
+
+		slice := reflect.ValueOf(delegate)
 		if slice.Type().Kind() == reflect.Slice {
 			for i := 0; i < slice.Len(); i++ {
 				value := slice.Index(i).Interface()

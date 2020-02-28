@@ -8,7 +8,7 @@ import (
 )
 
 type _ForeachPluginImplArgs struct {
-	Row   Any         `vfilter:"required,field=row,doc=A query or slice which generates rows."`
+	Row   LazyExpr    `vfilter:"required,field=row,doc=A query or slice which generates rows."`
 	Query StoredQuery `vfilter:"required,field=query,doc=Run this query for each row."`
 	Async bool        `vfilter:"optional,field=async,doc=If set we run all queries asyncronously."`
 }
@@ -32,10 +32,7 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 
 		// If it is a stored query call it otherwise wrap the
 		// object - this allows us to iterate on arrays.
-		stored_query, ok := arg.Row.(StoredQuery)
-		if !ok {
-			stored_query = &StoredQueryWrapper{arg.Row}
-		}
+		stored_query := arg.Row.ToStoredQuery()
 
 		wg := sync.WaitGroup{}
 		for row_item := range stored_query.Eval(ctx, scope) {

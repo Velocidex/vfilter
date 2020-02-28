@@ -206,17 +206,20 @@ func (self CounterFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo 
 type PanicFunction struct{}
 
 type PanicFunctionArgs struct {
-	Column string `vfilter:"optional,field=column"`
-	Value  Any    `vfilter:"optional,field=value"`
+	Column Any `vfilter:"optional,field=column"`
+	Value  Any `vfilter:"optional,field=value"`
 }
 
 // Panic if we get an arg of a=2
 func (self PanicFunction) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
 	arg := PanicFunctionArgs{}
 
-	ExtractArgs(scope, args, &arg)
+	err := ExtractArgs(scope, args, &arg)
+	if err != nil {
+		panic(err)
+	}
 	if scope.Eq(arg.Value, arg.Column) {
-		panic(fmt.Sprintf("Panic because I got %v!", arg.Value))
+		panic(fmt.Sprintf("Panic because I got %v = %v!", arg.Column, arg.Value))
 	}
 
 	return arg.Value
@@ -419,6 +422,13 @@ var vqlTests = []vqlTest{
                    select bar, foo from scope()
                 })`},
 
+	{"Foreach should be lazy wrt row will panic if row query materializes (value=5) ", `
+           SELECT * FROM foreach(row={SELECT value, panic(column=value, value=5) FROM range(start=1, end=10)},
+              query={
+                SELECT value from scope()
+              }) LIMIT 3
+        `},
+
 	{"Query plugin with dots", "Select * from Artifact.Linux.Sys()"},
 	{"Order by", "select * from test() order by foo"},
 	{"Order by desc", "select * from test() order by foo DESC"},
@@ -482,6 +492,24 @@ select * from test() limit 1`},
 		"SELECT if(condition=1 + 1 = 2, then=2, else=3), if(condition=1 + 2 = 2, then=2, else=3) FROM scope()"},
 	{"If function and subselects",
 		"SELECT if(condition=1, then={ SELECT * FROM test() }) FROM scope()"},
+	{"If function should be lazy",
+		"SELECT if(condition=FALSE, then=panic(column=1, value=1)) from scope()"},
+	{"If function should be lazy",
+		"SELECT if(condition=TRUE, else=panic(column=1, value=1)) from scope()"},
+
+	{"If function should be lazy with sub query",
+		"SELECT if(condition=TRUE, then={ SELECT * FROM test() LIMIT 1}) from scope()"},
+	{"If function should be lazy with sub query",
+		"SELECT if(condition=FALSE, then={ SELECT panic(column=1, value=1) FROM test()}) from scope()"},
+	{"If function should be lazy",
+		"SELECT if(condition=TRUE, else={ SELECT panic(column=1, value=1) FROM test()}) from scope()"},
+
+	{"If function should be lazy WRT stored query 1/2",
+		"LET bomb = SELECT panic(column=1, value=1) FROM scope()"},
+
+	{"If function should be lazy WRT stored query 2/2",
+		"SELECT if(condition=FALSE, then=bomb) FROM scope()"},
+
 	{"If plugin and arrays",
 		"SELECT * FROM if(condition=1, then=[dict(Foo=1), dict(Foo=2)])"},
 	{"If plugin and dict",

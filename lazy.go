@@ -126,11 +126,38 @@ func MaterializedLazyRow(row Row, scope *Scope) Row {
 }
 
 type LazyExpr struct {
+	Value Any
 	Expr  *_AndExpression
 	ctx   context.Context
 	scope *Scope
 }
 
 func (self *LazyExpr) Reduce() Any {
-	return self.Expr.Reduce(self.ctx, self.scope)
+	if self.Value == nil {
+		if self.Expr == nil {
+			self.Value = &Null{}
+		} else {
+			self.Value = self.Expr.Reduce(self.ctx, self.scope)
+		}
+	}
+
+	stored_query, ok := self.Value.(StoredQuery)
+	if ok {
+		self.Value = Materialize(self.ctx, self.scope, stored_query)
+	}
+
+	return self.Value
+}
+
+func (self *LazyExpr) ToStoredQuery() StoredQuery {
+	if self.Value == nil {
+		self.Reduce()
+	}
+
+	stored_query, ok := self.Value.(StoredQuery)
+	if !ok {
+		return &StoredQueryWrapper{self.Value}
+	}
+
+	return stored_query
 }

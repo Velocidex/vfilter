@@ -1010,7 +1010,10 @@ func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		args := ordereddict.NewDict()
 		for _, arg := range self.Args {
 			if arg.Right != nil {
-				args.Set(arg.Left, LazyExpr{arg.Right, ctx, scope})
+				args.Set(arg.Left, LazyExpr{
+					Expr:  arg.Right,
+					ctx:   ctx,
+					scope: scope})
 
 			} else if arg.Array != nil {
 				value := arg.Array.Reduce(ctx, scope)
@@ -1586,7 +1589,10 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 	for _, arg := range self.Parameters {
 		if arg.Right != nil {
 			// Lazily evaluate right hand side.
-			args.Set(arg.Left, LazyExpr{arg.Right, ctx, scope})
+			args.Set(arg.Left, LazyExpr{
+				Expr:  arg.Right,
+				ctx:   ctx,
+				scope: scope})
 
 		} else if arg.Array != nil {
 			value := arg.Array.Reduce(ctx, scope)

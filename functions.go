@@ -133,9 +133,9 @@ func (self _SplitFunction) Call(ctx context.Context, scope *Scope, args *ordered
 }
 
 type _IfFunctionArgs struct {
-	Condition Any `vfilter:"required,field=condition"`
-	Then      Any `vfilter:"required,field=then"`
-	Else      Any `vfilter:"optional,field=else"`
+	Condition Any      `vfilter:"required,field=condition"`
+	Then      LazyExpr `vfilter:"required,field=then"`
+	Else      LazyExpr `vfilter:"optional,field=else"`
 }
 
 type _IfFunction struct{}
@@ -161,33 +161,10 @@ func (self _IfFunction) Call(
 	}
 
 	if scope.Bool(arg.Condition) {
-		lazy_arg, ok := arg.Then.(LazyExpr)
-		if ok {
-			return lazy_arg.Reduce()
-		}
-
-		stored_query, ok := arg.Then.(StoredQuery)
-		if ok {
-			return Materialize(ctx, scope, stored_query)
-		}
-
-		return arg.Then
-	} else {
-		if arg.Else != nil {
-			lazy_arg, ok := arg.Else.(LazyExpr)
-			if ok {
-				return lazy_arg.Reduce()
-			}
-
-			stored_query, ok := arg.Else.(StoredQuery)
-			if ok {
-				return Materialize(ctx, scope, stored_query)
-			}
-
-			return arg.Else
-		}
-		return Null{}
+		return arg.Then.Reduce()
 	}
+
+	return arg.Else.Reduce()
 }
 
 type _GetFunctionArgs struct {
