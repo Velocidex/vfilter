@@ -120,16 +120,14 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 			continue
 		}
 
-		// From here below, arg has to be non-lazy so we can
-		// deal with its materialized form.
-		lazy_arg, ok := arg.(LazyExpr)
-		if ok {
-			arg = lazy_arg.Reduce()
-		}
-
 		// The target field is a StoredQuery - check that what
 		// was provided is actually one of those.
 		if field_types_value.Type.String() == "vfilter.StoredQuery" {
+			lazy_arg, ok := arg.(LazyExpr)
+			if ok {
+				arg = lazy_arg.ToStoredQuery(scope)
+			}
+
 			stored_query, ok := arg.(StoredQuery)
 			if !ok {
 				stored_query = &StoredQueryWrapper{arg}
@@ -139,9 +137,15 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 			continue
 		}
 
+		// From here below, arg has to be non-lazy so we can
+		// deal with its materialized form.
+		lazy_arg, ok := arg.(LazyExpr)
+		if ok {
+			arg = lazy_arg.Reduce()
+		}
+
 		// The target field is an Any type - just assign it directly.
 		if field_types_value.Type.String() == "vfilter.Any" {
-			// Evaluate the expression.
 			field_value.Set(reflect.ValueOf(arg))
 			continue
 		}

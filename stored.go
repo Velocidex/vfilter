@@ -23,6 +23,8 @@ package vfilter
 import (
 	"context"
 	"reflect"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 // A plugin like object which takes no arguments but may be inserted
@@ -162,10 +164,10 @@ func (self *StoredQueryWrapper) Eval(ctx context.Context, scope *Scope) <-chan R
 		if slice.Type().Kind() == reflect.Slice {
 			for i := 0; i < slice.Len(); i++ {
 				value := slice.Index(i).Interface()
-				output_chan <- value
+				output_chan <- self.toRow(scope, value)
 			}
 		} else {
-			output_chan <- self.Delegate
+			output_chan <- self.toRow(scope, self.Delegate)
 		}
 	}()
 	return output_chan
@@ -182,6 +184,15 @@ func (self *StoredQueryWrapper) ToString(scope *Scope) string {
 	}
 
 	return ""
+}
+
+func (self *StoredQueryWrapper) toRow(scope *Scope, value Any) Row {
+	members := scope.GetMembers(value)
+	if len(members) > 0 {
+		return value
+	}
+
+	return ordereddict.NewDict().Set("_value", value)
 }
 
 func Materialize(ctx context.Context, scope *Scope, stored_query StoredQuery) []Row {

@@ -64,6 +64,37 @@ type Scope struct {
 	context *ordereddict.Dict
 }
 
+// Create a new scope from this scope.
+func (self *Scope) NewScope() *Scope {
+	self.Lock()
+	defer self.Unlock()
+
+	// Make a copy of self
+	result := &Scope{
+		context: ordereddict.NewDict(),
+		vars: []Row{
+			ordereddict.NewDict().
+				Set("NULL", Null{}).
+				Set("__destructors", &_destructors{})},
+		functions:   self.functions,
+		plugins:     self.plugins,
+		bool:        self.bool.Copy(),
+		eq:          self.eq.Copy(),
+		lt:          self.lt.Copy(),
+		add:         self.add.Copy(),
+		sub:         self.sub.Copy(),
+		mul:         self.mul.Copy(),
+		div:         self.div.Copy(),
+		membership:  self.membership.Copy(),
+		associative: self.associative.Copy(),
+		regex:       self.regex.Copy(),
+		Logger:      self.Logger,
+		Tracer:      self.Tracer,
+	}
+
+	return result
+}
+
 func (self *Scope) GetContext(name string) Any {
 	self.Lock()
 	defer self.Unlock()
@@ -283,9 +314,8 @@ func (self *Scope) AppendFunctions(functions ...FunctionInterface) *Scope {
 	defer self.Unlock()
 
 	result := self
-	type_map := NewTypeMap()
 	for _, function := range functions {
-		info := function.Info(self, type_map)
+		info := function.Info(self, nil)
 		result.functions[info.Name] = function
 	}
 
@@ -299,9 +329,8 @@ func (self *Scope) AppendPlugins(plugins ...PluginGeneratorInterface) *Scope {
 	defer self.Unlock()
 
 	result := self
-	type_map := NewTypeMap()
 	for _, plugin := range plugins {
-		info := plugin.Info(self, type_map)
+		info := plugin.Info(self, nil)
 		result.plugins[info.Name] = plugin
 	}
 

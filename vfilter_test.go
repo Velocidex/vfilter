@@ -426,8 +426,29 @@ var vqlTests = []vqlTest{
            SELECT * FROM foreach(row={SELECT value, panic(column=value, value=5) FROM range(start=1, end=10)},
               query={
                 SELECT value from scope()
-              }) LIMIT 3
+              }) LIMIT 1
         `},
+
+	{"Foreach evals query in row scope 1/4",
+		"LET row_query = SELECT 1 AS ColumnName123 FROM scope()"},
+
+	{"Foreach evals query in row scope 2/4",
+		"LET foreach_query = SELECT ColumnName123 FROM scope()"},
+
+	{"Foreach evals query in row scope 3/4",
+		"SELECT * FROM foreach(row=row_query, query=foreach_query)"},
+
+	{"Foreach evals query in row scope 4/4",
+		"SELECT * FROM foreach(row=row_query, query={SELECT ColumnName123 FROM scope()})"},
+
+	{"Foreach with non row elements",
+		"SELECT * FROM foreach(row=1, query='hello')"},
+
+	{"Foreach with non row elements",
+		"SELECT * FROM foreach(row=1, query=[1,2,3,4])"},
+
+	{"Foreach with non row elements",
+		"SELECT * FROM foreach(row=[1,2,3], query={SELECT _value FROM scope()})"},
 
 	{"Query plugin with dots", "Select * from Artifact.Linux.Sys()"},
 	{"Order by", "select * from test() order by foo"},

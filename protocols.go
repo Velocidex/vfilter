@@ -12,7 +12,7 @@ type _BoolDispatcher struct {
 
 func (self _BoolDispatcher) Copy() _BoolDispatcher {
 	return _BoolDispatcher{
-		append(self.impl[:0:0], self.impl...)}
+		append([]BoolProtocol{}, self.impl...)}
 }
 
 func (self _BoolDispatcher) Bool(scope *Scope, a Any) bool {
@@ -109,7 +109,7 @@ type _EqDispatcher struct {
 
 func (self _EqDispatcher) Copy() _EqDispatcher {
 	return _EqDispatcher{
-		append(self.impl[:0:0], self.impl...)}
+		append([]EqProtocol{}, self.impl...)}
 }
 
 func (self _EqDispatcher) Eq(scope *Scope, a Any, b Any) bool {
@@ -314,7 +314,7 @@ type _LtDispatcher struct {
 
 func (self _LtDispatcher) Copy() _LtDispatcher {
 	return _LtDispatcher{
-		append(self.impl[:0:0], self.impl...)}
+		append([]LtProtocol{}, self.impl...)}
 }
 
 func (self _LtDispatcher) Lt(scope *Scope, a Any, b Any) bool {
@@ -385,7 +385,7 @@ type _AddDispatcher struct {
 
 func (self _AddDispatcher) Copy() _AddDispatcher {
 	return _AddDispatcher{
-		append(self.impl[:0:0], self.impl...)}
+		append([]AddProtocol{}, self.impl...)}
 }
 
 func (self _AddDispatcher) Add(scope *Scope, a Any, b Any) Any {
@@ -539,7 +539,7 @@ type _SubDispatcher struct {
 
 func (self _SubDispatcher) Copy() _SubDispatcher {
 	return _SubDispatcher{
-		append(self.impl[:0:0], self.impl...)}
+		append([]SubProtocol{}, self.impl...)}
 }
 
 func (self _SubDispatcher) Sub(scope *Scope, a Any, b Any) Any {
@@ -599,7 +599,7 @@ type _MulDispatcher struct {
 
 func (self _MulDispatcher) Copy() _MulDispatcher {
 	return _MulDispatcher{
-		append(self.impl[:0:0], self.impl...)}
+		append([]MulProtocol{}, self.impl...)}
 }
 
 func (self _MulDispatcher) Mul(scope *Scope, a Any, b Any) Any {
@@ -658,7 +658,7 @@ type _DivDispatcher struct {
 
 func (self _DivDispatcher) Copy() _DivDispatcher {
 	return _DivDispatcher{
-		append(self.impl[:0:0], self.impl...)}
+		append([]DivProtocol{}, self.impl...)}
 }
 
 func (self _DivDispatcher) Div(scope *Scope, a Any, b Any) Any {
@@ -726,7 +726,7 @@ type _MembershipDispatcher struct {
 
 func (self _MembershipDispatcher) Copy() _MembershipDispatcher {
 	return _MembershipDispatcher{
-		append(self.impl[:0:0], self.impl...)}
+		append([]MembershipProtocol{}, self.impl...)}
 }
 
 func (self _MembershipDispatcher) Membership(scope *Scope, a Any, b Any) bool {
@@ -800,7 +800,7 @@ type _AssociativeDispatcher struct {
 
 func (self _AssociativeDispatcher) Copy() _AssociativeDispatcher {
 	return _AssociativeDispatcher{
-		append(self.impl[:0:0], self.impl...)}
+		append([]AssociativeProtocol{}, self.impl...)}
 }
 
 func (self *_AssociativeDispatcher) Associative(
@@ -982,7 +982,7 @@ type _RegexDispatcher struct {
 
 func (self _RegexDispatcher) Copy() _RegexDispatcher {
 	return _RegexDispatcher{
-		append(self.impl[:0:0], self.impl...)}
+		append([]RegexProtocol{}, self.impl...)}
 }
 
 func (self _RegexDispatcher) Match(scope *Scope, pattern Any, target Any) bool {

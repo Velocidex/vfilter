@@ -149,15 +149,22 @@ func (self *LazyExpr) Reduce() Any {
 	return self.Value
 }
 
-func (self *LazyExpr) ToStoredQuery() StoredQuery {
+// Convert the expression to a stored query without materializing
+// it. If the expression is not already a query, we wrap it in a
+// stored query wrapper so the caller receives a stored query.
+func (self *LazyExpr) ToStoredQuery(scope *Scope) StoredQuery {
 	if self.Value == nil {
-		self.Reduce()
+		if self.Expr == nil {
+			self.Value = &Null{}
+		} else {
+			self.Value = self.Expr.Reduce(self.ctx, scope)
+		}
 	}
 
 	stored_query, ok := self.Value.(StoredQuery)
-	if !ok {
-		return &StoredQueryWrapper{self.Value}
+	if ok {
+		return stored_query
 	}
 
-	return stored_query
+	return &StoredQueryWrapper{self.Value}
 }
