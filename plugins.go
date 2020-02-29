@@ -154,7 +154,7 @@ func (self _ChainPlugin) Call(
 			member_obj, _ := args.Get(member)
 			lazy_v, ok := member_obj.(LazyExpr)
 			if ok {
-				member_obj = lazy_v.Reduce()
+				member_obj = lazy_v.ToStoredQuery(scope)
 			}
 
 			query, ok := member_obj.(StoredQuery)
