@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Velocidex/ordereddict"
+	"github.com/go-test/deep"
 	"github.com/sebdah/goldie"
 	"github.com/stretchr/testify/assert"
 )
@@ -537,6 +538,11 @@ select * from test() limit 1`},
 		"SELECT * FROM if(condition=1, then=dict(Foo=2))"},
 }
 
+var multiVQLTest = []vqlTest{
+	{"Query with LET", "LET X = SELECT * FROM test()  SELECT * FROM X\n"},
+	{"MultiSelect", "SELECT 'Bar' AS Foo FROM scope() SELECT 'Foo' AS Foo FROM scope()"},
+}
+
 type _RangeArgs struct {
 	Start float64 `vfilter:"required,field=start"`
 	End   float64 `vfilter:"required,field=end"`
@@ -667,6 +673,36 @@ func TestVQLQueries(t *testing.T) {
 	goldie.Assert(t, "vql_queries", result_json)
 }
 
+func TestMultiVQLQueries(t *testing.T) {
+	scope := makeTestScope()
+
+	// Store the result in ordered dict so we have a consistent golden file.
+	result := ordereddict.NewDict()
+	for i, testCase := range multiVQLTest {
+		multi_vql, err := MultiParse(testCase.vql)
+		if err != nil {
+			t.Fatalf("Failed to parse %v: %v", testCase.vql, err)
+		}
+
+		ctx := context.Background()
+		for idx, vql := range multi_vql {
+			output_json, err := OutputJSON(vql, ctx, scope)
+			if err != nil {
+				t.Fatalf("Failed to eval %v: %v", testCase.vql, err)
+			}
+
+			var output Any
+			json.Unmarshal(output_json, &output)
+
+			result.Set(fmt.Sprintf("%03d/%03d %s: %s", i, idx, testCase.name,
+				vql.ToString(scope)), output)
+		}
+	}
+
+	result_json, _ := json.MarshalIndent(result, "", " ")
+	goldie.Assert(t, "multi_vql_queries", result_json)
+}
+
 // Check that ToString() methods work properly - convert an AST back
 // to VQL. Since ToString() will produce normalized VQL, we ensure
 // that re-parsing this will produce the same AST.
@@ -686,8 +722,9 @@ func TestVQLSerializaition(t *testing.T) {
 				vql_string, err, test.vql)
 		}
 
-		if !reflect.DeepEqual(parsed_vql, vql) {
-			Debug(vql)
+		diffs := deep.Equal(parsed_vql, vql)
+		if diffs != nil {
+			t.Error(diffs)
 			t.Fatalf("Parsed generated VQL not equivalent: %v vs %v.",
 				test.vql, vql_string)
 		}

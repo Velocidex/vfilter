@@ -144,11 +144,11 @@ import (
 )
 
 var (
-	sqlLexer = lexer.Must(lexer.Regexp(
+	vqlLexer = lexer.Must(lexer.Regexp(
 		`(?ms)` +
 			`(\s+)` +
 			`|(?P<MLineComment>^/[*].*?[*]/$)` + // C Style comment.
-			`|(?P<SQLComment>^--.*?$)` + // SQL style one line comment.
+			`|(?P<VQLComment>^--.*?$)` + // SQL style one line comment.
 			`|(?P<Comment>^//.*?$)` + // C++ style one line comment.
 			`|(?ims)(?P<SELECT>\bSELECT\b)` +
 			`|(?ims)(?P<WHERE>\bWHERE\b)` +
@@ -171,21 +171,28 @@ var (
 			`|(?P<Operators><>|!=|<=|>=|=~|[-+*/%,.()=<>{}\[\]])`,
 	))
 
-	sqlParser = participle.MustBuild(
+	vqlParser = participle.MustBuild(
 		&VQL{},
-		participle.Lexer(sqlLexer),
+		participle.Lexer(vqlLexer),
 		participle.Upper("IN", "DESC"),
-		participle.Elide("Comment", "MLineComment", "SQLComment"),
+		participle.Elide("Comment", "MLineComment", "VQLComment"),
 	// Need to solve left recursion detection first, if possible.
 	// participle.UseLookahead(),
+	)
+
+	multiVQLParser = participle.MustBuild(
+		&MultiVQL{},
+		participle.Lexer(vqlLexer),
+		participle.Upper("IN", "DESC"),
+		participle.Elide("Comment", "MLineComment", "VQLComment"),
 	)
 )
 
 // Parse the VQL expression. Returns a VQL object which may be
 // evaluated.
 func Parse(expression string) (*VQL, error) {
-	sql := &VQL{}
-	err := sqlParser.ParseString(expression, sql)
+	vql := &VQL{}
+	err := vqlParser.ParseString(expression, vql)
 	switch t := err.(type) {
 	case *lexer.Error:
 		end := t.Pos.Offset + 10
@@ -210,13 +217,62 @@ func Parse(expression string) (*VQL, error) {
 			pos = 0
 		}
 
-		return sql, errors.Wrap(
+		return vql, errors.Wrap(
 			err,
 			expression[start:pos]+"|"+expression[pos:end])
 	default:
 
-		return sql, err
+		return vql, err
 	}
+}
+
+// Parse a string into multiple VQL statements.
+func MultiParse(expression string) ([]*VQL, error) {
+	vql := &MultiVQL{}
+	err := multiVQLParser.ParseString(expression, vql)
+	switch t := err.(type) {
+	case *lexer.Error:
+		end := t.Pos.Offset + 10
+		if end >= len(expression) {
+			end = len(expression) - 1
+		}
+		if end < 0 {
+			end = 0
+		}
+
+		start := t.Pos.Offset - 10
+		if start < 0 {
+			start = 0
+		}
+
+		pos := t.Pos.Offset
+		if pos >= len(expression) {
+			pos = len(expression) - 1
+		}
+
+		if pos < 0 {
+			pos = 0
+		}
+
+		return nil, errors.Wrap(
+			err,
+			expression[start:pos]+"|"+expression[pos:end])
+	default:
+		return vql.GetStatements(), err
+	}
+}
+
+type MultiVQL struct {
+	VQL1 *VQL      ` @@ `
+	VQL2 *MultiVQL ` { @@ } `
+}
+
+func (self *MultiVQL) GetStatements() []*VQL {
+	result := []*VQL{self.VQL1}
+	if self.VQL2 != nil {
+		return append(result, self.VQL2.GetStatements()...)
+	}
+	return result
 }
 
 // An opaque object representing the VQL expression.
@@ -224,6 +280,21 @@ type VQL struct {
 	Let         string   `{ LET  @Ident `
 	LetOperator string   ` ( @"=" | @"<=" ) }`
 	Query       *_Select ` @@ `
+}
+
+// Returns the type of statement it is:
+// LAZY_LET - A lazy stored query
+// MATERIALIZED_LET - A stored meterialized query.
+// SELECT - A query
+func (self *VQL) Type() string {
+	if self.LetOperator == "=" {
+		return "LAZY_LET"
+	} else if self.LetOperator == "<=" {
+		return "MATERIALIZED_LET"
+	} else if self.Query != nil {
+		return "SELECT"
+	}
+	return ""
 }
 
 // Evaluate the expression. Returns a channel which emits a series of
@@ -607,6 +678,9 @@ type _AliasedExpression struct {
 	Expression *_AndExpression ` @@ )`
 
 	As string `[ AS @Ident ]`
+
+	mu    sync.Mutex
+	cache *string
 }
 
 func (self *_AliasedExpression) GetName(scope *Scope) string {
@@ -663,11 +737,19 @@ func (self _AliasedExpression) Reduce(ctx context.Context, scope *Scope) Any {
 }
 
 func (self *_AliasedExpression) ToString(scope *Scope) string {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	if self.cache != nil {
+		return *self.cache
+	}
+
 	if self.Expression != nil {
 		result := self.Expression.ToString(scope)
 		if self.As != "" {
 			result += " AS " + self.As
 		}
+		self.cache = &result
 		return result
 
 	} else if self.SubSelect != nil {
@@ -676,6 +758,7 @@ func (self *_AliasedExpression) ToString(scope *Scope) string {
 		if self.As != "" {
 			result += " AS " + self.As
 		}
+		self.cache = &result
 		return result
 	} else {
 		return ""
@@ -802,6 +885,9 @@ type _Value struct {
 
 	Boolean *string ` | @BOOL `
 	Null    bool    ` | @NULL)`
+
+	mu    sync.Mutex
+	cache Any
 }
 
 // A Generic object which may be returned in a row from a plugin.
@@ -1491,34 +1577,44 @@ func unquote(s string) (string, error) {
 	return out, nil
 }
 
-func (self _Value) Reduce(ctx context.Context, scope *Scope) Any {
+func (self *_Value) Reduce(ctx context.Context, scope *Scope) Any {
 	self.maybeParseStrNumber(scope)
 
 	if self.Subexpression != nil {
 		return self.Subexpression.Reduce(ctx, scope)
 	} else if self.SymbolRef != nil {
 		return self.SymbolRef.Reduce(ctx, scope)
-	}
-
-	if self.String != nil {
-		result, err := unquote(*self.String)
-		if err != nil {
-			return &Null{}
-		}
-		return result
 
 	} else if self.Int != nil {
 		return *self.Int
 
 	} else if self.Float != nil {
 		return *self.Float
+	}
+
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	// The following are static constants and can be cached.
+	if self.cache != nil {
+		return self.cache
+	}
+
+	if self.String != nil {
+		result, err := unquote(*self.String)
+		if err != nil {
+			self.cache = &Null{}
+		} else {
+			self.cache = result
+		}
 
 	} else if self.Boolean != nil {
-		return strings.ToLower(*self.Boolean) == "true"
+		self.cache = strings.ToLower(*self.Boolean) == "true"
 
 	} else {
-		return Null{}
+		self.cache = Null{}
 	}
+
+	return self.cache
 }
 
 func (self _Value) ToString(scope *Scope) string {

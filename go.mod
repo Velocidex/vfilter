@@ -8,6 +8,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf
 	github.com/cevaris/ordered_map v0.0.0-20180310183325-0efaee1733e3
 	github.com/davecgh/go-spew v1.1.1
+	github.com/go-test/deep v1.0.5
 	github.com/pkg/errors v0.8.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sebdah/goldie v0.0.0-20180424091453-8784dd1ab561

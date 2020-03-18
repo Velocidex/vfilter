@@ -1,0 +1,27 @@
+{
+ "000/000 Query with LET: LET X=SELECT * FROM test()": [],
+ "000/001 Query with LET: SELECT * FROM X": [
+  {
+   "bar": 0,
+   "foo": 0
+  },
+  {
+   "bar": 1,
+   "foo": 2
+  },
+  {
+   "bar": 2,
+   "foo": 4
+  }
+ ],
+ "001/000 MultiSelect: SELECT 'Bar' AS Foo FROM scope()": [
+  {
+   "Foo": "Bar"
+  }
+ ],
+ "001/001 MultiSelect: SELECT 'Foo' AS Foo FROM scope()": [
+  {
+   "Foo": "Foo"
+  }
+ ]
+}
