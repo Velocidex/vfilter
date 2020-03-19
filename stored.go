@@ -80,15 +80,21 @@ func (self _StoredQueryAssociative) Associative(
 		ctx := context.Background()
 		new_scope := scope.Copy()
 		from_chan := stored_query.Eval(ctx, new_scope)
-		for {
-			row, ok := <-from_chan
-			if !ok {
-				break
+		i := int64(0)
+		int_b, b_is_int := to_int64(b)
+
+		for row := range from_chan {
+			// if b is an int then we are dereferencing a
+			// stored query.
+			if b_is_int && i == int_b {
+				return row, true
 			}
+
 			item, pres := scope.Associative(row, b)
 			if pres {
 				result = append(result, item)
 			}
+			i++
 		}
 	}
 	return result, true

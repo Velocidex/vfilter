@@ -23,5 +23,15 @@
   {
    "Foo": "Foo"
   }
+ ],
+ "002/000 LET with index: LET X=SELECT * FROM test()": [],
+ "002/001 LET with index: SELECT X[0], X[1].bar FROM scope()": [
+  {
+   "X[0]": {
+    "bar": 0,
+    "foo": 0
+   },
+   "X[1].bar": 1
+  }
  ]
 }

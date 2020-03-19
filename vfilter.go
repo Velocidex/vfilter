@@ -792,12 +792,11 @@ type _OpFactor struct {
 type _MemberExpression struct {
 	Left  *_Value              `@@`
 	Right []*_OpMembershipTerm `[{ @@ }] `
-	Index *int64               `[ "[" @Number "]"]`
 }
 
 type _OpMembershipTerm struct {
-	Operator string `@"."`
-	Term     string `@Ident`
+	Index *int64 `( "[" @Number "]" | `
+	Term  string `  "." @Ident )`
 }
 
 // ---------------------------------------
@@ -1215,16 +1214,13 @@ func (self _MemberExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	lhs := self.Left.Reduce(ctx, scope)
 	for _, term := range self.Right {
 		var pres bool
-		lhs, pres = scope.Associative(lhs, term.Term)
-		if !pres {
-			return Null{}
-		}
-	}
 
-	// Slice index implementation via Associative protocol.
-	if self.Index != nil {
-		var pres bool
-		lhs, pres = scope.Associative(lhs, self.Index)
+		// Slice index implementation via Associative protocol.
+		if term.Index != nil {
+			lhs, pres = scope.Associative(lhs, term.Index)
+		} else {
+			lhs, pres = scope.Associative(lhs, term.Term)
+		}
 		if !pres {
 			return Null{}
 		}
@@ -1234,14 +1230,14 @@ func (self _MemberExpression) Reduce(ctx context.Context, scope *Scope) Any {
 }
 
 func (self _MemberExpression) ToString(scope *Scope) string {
-	result_comp := []string{self.Left.ToString(scope)}
-	for _, right := range self.Right {
-		result_comp = append(result_comp, right.Term)
-	}
+	result := self.Left.ToString(scope)
 
-	result := strings.Join(result_comp, ".")
-	if self.Index != nil {
-		result += fmt.Sprintf("[%d]", *self.Index)
+	for _, right := range self.Right {
+		if right.Index != nil {
+			result += fmt.Sprintf("[%d]", *right.Index)
+		} else {
+			result += fmt.Sprintf(".%s", right.Term)
+		}
 	}
 
 	return result

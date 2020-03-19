@@ -541,6 +541,7 @@ select * from test() limit 1`},
 var multiVQLTest = []vqlTest{
 	{"Query with LET", "LET X = SELECT * FROM test()  SELECT * FROM X\n"},
 	{"MultiSelect", "SELECT 'Bar' AS Foo FROM scope() SELECT 'Foo' AS Foo FROM scope()"},
+	{"LET with index", "LET X = SELECT * FROM test() SELECT X[0], X[1].bar FROM scope()"},
 }
 
 type _RangeArgs struct {

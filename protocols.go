@@ -187,6 +187,30 @@ func to_float(x Any) (float64, bool) {
 		return float64(t), true
 	case int64:
 		return float64(t), true
+	case *float64:
+		return *t, true
+	case *int:
+		return float64(*t), true
+	case *uint:
+		return float64(*t), true
+
+	case *int8:
+		return float64(*t), true
+	case *int16:
+		return float64(*t), true
+	case *uint8:
+		return float64(*t), true
+	case *uint16:
+		return float64(*t), true
+
+	case *uint32:
+		return float64(*t), true
+	case *int32:
+		return float64(*t), true
+	case *uint64:
+		return float64(*t), true
+	case *int64:
+		return float64(*t), true
 
 	default:
 		return 0, false
@@ -232,6 +256,27 @@ func to_int64(x Any) (int64, bool) {
 		return t, true
 	case float64:
 		return int64(t), true
+
+	case *int:
+		return int64(*t), true
+	case *uint8:
+		return int64(*t), true
+	case *int8:
+		return int64(*t), true
+	case *uint16:
+		return int64(*t), true
+	case *int16:
+		return int64(*t), true
+	case *uint32:
+		return int64(*t), true
+	case *int32:
+		return int64(*t), true
+	case *uint64:
+		return int64(*t), true
+	case *int64:
+		return int64(*t), true
+	case *float64:
+		return int64(*t), true
 
 	default:
 		return 0, false
