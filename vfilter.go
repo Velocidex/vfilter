@@ -707,7 +707,7 @@ func (self *_AliasedExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _AliasedExpression) Reduce(ctx context.Context, scope *Scope) Any {
+func (self *_AliasedExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	if self.Expression != nil {
 		return self.Expression.Reduce(ctx, scope)
 	}
