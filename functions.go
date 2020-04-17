@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -267,4 +268,45 @@ func (self _EncodeFunction) Call(
 		scope.Log("hex: encoding %s not supported.", arg.Type)
 	}
 	return Null{}
+}
+
+type LenFunctionArgs struct {
+	List Any `vfilter:"required,field=list,doc=A list of items too filter"`
+}
+type LenFunction struct{}
+
+func (self LenFunction) Call(ctx context.Context,
+	scope *Scope,
+	args *ordereddict.Dict) Any {
+	arg := &LenFunctionArgs{}
+	err := ExtractArgs(scope, args, arg)
+	if err != nil {
+		scope.Log("len: %s", err.Error())
+		return &Null{}
+	}
+
+	slice := reflect.ValueOf(arg.List)
+	// A slice of strings. Only the following are supported
+	// https://golang.org/pkg/reflect/#Value.Len
+	if slice.Type().Kind() == reflect.Slice ||
+		slice.Type().Kind() == reflect.Map ||
+		slice.Type().Kind() == reflect.Array ||
+		slice.Type().Kind() == reflect.String {
+		return slice.Len()
+	}
+
+	dict, ok := arg.List.(*ordereddict.Dict)
+	if ok {
+		return dict.Len()
+	}
+
+	return 0
+}
+
+func (self LenFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
+	return &FunctionInfo{
+		Name:    "len",
+		Doc:     "Returns the length of an object.",
+		ArgType: type_map.AddType(scope, &LenFunctionArgs{}),
+	}
 }

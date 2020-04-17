@@ -130,6 +130,25 @@ var execTestsSerialization = []execTest{
 		Set("bar", int64(2)).
 		Set("baz", int64(3))},
 
+	{"dict(foo=[1, 2])", ordereddict.NewDict().
+		Set("foo", []int64{1, 2})},
+
+	// Using the trailing comma notation indicates an array.
+	{"dict(foo=[1,])", ordereddict.NewDict().
+		Set("foo", []int64{1})},
+
+	// Tuple notation can also be used
+	{"dict(foo=(1,))", ordereddict.NewDict().
+		Set("foo", []int64{1})},
+
+	{"dict(foo=len(list=[1,]))", ordereddict.NewDict().
+		Set("foo", 1)},
+
+	// Without it a single item array is silently converted to a
+	// single value.
+	{"dict(foo=[1])", ordereddict.NewDict().
+		Set("foo", 1)},
+
 	// Expression as parameter.
 	{"dict(foo=1, bar=( 2 + 3 ))", ordereddict.NewDict().
 		Set("foo", int64(1)).Set("bar", int64(5))},

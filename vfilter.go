@@ -369,7 +369,7 @@ type _Select struct {
 // Provides a list of column names from this query. These columns will
 // serve as Row keys for rows that are published on the output channel
 // by Eval().
-func (self _Select) Columns(scope *Scope) *[]string {
+func (self *_Select) Columns(scope *Scope) *[]string {
 	if self.SelectExpression.All {
 		return self.From.Plugin.Columns(scope)
 	}
@@ -377,7 +377,7 @@ func (self _Select) Columns(scope *Scope) *[]string {
 	return self.SelectExpression.Columns(scope)
 }
 
-func (self _Select) ToString(scope *Scope) string {
+func (self *_Select) ToString(scope *Scope) string {
 	result := "SELECT "
 	if self.SelectExpression != nil {
 		result += self.SelectExpression.ToString(scope)
@@ -413,7 +413,7 @@ func (self _Select) ToString(scope *Scope) string {
 	return result
 }
 
-func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
+func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	output_chan := make(chan Row)
 
 	if self.GroupBy != nil {
@@ -543,13 +543,15 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 			limit := int(*self.Limit)
 			count := 1
-			self.Limit = nil
+
+			self_copy := *self
+			self_copy.Limit = nil
 
 			// Cancel the query when we hit the limit.
 			sub_ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			for row := range self.Eval(sub_ctx, scope) {
+			for row := range self_copy.Eval(sub_ctx, scope) {
 				output_chan <- row
 				count += 1
 				if count > limit {
@@ -571,9 +573,12 @@ func (self _Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			result_set.Desc = *self.OrderByDesc
 		}
 
-		self.OrderBy = nil
+		// Re-run the same query with no order by clause then
+		// we sort the results.
+		self_copy := *self
+		self_copy.OrderBy = nil
 
-		for row := range self.Eval(ctx, scope) {
+		for row := range self_copy.Eval(ctx, scope) {
 			result_set.Items = append(result_set.Items, row)
 		}
 
@@ -818,7 +823,7 @@ type _CommaExpression struct {
 
 type _OpArrayTerm struct {
 	Operator string          `@","`
-	Term     *_AndExpression `@@`
+	Term     *_AndExpression `{ @@ }`
 }
 
 // Expressions separated by AND.
@@ -903,7 +908,7 @@ type Row interface{}
 
 // Receives a row from the FROM clause and transforms it according to
 // the select expression to produce a new row.
-func (self _SelectExpression) Transform(
+func (self *_SelectExpression) Transform(
 	ctx context.Context, scope *Scope, row Row) Row {
 	// The select uses a * to relay all the rows without
 	// filtering
@@ -980,7 +985,7 @@ func (self *_SelectExpression) Columns(scope *Scope) *[]string {
 	return &result
 }
 
-func (self _SelectExpression) ToString(scope *Scope) string {
+func (self *_SelectExpression) ToString(scope *Scope) string {
 	var substrings []string
 	if self.All {
 		substrings = append(substrings, "*")
@@ -994,7 +999,7 @@ func (self _SelectExpression) ToString(scope *Scope) string {
 
 // The From expression runs the Plugin and then filters each row
 // according to the Where clause.
-func (self _From) Eval(ctx context.Context, scope *Scope) <-chan Row {
+func (self *_From) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	output_chan := make(chan Row)
 
 	input_chan := self.Plugin.Eval(ctx, scope)
@@ -1019,12 +1024,12 @@ func (self _From) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	return output_chan
 }
 
-func (self _From) ToString(scope *Scope) string {
+func (self *_From) ToString(scope *Scope) string {
 	result := self.Plugin.ToString(scope)
 	return result
 }
 
-func (self _Plugin) getPlugin(scope *Scope, plugin_name string) (
+func (self *_Plugin) getPlugin(scope *Scope, plugin_name string) (
 	PluginGeneratorInterface, bool) {
 	components := strings.Split(plugin_name, ".")
 	// Single plugin reference.
@@ -1054,7 +1059,7 @@ func (self _Plugin) getPlugin(scope *Scope, plugin_name string) (
 	return nil, false
 }
 
-func (self _Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
+func (self *_Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	output_chan := make(chan Row)
 
 	go func() {
@@ -1177,7 +1182,7 @@ func (self *_Plugin) Columns(scope *Scope) *[]string {
 	return &result
 }
 
-func (self _Plugin) ToString(scope *Scope) string {
+func (self *_Plugin) ToString(scope *Scope) string {
 	result := self.Name
 	if self.Call {
 		var substrings []string
@@ -1191,7 +1196,7 @@ func (self _Plugin) ToString(scope *Scope) string {
 	return result
 }
 
-func (self _Args) ToString(scope *Scope) string {
+func (self *_Args) ToString(scope *Scope) string {
 	if self.Right != nil {
 		return self.Left + "=" + self.Right.ToString(scope)
 	} else if self.SubSelect != nil {
@@ -1202,7 +1207,7 @@ func (self _Args) ToString(scope *Scope) string {
 	return ""
 }
 
-func (self _MemberExpression) IsAggregate(scope *Scope) bool {
+func (self *_MemberExpression) IsAggregate(scope *Scope) bool {
 	if self.Left != nil && self.Left.IsAggregate(scope) {
 		return true
 	}
@@ -1210,7 +1215,7 @@ func (self _MemberExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _MemberExpression) Reduce(ctx context.Context, scope *Scope) Any {
+func (self *_MemberExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	lhs := self.Left.Reduce(ctx, scope)
 	for _, term := range self.Right {
 		var pres bool
@@ -1229,7 +1234,7 @@ func (self _MemberExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	return lhs
 }
 
-func (self _MemberExpression) ToString(scope *Scope) string {
+func (self *_MemberExpression) ToString(scope *Scope) string {
 	result := self.Left.ToString(scope)
 
 	for _, right := range self.Right {
@@ -1243,7 +1248,7 @@ func (self _MemberExpression) ToString(scope *Scope) string {
 	return result
 }
 
-func (self _CommaExpression) IsAggregate(scope *Scope) bool {
+func (self *_CommaExpression) IsAggregate(scope *Scope) bool {
 	if self.Left != nil && self.Left.IsAggregate(scope) {
 		return true
 	}
@@ -1271,6 +1276,9 @@ func (self _CommaExpression) Reduce(ctx context.Context, scope *Scope) Any {
 
 	result := []Any{lhs}
 	for _, term := range self.Right {
+		if term.Term == nil {
+			return result
+		}
 		result = append(result, term.Term.Reduce(ctx, scope))
 	}
 
@@ -1281,7 +1289,11 @@ func (self _CommaExpression) ToString(scope *Scope) string {
 	result := []string{self.Left.ToString(scope)}
 
 	for _, right := range self.Right {
-		result = append(result, right.Term.ToString(scope))
+		if right.Term == nil {
+			result = append(result, "")
+		} else {
+			result = append(result, right.Term.ToString(scope))
+		}
 	}
 	return strings.Join(result, ", ")
 }

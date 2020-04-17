@@ -469,6 +469,7 @@ func NewScope() *Scope {
 		_MinFunction{},
 		_MaxFunction{},
 		_EnumerateFunction{},
+		LenFunction{},
 	)
 
 	result.AppendPlugins(

@@ -1,8 +1,6 @@
 package vfilter
 
 import (
-	"reflect"
-
 	"github.com/Velocidex/ordereddict"
 )
 
@@ -10,7 +8,30 @@ import (
 type _DictEq struct{}
 
 func (self _DictEq) Eq(scope *Scope, a Any, b Any) bool {
-	return reflect.DeepEqual(a, b)
+	a_dict, _ := to_dict(a)
+	b_dict, _ := to_dict(b)
+
+	if a_dict.Len() != b_dict.Len() {
+		return false
+	}
+
+	for _, key := range a_dict.Keys() {
+		a_value, pres := a_dict.Get(key)
+		if !pres {
+			return false
+		}
+
+		b_value, pres := b_dict.Get(key)
+		if !pres {
+			return false
+		}
+
+		if !scope.Eq(a_value, b_value) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func to_dict(a Any) (*ordereddict.Dict, bool) {
