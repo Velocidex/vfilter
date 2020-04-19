@@ -272,7 +272,6 @@ func makeScope() *Scope {
 			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
 				return []Row{1, 2, 3, 4}
 			},
-			RowType: 1,
 		},
 	)
 }
@@ -558,9 +557,12 @@ select * from test() limit 1`},
 }
 
 var multiVQLTest = []vqlTest{
-	{"Query with LET", "LET X = SELECT * FROM test()  SELECT * FROM X\n"},
+	{"Query with LET", "LET X = SELECT * FROM test()  SELECT * FROM X"},
 	{"MultiSelect", "SELECT 'Bar' AS Foo FROM scope() SELECT 'Foo' AS Foo FROM scope()"},
 	{"LET with index", "LET X = SELECT * FROM test() SELECT X[0], X[1].bar FROM scope()"},
+
+	{"LET with extra columns", "LET X = SELECT * FROM test() SELECT *, 1 FROM X"},
+	{"LET materialized with extra columns", "LET X <= SELECT * FROM test() SELECT *, 1 FROM X"},
 }
 
 type _RangeArgs struct {
@@ -677,13 +679,10 @@ func TestVQLQueries(t *testing.T) {
 		}
 
 		ctx := context.Background()
-		output_json, err := OutputJSON(vql, ctx, scope)
-		if err != nil {
-			t.Fatalf("Failed to eval %v: %v", testCase.vql, err)
+		var output []Row
+		for row := range vql.Eval(ctx, scope) {
+			output = append(output, RowToDict(ctx, scope, row, nil))
 		}
-
-		var output Any
-		json.Unmarshal(output_json, &output)
 
 		result.Set(fmt.Sprintf("%03d %s: %s", i, testCase.name,
 			vql.ToString(scope)), output)
@@ -706,13 +705,11 @@ func TestMultiVQLQueries(t *testing.T) {
 
 		ctx := context.Background()
 		for idx, vql := range multi_vql {
-			output_json, err := OutputJSON(vql, ctx, scope)
-			if err != nil {
-				t.Fatalf("Failed to eval %v: %v", testCase.vql, err)
-			}
+			var output []Row
 
-			var output Any
-			json.Unmarshal(output_json, &output)
+			for row := range vql.Eval(ctx, scope) {
+				output = append(output, RowToDict(ctx, scope, row, nil))
+			}
 
 			result.Set(fmt.Sprintf("%03d/%03d %s: %s", i, idx, testCase.name,
 				vql.ToString(scope)), output)
@@ -749,30 +746,4 @@ func TestVQLSerializaition(t *testing.T) {
 				test.vql, vql_string)
 		}
 	}
-}
-
-var columnTests = []vqlTest{
-	{"Columns from env", "select Field from TestDict"},
-	{"Columns from env wildcard", "select * from TestDict"},
-}
-
-func TestColumns(t *testing.T) {
-	env := ordereddict.NewDict().Set("TestDict", []Row{
-		ordereddict.NewDict().Set("Field", 2),
-	})
-	scope := makeTestScope().AppendVars(env)
-
-	result := ordereddict.NewDict()
-	for i, testCase := range columnTests {
-		vql, err := Parse(testCase.vql)
-		if err != nil {
-			t.Fatalf("Failed to parse %v: %v", testCase.vql, err)
-		}
-
-		result.Set(fmt.Sprintf("%03d %s: %s", i, testCase.name,
-			vql.ToString(scope)), vql.Columns(scope))
-	}
-
-	result_json, _ := json.MarshalIndent(result, "", " ")
-	goldie.Assert(t, "columns", result_json)
 }

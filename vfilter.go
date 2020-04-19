@@ -349,13 +349,6 @@ func (self VQL) ToString(scope *Scope) string {
 	return result + self.Query.ToString(scope)
 }
 
-// Provides a list of column names from this query. These columns will
-// serve as Row keys for rows that are published on the output channel
-// by Eval().
-func (self *VQL) Columns(scope *Scope) *[]string {
-	return self.Query.Columns(scope)
-}
-
 type _Select struct {
 	SelectExpression *_SelectExpression `SELECT @@`
 	From             *_From             `FROM @@`
@@ -364,17 +357,6 @@ type _Select struct {
 	OrderBy          *string            `[ ORDERBY @Ident `
 	OrderByDesc      *bool              ` [ @DESC ] ]`
 	Limit            *int64             `[ LIMIT @Number ]`
-}
-
-// Provides a list of column names from this query. These columns will
-// serve as Row keys for rows that are published on the output channel
-// by Eval().
-func (self *_Select) Columns(scope *Scope) *[]string {
-	if self.SelectExpression.All {
-		return self.From.Plugin.Columns(scope)
-	}
-
-	return self.SelectExpression.Columns(scope)
 }
 
 func (self *_Select) ToString(scope *Scope) string {
@@ -972,19 +954,6 @@ func (self *_SelectExpression) Transform(
 	return new_row
 }
 
-func (self *_SelectExpression) Columns(scope *Scope) *[]string {
-	var result []string
-
-	for _, expr := range self.Expressions {
-		if expr.As != "" {
-			result = append(result, expr.As)
-		} else {
-			result = append(result, expr.ToString(scope))
-		}
-	}
-	return &result
-}
-
 func (self *_SelectExpression) ToString(scope *Scope) string {
 	var substrings []string
 	if self.All {
@@ -1144,42 +1113,6 @@ func (self *_Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	}()
 
 	return output_chan
-}
-
-func (self *_Plugin) Columns(scope *Scope) *[]string {
-	var result []string
-
-	// If the plugin is a callable then get the scope to list its columns.
-	if self.Call {
-		type_map := NewTypeMap()
-		if plugin_info, pres := scope.Info(type_map, self.Name); pres {
-			type_ref, pres := type_map.Get(scope, plugin_info.RowType)
-			if pres {
-				for _, k := range type_ref.Fields.Keys() {
-					result = append(result, k)
-				}
-			}
-		}
-
-		// If it is a variable then get its columns through
-		// the GetMembers protocol.
-	} else {
-		value, pres := scope.Resolve(self.Name)
-		if pres {
-			// If it is a stored query we just delegate
-			// the Columns() method to it.
-			stored_query, ok := value.(StoredQuery)
-			if ok {
-				return stored_query.Columns(scope)
-			}
-
-			for _, item := range scope.GetMembers(value) {
-				result = append(result, item)
-			}
-		}
-	}
-
-	return &result
 }
 
 func (self *_Plugin) ToString(scope *Scope) string {

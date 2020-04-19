@@ -1,6 +1,7 @@
 package vfilter
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sort"
@@ -163,31 +164,44 @@ func GetID(obj Any) string {
 	return fmt.Sprintf("%p", obj)
 }
 
-func RowToDict(scope *Scope, row Row) *ordereddict.Dict {
-	// If the row is already a dict nothing to do:
-	result, ok := row.(*ordereddict.Dict)
-	if ok {
-		return result
+// RowToDict reduces the row into a simple Dict. This materializes any
+// lazy queries that are stored in the row into a stable materialized
+// dict.
+func RowToDict(
+	ctx context.Context,
+	scope *Scope, row Row,
+	columns []string) *ordereddict.Dict {
+
+	// Even if it is already a dict we still need to iterate its
+	// values to make sure they are fully materialized.
+	if len(columns) == 0 {
+		columns = scope.GetMembers(row)
 	}
 
-	result = ordereddict.NewDict()
-	for _, column := range scope.GetMembers(row) {
+	result := ordereddict.NewDict()
+	for _, column := range columns {
 		value, pres := scope.Associative(row, column)
-		if pres {
-			result.Set(column, value)
-		}
-	}
+		if pres && !IsNil(value) {
+			var cell Any
 
-	return result
-}
+			switch t := value.(type) {
+			case Null:
+				cell = nil
 
-func RowToMap(scope *Scope, row Row) map[string]interface{} {
-	result := make(map[string]interface{})
+			case fmt.Stringer:
+				cell = value
 
-	for _, column := range scope.GetMembers(row) {
-		value, pres := scope.Associative(row, column)
-		if pres {
-			result[column] = value
+			case []byte:
+				cell = string(t)
+
+			case StoredQuery:
+				cell = Materialize(ctx, scope, t)
+
+			default:
+				// Pass directly to Json Marshal
+				cell = value
+			}
+			result.Set(column, cell)
 		}
 	}
 

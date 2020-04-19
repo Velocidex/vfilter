@@ -31,7 +31,6 @@ import (
 // into the scope to select from it.
 type StoredQuery interface {
 	Eval(ctx context.Context, scope *Scope) <-chan Row
-	Columns(scope *Scope) *[]string
 	ToString(scope *Scope) string
 }
 
@@ -50,14 +49,6 @@ func NewStoredQuery(query *_Select) *_StoredQuery {
 func (self *_StoredQuery) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	new_scope := scope.Copy()
 	return self.query.Eval(ctx, new_scope)
-}
-
-func (self *_StoredQuery) Columns(scope *Scope) *[]string {
-	if self.query.SelectExpression.All {
-		return self.query.From.Plugin.Columns(scope)
-	}
-
-	return self.query.SelectExpression.Columns(scope)
 }
 
 func (self *_StoredQuery) ToString(scope *Scope) string {
@@ -177,10 +168,6 @@ func (self *StoredQueryWrapper) Eval(ctx context.Context, scope *Scope) <-chan R
 		}
 	}()
 	return output_chan
-}
-
-func (self *StoredQueryWrapper) Columns(scope *Scope) *[]string {
-	return &[]string{}
 }
 
 func (self *StoredQueryWrapper) ToString(scope *Scope) string {

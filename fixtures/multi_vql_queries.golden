@@ -1,17 +1,17 @@
 {
- "000/000 Query with LET: LET X=SELECT * FROM test()": [],
+ "000/000 Query with LET: LET X=SELECT * FROM test()": null,
  "000/001 Query with LET: SELECT * FROM X": [
   {
-   "bar": 0,
-   "foo": 0
+   "foo": 0,
+   "bar": 0
   },
   {
-   "bar": 1,
-   "foo": 2
+   "foo": 2,
+   "bar": 1
   },
   {
-   "bar": 2,
-   "foo": 4
+   "foo": 4,
+   "bar": 2
   }
  ],
  "001/000 MultiSelect: SELECT 'Bar' AS Foo FROM scope()": [
@@ -24,14 +24,50 @@
    "Foo": "Foo"
   }
  ],
- "002/000 LET with index: LET X=SELECT * FROM test()": [],
+ "002/000 LET with index: LET X=SELECT * FROM test()": null,
  "002/001 LET with index: SELECT X[0], X[1].bar FROM scope()": [
   {
    "X[0]": {
-    "bar": 0,
-    "foo": 0
+    "foo": 0,
+    "bar": 0
    },
    "X[1].bar": 1
+  }
+ ],
+ "003/000 LET with extra columns: LET X=SELECT * FROM test()": null,
+ "003/001 LET with extra columns: SELECT *, 1 FROM X": [
+  {
+   "foo": 0,
+   "bar": 0,
+   "1": 1
+  },
+  {
+   "foo": 2,
+   "bar": 1,
+   "1": 1
+  },
+  {
+   "foo": 4,
+   "bar": 2,
+   "1": 1
+  }
+ ],
+ "004/000 LET materialized with extra columns: LET X\u003c=SELECT * FROM test()": null,
+ "004/001 LET materialized with extra columns: SELECT *, 1 FROM X": [
+  {
+   "foo": 0,
+   "bar": 0,
+   "1": 1
+  },
+  {
+   "foo": 2,
+   "bar": 1,
+   "1": 1
+  },
+  {
+   "foo": 4,
+   "bar": 2,
+   "1": 1
   }
  ]
 }

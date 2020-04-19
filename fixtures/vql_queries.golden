@@ -1,16 +1,16 @@
 {
  "000 query with dicts: SELECT * FROM test()": [
   {
-   "bar": 0,
-   "foo": 0
+   "foo": 0,
+   "bar": 0
   },
   {
-   "bar": 1,
-   "foo": 2
+   "foo": 2,
+   "bar": 1
   },
   {
-   "bar": 2,
-   "foo": 4
+   "foo": 4,
+   "bar": 2
   }
  ],
  "001 query with ints: SELECT * FROM range(start=10, end=12)": [
@@ -26,19 +26,19 @@
  ],
  "002 query with wild card followed by comma: SELECT *, 1 AS Extra FROM test()": [
   {
-   "Extra": 1,
+   "foo": 0,
    "bar": 0,
-   "foo": 0
+   "Extra": 1
   },
   {
-   "Extra": 1,
+   "foo": 2,
    "bar": 1,
-   "foo": 2
+   "Extra": 1
   },
   {
-   "Extra": 1,
+   "foo": 4,
    "bar": 2,
-   "foo": 4
+   "Extra": 1
   }
  ],
  "003 aliases with shadowed var: SELECT env_var AS EnvVar, foo AS FooColumn FROM test()": [
@@ -148,38 +148,38 @@
  ],
  "015 Subselect functions.: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM test()": [
   {
+   "bar": 0,
    "Query": [
     {
      "column": 0
     }
-   ],
-   "bar": 0
+   ]
   },
   {
+   "bar": 1,
    "Query": [
     {
      "column": 1
     }
-   ],
-   "bar": 1
+   ]
   },
   {
+   "bar": 2,
    "Query": [
     {
      "column": 2
     }
-   ],
-   "bar": 2
+   ]
   }
  ],
  "016 Subselect functions in filter.: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM test() WHERE 1 IN Query.column": [
   {
+   "bar": 1,
    "Query": [
     {
      "column": 1
     }
-   ],
-   "bar": 1
+   ]
   }
  ],
  "017 Subselect in columns: SELECT bar, { SELECT column FROM dict(column=bar) } AS subquery FROM test()": [
@@ -196,24 +196,24 @@
    "subquery": 2
   }
  ],
- "018 Create Let expression: LET result=SELECT * FROM test()": [],
- "019 Create Let materialized expression: LET result\u003c=SELECT * FROM test()": [],
+ "018 Create Let expression: LET result=SELECT * FROM test()": null,
+ "019 Create Let materialized expression: LET result\u003c=SELECT * FROM test()": null,
  "020 Refer to Let expression: SELECT * FROM result": [
   {
-   "bar": 0,
-   "foo": 0
+   "foo": 0,
+   "bar": 0
   },
   {
-   "bar": 1,
-   "foo": 2
+   "foo": 2,
+   "bar": 1
   },
   {
-   "bar": 2,
-   "foo": 4
+   "foo": 4,
+   "bar": 2
   }
  ],
- "021 Refer to non existent Let expression returns no rows: SELECT * FROM no_such_result": [],
- "022 Refer to non existent Let expression by column returns no rows: SELECT foobar FROM no_such_result": [],
+ "021 Refer to non existent Let expression returns no rows: SELECT * FROM no_such_result": null,
+ "022 Refer to non existent Let expression by column returns no rows: SELECT foobar FROM no_such_result": null,
  "023 Foreach plugin: SELECT * FROM foreach(row= { SELECT * FROM test()}, query= { SELECT bar, foo, value FROM range(start=bar, end=foo)})": [
   {
    "bar": 0,
@@ -267,8 +267,8 @@
    "value": 1
   }
  ],
- "027 Foreach evals query in row scope 1/4: LET row_query=SELECT 1 AS ColumnName123 FROM scope()": [],
- "028 Foreach evals query in row scope 2/4: LET foreach_query=SELECT ColumnName123 FROM scope()": [],
+ "027 Foreach evals query in row scope 1/4: LET row_query=SELECT 1 AS ColumnName123 FROM scope()": null,
+ "028 Foreach evals query in row scope 2/4: LET foreach_query=SELECT ColumnName123 FROM scope()": null,
  "029 Foreach evals query in row scope 3/4: SELECT * FROM foreach(row=row_query, query=foreach_query)": [
   {
    "ColumnName123": 1
@@ -309,198 +309,198 @@
    "_value": 3
   }
  ],
- "034 Query plugin with dots: SELECT * FROM Artifact.Linux.Sys()": [],
+ "034 Query plugin with dots: SELECT * FROM Artifact.Linux.Sys()": null,
  "035 Order by: SELECT * FROM test() ORDER BY foo": [
   {
-   "bar": 0,
-   "foo": 0
+   "foo": 0,
+   "bar": 0
   },
   {
-   "bar": 1,
-   "foo": 2
+   "foo": 2,
+   "bar": 1
   },
   {
-   "bar": 2,
-   "foo": 4
+   "foo": 4,
+   "bar": 2
   }
  ],
  "036 Order by desc: SELECT * FROM test() ORDER BY foo DESC ": [
   {
-   "bar": 2,
-   "foo": 4
+   "foo": 4,
+   "bar": 2
   },
   {
-   "bar": 1,
-   "foo": 2
+   "foo": 2,
+   "bar": 1
   },
   {
-   "bar": 0,
-   "foo": 0
+   "foo": 0,
+   "bar": 0
   }
  ],
  "037 Limit: SELECT * FROM test() LIMIT 1 ": [
   {
-   "bar": 0,
-   "foo": 0
+   "foo": 0,
+   "bar": 0
   }
  ],
  "038 Limit and order: SELECT * FROM test() ORDER BY foo DESC  LIMIT 1 ": [
   {
-   "bar": 2,
-   "foo": 4
+   "foo": 4,
+   "bar": 2
   }
  ],
  "039 Comments Simple: SELECT * FROM test() LIMIT 1 ": [
   {
-   "bar": 0,
-   "foo": 0
+   "foo": 0,
+   "bar": 0
   }
  ],
  "040 Comments SQL Style: SELECT * FROM test() LIMIT 1 ": [
   {
-   "bar": 0,
-   "foo": 0
+   "foo": 0,
+   "bar": 0
   }
  ],
  "041 Comments Multiline: SELECT * FROM test() LIMIT 1 ": [
   {
-   "bar": 0,
-   "foo": 0
+   "foo": 0,
+   "bar": 0
   }
  ],
  "042 Not combined with AND: SELECT * FROM test() WHERE 1 AND NOT foo = 2": [
   {
-   "bar": 0,
-   "foo": 0
+   "foo": 0,
+   "bar": 0
   },
   {
-   "bar": 2,
-   "foo": 4
+   "foo": 4,
+   "bar": 2
   }
  ],
- "043 Not combined with AND 2: SELECT * FROM test() WHERE 0 AND NOT foo = 2": [],
+ "043 Not combined with AND 2: SELECT * FROM test() WHERE 0 AND NOT foo = 2": null,
  "044 Not combined with OR: SELECT * FROM test() WHERE 1 OR NOT foo = 20": [
   {
-   "bar": 0,
-   "foo": 0
+   "foo": 0,
+   "bar": 0
   },
   {
-   "bar": 1,
-   "foo": 2
+   "foo": 2,
+   "bar": 1
   },
   {
-   "bar": 2,
-   "foo": 4
+   "foo": 4,
+   "bar": 2
   }
  ],
  "045 Not combined with OR 2: SELECT * FROM test() WHERE 0 OR NOT foo = 20": [
   {
-   "bar": 0,
-   "foo": 0
+   "foo": 0,
+   "bar": 0
   },
   {
-   "bar": 1,
-   "foo": 2
+   "foo": 2,
+   "bar": 1
   },
   {
-   "bar": 2,
-   "foo": 4
+   "foo": 4,
+   "bar": 2
   }
  ],
  "046 Group by 1: SELECT foo, bar FROM groupbytest() GROUP BY bar": [
   {
-   "bar": 2,
-   "foo": 4
+   "foo": 4,
+   "bar": 2
   },
   {
-   "bar": 5,
-   "foo": 2
+   "foo": 2,
+   "bar": 5
   }
  ],
  "047 Group by count: SELECT foo, bar, count(items=bar) FROM groupbytest() GROUP BY bar": [
   {
+   "foo": 4,
    "bar": 2,
-   "count(items=bar)": 2,
-   "foo": 4
+   "count(items=bar)": 2
   },
   {
+   "foo": 2,
    "bar": 5,
-   "count(items=bar)": 2,
-   "foo": 2
+   "count(items=bar)": 2
   }
  ],
  "048 Group by count with where: SELECT foo, bar, count(items=bar) FROM groupbytest() WHERE foo \u003c 4 GROUP BY bar": [
   {
+   "foo": 3,
    "bar": 2,
-   "count(items=bar)": 1,
-   "foo": 3
+   "count(items=bar)": 1
   },
   {
+   "foo": 2,
    "bar": 5,
-   "count(items=bar)": 2,
-   "foo": 2
+   "count(items=bar)": 2
   }
  ],
  "049 Group by min: SELECT foo, bar, min(items=foo) FROM groupbytest() GROUP BY bar": [
   {
-   "bar": 2,
    "foo": 4,
+   "bar": 2,
    "min(items=foo)": 3
   },
   {
-   "bar": 5,
    "foo": 2,
+   "bar": 5,
    "min(items=foo)": 1
   }
  ],
  "050 Group by max: SELECT foo, bar, max(items=foo) FROM groupbytest() GROUP BY bar": [
   {
-   "bar": 2,
    "foo": 4,
+   "bar": 2,
    "max(items=foo)": 4
   },
   {
-   "bar": 5,
    "foo": 2,
+   "bar": 5,
    "max(items=foo)": 2
   }
  ],
  "051 Group by max of string: SELECT baz, bar, max(items=baz) FROM groupbytest() GROUP BY bar": [
   {
-   "bar": 2,
    "baz": "d",
+   "bar": 2,
    "max(items=baz)": "d"
   },
   {
-   "bar": 5,
    "baz": "b",
+   "bar": 5,
    "max(items=baz)": "b"
   }
  ],
  "052 Group by min of string: SELECT baz, bar, min(items=baz) FROM groupbytest() GROUP BY bar": [
   {
-   "bar": 2,
    "baz": "d",
+   "bar": 2,
    "min(items=baz)": "c"
   },
   {
-   "bar": 5,
    "baz": "b",
+   "bar": 5,
    "min(items=baz)": "a"
   }
  ],
  "053 Group by enumrate of string: SELECT baz, bar, enumerate(items=baz) FROM groupbytest() GROUP BY bar": [
   {
-   "bar": 2,
    "baz": "d",
+   "bar": 2,
    "enumerate(items=baz)": [
     "c",
     "d"
    ]
   },
   {
-   "bar": 5,
    "baz": "b",
+   "bar": 5,
    "enumerate(items=baz)": [
     "a",
     "b"
@@ -521,26 +521,26 @@
  "056 Test get(): SELECT get(item= [dict(foo=3), 2, 3, 4], member='0.foo') AS Foo FROM scope()": [
   {}
  ],
- "057 Test array index: LET BIN\u003c=SELECT * FROM test()": [],
+ "057 Test array index: LET BIN\u003c=SELECT * FROM test()": null,
  "058 Test array index 2: SELECT BIN, BIN[0] FROM scope()": [
   {
    "BIN": [
     {
-     "bar": 0,
-     "foo": 0
+     "foo": 0,
+     "bar": 0
     },
     {
-     "bar": 1,
-     "foo": 2
+     "foo": 2,
+     "bar": 1
     },
     {
-     "bar": 2,
-     "foo": 4
+     "foo": 4,
+     "bar": 2
     }
    ],
    "BIN[0]": {
-    "bar": 0,
-    "foo": 0
+    "foo": 0,
+    "bar": 0
    }
   }
  ],
@@ -596,16 +596,16 @@
   {
    "if(condition=1, then= { SELECT * FROM test()})": [
     {
-     "bar": 0,
-     "foo": 0
+     "foo": 0,
+     "bar": 0
     },
     {
-     "bar": 1,
-     "foo": 2
+     "foo": 2,
+     "bar": 1
     },
     {
-     "bar": 2,
-     "foo": 4
+     "foo": 4,
+     "bar": 2
     }
    ]
   }
@@ -624,8 +624,8 @@
   {
    "if(condition=TRUE, then= { SELECT * FROM test() LIMIT 1 })": [
     {
-     "bar": 0,
-     "foo": 0
+     "foo": 0,
+     "bar": 0
     }
    ]
   }
@@ -640,7 +640,7 @@
    "if(condition=TRUE, else= { SELECT panic(column=1, value=1) FROM test()})": null
   }
  ],
- "071 If function should be lazy WRT stored query 1/2: LET bomb=SELECT panic(column=1, value=1) FROM scope()": [],
+ "071 If function should be lazy WRT stored query 1/2: LET bomb=SELECT panic(column=1, value=1) FROM scope()": null,
  "072 If function should be lazy WRT stored query 2/2: SELECT if(condition=FALSE, then=bomb) FROM scope()": [
   {
    "if(condition=FALSE, then=bomb)": null

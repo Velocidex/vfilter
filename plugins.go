@@ -32,16 +32,6 @@ type GenericListPlugin struct {
 	Doc        string
 	Function   FunctionPlugin
 
-	// An exemplar instance of the type returned by this
-	// plugin. All rows must be the same type. If this is nil, we
-	// use the first row returned as the exemplar (this is useful
-	// for dynamic plugins).
-
-	// This exemplar is needed to generate the list of columns for
-	// documentation. Therefore, dynamic plugins do not contain
-	// documentation of their returned columns.
-	RowType Any
-
 	ArgType Any
 }
 
@@ -70,10 +60,6 @@ func (self GenericListPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo 
 	result := &PluginInfo{
 		Name: self.PluginName,
 		Doc:  self.Doc,
-	}
-
-	if self.RowType != nil {
-		result.RowType = type_map.AddType(scope, self.RowType)
 	}
 
 	if self.ArgType != nil {
@@ -120,9 +106,6 @@ func (self _IfPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
 		Name: "if",
 		Doc:  "Conditional execution of query",
 
-		// Our type is not known - it depends on the
-		// delegate's type.
-		RowType: "",
 		ArgType: type_map.AddType(scope, &_IfPluginArg{}),
 	}
 }
