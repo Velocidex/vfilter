@@ -29,7 +29,6 @@ func GetResponseChannel(
 
 		part := 0
 		row_chan := vql.Eval(ctx, scope)
-		var columns []string
 		rows := []Row{}
 
 		ship_payload := func() {
@@ -89,11 +88,7 @@ func GetResponseChannel(
 						time.Second)
 				}
 
-				value := RowToDict(ctx, scope, row, columns)
-				if len(columns) == 0 {
-					columns = value.Keys()
-				}
-
+				value := RowToDict(ctx, scope, row)
 				rows = append(rows, value)
 
 				// Throttle if needed.
@@ -108,15 +103,10 @@ func GetResponseChannel(
 // A convenience function to generate JSON output from a VQL query.
 func OutputJSON(vql *VQL, ctx context.Context, scope *Scope) ([]byte, error) {
 	output_chan := vql.Eval(ctx, scope)
-	var columns []string
 	result := []Row{}
 
 	for row := range output_chan {
-		value := RowToDict(ctx, scope, row, columns)
-		if len(columns) == 0 {
-			columns = value.Keys()
-		}
-
+		value := RowToDict(ctx, scope, row)
 		result = append(result, value)
 
 		// Throttle if needed.

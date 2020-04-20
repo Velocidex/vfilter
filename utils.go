@@ -169,17 +169,12 @@ func GetID(obj Any) string {
 // dict.
 func RowToDict(
 	ctx context.Context,
-	scope *Scope, row Row,
-	columns []string) *ordereddict.Dict {
+	scope *Scope, row Row) *ordereddict.Dict {
 
 	// Even if it is already a dict we still need to iterate its
 	// values to make sure they are fully materialized.
-	if len(columns) == 0 {
-		columns = scope.GetMembers(row)
-	}
-
 	result := ordereddict.NewDict()
-	for _, column := range columns {
+	for _, column := range scope.GetMembers(row) {
 		value, pres := scope.Associative(row, column)
 		if pres && !IsNil(value) {
 			var cell Any

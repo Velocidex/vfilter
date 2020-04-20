@@ -681,7 +681,7 @@ func TestVQLQueries(t *testing.T) {
 		ctx := context.Background()
 		var output []Row
 		for row := range vql.Eval(ctx, scope) {
-			output = append(output, RowToDict(ctx, scope, row, nil))
+			output = append(output, RowToDict(ctx, scope, row))
 		}
 
 		result.Set(fmt.Sprintf("%03d %s: %s", i, testCase.name,
@@ -708,7 +708,7 @@ func TestMultiVQLQueries(t *testing.T) {
 			var output []Row
 
 			for row := range vql.Eval(ctx, scope) {
-				output = append(output, RowToDict(ctx, scope, row, nil))
+				output = append(output, RowToDict(ctx, scope, row))
 			}
 
 			result.Set(fmt.Sprintf("%03d/%03d %s: %s", i, idx, testCase.name,

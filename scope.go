@@ -108,6 +108,9 @@ func (self *Scope) GetContext(name string) Any {
 }
 
 func (self *Scope) ClearContext() {
+	self.Lock()
+	defer self.Unlock()
+
 	self.context = ordereddict.NewDict()
 	self.vars = append(self.vars, ordereddict.NewDict().
 		Set("NULL", Null{}).
