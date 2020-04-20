@@ -30,7 +30,7 @@ func GetResponseChannel(
 		part := 0
 		row_chan := vql.Eval(ctx, scope)
 		var columns []string
-		var rows []Row
+		rows := []Row{}
 
 		ship_payload := func() {
 			s, err := json.MarshalIndent(rows, "", " ")
@@ -55,7 +55,7 @@ func GetResponseChannel(
 
 			result_chan <- result
 
-			rows = nil
+			rows = []Row{}
 			part += 1
 		}
 		// Send the last payload outstanding.
@@ -83,7 +83,7 @@ func GetResponseChannel(
 				}
 
 				// Send the payload if it is too full.
-				if len(rows) > maxrows {
+				if len(rows) >= maxrows {
 					ship_payload()
 					deadline = time.After(time.Duration(max_wait) *
 						time.Second)
@@ -93,6 +93,8 @@ func GetResponseChannel(
 				if len(columns) == 0 {
 					columns = value.Keys()
 				}
+
+				rows = append(rows, value)
 
 				// Throttle if needed.
 				ChargeOp(scope)
@@ -107,7 +109,7 @@ func GetResponseChannel(
 func OutputJSON(vql *VQL, ctx context.Context, scope *Scope) ([]byte, error) {
 	output_chan := vql.Eval(ctx, scope)
 	var columns []string
-	var result []Row
+	result := []Row{}
 
 	for row := range output_chan {
 		value := RowToDict(ctx, scope, row, columns)
