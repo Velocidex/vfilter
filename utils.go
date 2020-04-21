@@ -176,12 +176,12 @@ func RowToDict(
 	result := ordereddict.NewDict()
 	for _, column := range scope.GetMembers(row) {
 		value, pres := scope.Associative(row, column)
-		if pres && !IsNil(value) {
+		if pres {
 			var cell Any
 
 			switch t := value.(type) {
 			case Null:
-				cell = nil
+				cell = value
 
 			case fmt.Stringer:
 				cell = value
