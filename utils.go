@@ -179,6 +179,10 @@ func RowToDict(
 		if pres {
 			var cell Any
 
+			if value == nil {
+				value = Null{}
+			}
+
 			switch t := value.(type) {
 			case Null:
 				cell = value

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -195,12 +196,25 @@ func (self _GetFunction) Call(
 	}
 
 	result := arg.Item
+	var next_result Any
+
 	var pres bool
 	for _, member := range strings.Split(arg.Member, ".") {
-		result, pres = scope.Associative(result, member)
+		int_member, err := strconv.Atoi(member)
+		if err == nil {
+			// If it looks like an int it might be an
+			// index reference.
+			next_result, pres = scope.Associative(
+				result, int_member)
+		} else {
+			next_result, pres = scope.Associative(
+				result, member)
+		}
 		if !pres {
 			return Null{}
 		}
+
+		result = next_result
 	}
 
 	return result

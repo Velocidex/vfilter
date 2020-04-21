@@ -379,6 +379,7 @@ var vqlTests = []vqlTest{
 		"select no_such_column + 'foo' from dict(env_var=15, foo=5)"},
 	{"mix from env and plugin", "select env_var + param as ConCat from dict(param='param')"},
 	{"subselects", "select param from dict(param={select * from range(start=3, end=5)})"},
+	{"empty subselects should produce null", "select {select * from range(start=3, end=5) WHERE 0} AS Value FROM scope()"},
 	// Add two subselects - Adding sequences makes one longer sequence.
 	{"subselects addition",
 		`select q1.value + q2.value as Sum from

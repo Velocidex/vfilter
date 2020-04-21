@@ -889,31 +889,22 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (res Any,
 		// If an error occurs we return false - not found.
 		recover()
 	}()
+
+	// Handle an int index.
+	idx, ok := to_int64(b)
+	if ok {
+		a_value := reflect.Indirect(reflect.ValueOf(a))
+		if idx < 0 || int(idx) > a_value.Len() {
+			return &Null{}, false
+		}
+		value := a_value.Index(int(idx))
+		if value.Kind() == reflect.Ptr && value.IsNil() {
+			return &Null{}, true
+		}
+		return value.Interface(), true
+	}
+
 	switch field_name := b.(type) {
-	case *float64:
-		a_value := reflect.Indirect(reflect.ValueOf(a))
-		idx := int(*field_name)
-		if idx < 0 || idx > a_value.Len() {
-			return &Null{}, false
-		}
-		value := a_value.Index(idx)
-		if value.Kind() == reflect.Ptr && value.IsNil() {
-			return &Null{}, true
-		}
-		return value.Interface(), true
-
-	case *int64:
-		a_value := reflect.Indirect(reflect.ValueOf(a))
-		idx := int(*field_name)
-		if idx < 0 || idx > a_value.Len() {
-			return &Null{}, false
-		}
-		value := a_value.Index(idx)
-		if value.Kind() == reflect.Ptr && value.IsNil() {
-			return &Null{}, true
-		}
-		return value.Interface(), true
-
 	case string:
 		if !is_exported(field_name) {
 			field_name = strings.Title(field_name)
