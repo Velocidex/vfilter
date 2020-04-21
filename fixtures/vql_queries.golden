@@ -665,5 +665,10 @@
   {
    "Foo": 2
   }
+ ],
+ "076 Columns with space in them: SELECT foo AS `column with space` FROM dict(foo='hello world')": [
+  {
+   "column with space": "hello world"
+  }
  ]
 }

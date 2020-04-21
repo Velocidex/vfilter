@@ -69,5 +69,41 @@
    "bar": 2,
    "1": 1
   }
+ ],
+ "005/000 Column name with space: LET X\u003c=SELECT 2 AS `Hello World` FROM scope()": null,
+ "005/001 Column name with space: SELECT `Hello World`, `Hello World` + 4 AS Foo, X.`Hello World` FROM X": [
+  {
+   "Hello World": 2,
+   "Foo": 6,
+   "X.`Hello World`": [
+    2
+   ]
+  }
+ ],
+ "006/000 Group by with columns with spaces: LET X=SELECT foo, bar AS `Foo Bar` FROM groupbytest()": null,
+ "006/001 Group by with columns with spaces: SELECT * FROM X GROUP BY `Foo Bar`": [
+  {
+   "foo": 4,
+   "Foo Bar": 2
+  },
+  {
+   "foo": 2,
+   "Foo Bar": 5
+  }
+ ],
+ "007/000 Order by with columns with spaces: LET X=SELECT foo AS `Foo Bar` FROM groupbytest()": null,
+ "007/001 Order by with columns with spaces: SELECT * FROM X ORDER BY `Foo Bar` DESC ": [
+  {
+   "Foo Bar": 4
+  },
+  {
+   "Foo Bar": 3
+  },
+  {
+   "Foo Bar": 2
+  },
+  {
+   "Foo Bar": 1
+  }
  ]
 }

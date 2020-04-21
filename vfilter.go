@@ -165,7 +165,7 @@ var (
 			`|(?ims)(?P<ORDERBY>\bORDER\s+BY\b)` +
 			`|(?ims)(?P<BOOL>\bTRUE\b|\bFALSE\b)` +
 			`|(?ims)(?P<LET>\bLET\b)` +
-			`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
+			"|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*|`[a-zA-Z_0-9 ]+`)" +
 			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")` +
 			`|(?P<Number>[-+]?(0x)?\d*\.?\d+([eE][-+]?\d+)?)` +
 			`|(?P<Operators><>|!=|<=|>=|=~|[-+*/%,.()=<>{}\[\]])`,
@@ -450,7 +450,7 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				}
 
 				gb_element, pres := scope.Associative(
-					transformed_row, group_by)
+					transformed_row, unquote_ident(group_by))
 				if !pres {
 					// This should not happen -
 					// the group by column is not
@@ -933,9 +933,9 @@ func (self *_SelectExpression) Transform(
 		// Figure out the column name.
 		var column_name string
 		if expr.As != "" {
-			column_name = expr.As
+			column_name = unquote_ident(expr.As)
 		} else {
-			column_name = expr.ToString(scope)
+			column_name = unquote_ident(expr.ToString(scope))
 		}
 
 		new_row.AddColumn(
@@ -1157,7 +1157,7 @@ func (self *_MemberExpression) Reduce(ctx context.Context, scope *Scope) Any {
 		if term.Index != nil {
 			lhs, pres = scope.Associative(lhs, term.Index)
 		} else {
-			lhs, pres = scope.Associative(lhs, term.Term)
+			lhs, pres = scope.Associative(lhs, unquote_ident(term.Term))
 		}
 		if !pres {
 			return Null{}
@@ -1503,8 +1503,12 @@ func (self *_Value) maybeParseStrNumber(scope *Scope) {
 	}
 }
 
+// unquote either a " or ' delimited string.
 func unquote(s string) (string, error) {
 	quote := s[0]
+	if quote != '"' && quote != '\'' {
+		return s, nil
+	}
 	s = s[1 : len(s)-1]
 	out := ""
 	for s != "" {
@@ -1516,6 +1520,26 @@ func unquote(s string) (string, error) {
 		out += string(value)
 	}
 	return out, nil
+}
+
+// Unquote a ` delimited string.
+func unquote_ident(s string) string {
+	quote := s[0]
+	if quote != '`' {
+		return s
+	}
+
+	s = s[1 : len(s)-1]
+	out := ""
+	for s != "" {
+		value, _, tail, err := strconv.UnquoteChar(s, quote)
+		if err != nil {
+			return s
+		}
+		s = tail
+		out += string(value)
+	}
+	return out
 }
 
 func (self *_Value) Reduce(ctx context.Context, scope *Scope) Any {
@@ -1658,7 +1682,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 	}
 
 	// The symbol is just a constant in the scope.
-	value, pres := scope.Resolve(self.Symbol)
+	value, pres := scope.Resolve(unquote_ident(self.Symbol))
 	if pres {
 		return value
 	}

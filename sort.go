@@ -13,9 +13,9 @@ func (self *ResultSet) Len() int {
 
 func (self *ResultSet) Less(i, j int) bool {
 	element1, pres1 := self.scope.Associative(
-		self.Items[i], self.OrderBy)
+		self.Items[i], unquote_ident(self.OrderBy))
 	element2, pres2 := self.scope.Associative(
-		self.Items[j], self.OrderBy)
+		self.Items[j], unquote_ident(self.OrderBy))
 
 	if !pres1 || !pres2 {
 		return false

@@ -555,6 +555,9 @@ select * from test() limit 1`},
 		"SELECT * FROM if(condition=1, then=[dict(Foo=1), dict(Foo=2)])"},
 	{"If plugin and dict",
 		"SELECT * FROM if(condition=1, then=dict(Foo=2))"},
+
+	{"Columns with space in them",
+		"SELECT foo as `column with space` FROM dict(foo='hello world')"},
 }
 
 var multiVQLTest = []vqlTest{
@@ -564,6 +567,13 @@ var multiVQLTest = []vqlTest{
 
 	{"LET with extra columns", "LET X = SELECT * FROM test() SELECT *, 1 FROM X"},
 	{"LET materialized with extra columns", "LET X <= SELECT * FROM test() SELECT *, 1 FROM X"},
+	{"Column name with space", "LET X <= SELECT 2 AS `Hello World` FROM scope() " +
+		"SELECT `Hello World`, `Hello World` + 4 AS Foo, X.`Hello World` FROM X"},
+
+	{"Group by with columns with spaces",
+		"LET X = SELECT foo, bar AS `Foo Bar` FROM groupbytest() SELECT * FROM X GROUP BY `Foo Bar`"},
+	{"Order by with columns with spaces",
+		"LET X = SELECT foo AS `Foo Bar` FROM groupbytest() SELECT * FROM X ORDER BY `Foo Bar` DESC"},
 }
 
 type _RangeArgs struct {
