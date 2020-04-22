@@ -124,9 +124,5 @@ func (self _FlattenPluginImpl) Info(scope *Scope, type_map *TypeMap) *PluginInfo
 			"then we repeat the entire row once for each item.",
 
 		ArgType: type_map.AddType(scope, &_FlattenPluginImpl{}),
-
-		// Our type is not known - it depends on the
-		// delegate's type.
-		RowType: "",
 	}
 }

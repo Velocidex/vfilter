@@ -85,9 +85,5 @@ func (self _ForeachPluginImpl) Info(scope *Scope, type_map *TypeMap) *PluginInfo
 		Doc:  "Executes 'query' once for each row in the 'row' query.",
 
 		ArgType: type_map.AddType(scope, &_ForeachPluginImplArgs{}),
-
-		// Our type is not known - it depends on the
-		// delegate's type.
-		RowType: "",
 	}
 }

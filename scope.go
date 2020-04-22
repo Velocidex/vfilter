@@ -472,6 +472,7 @@ func NewScope() *Scope {
 		_MinFunction{},
 		_MaxFunction{},
 		_EnumerateFunction{},
+		_GetVersion{},
 		LenFunction{},
 	)
 

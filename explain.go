@@ -32,11 +32,9 @@ type PluginInfo struct {
 
 	ArgType string
 
-	// A hint about the type we return for each row. This is a
-	// reference into the relevant type_map. It may be an empty
-	// string if the plugin has no idea what type it will produce
-	// for example if it relays output from other plugins.
-	RowType string
+	// A version of this plugin. VQL queries can target certain
+	// versions of this plugin if needed.
+	Version int
 }
 
 // Describe functions.
@@ -50,6 +48,10 @@ type FunctionInfo struct {
 	// function, vfilter will first run the group by clause then
 	// re-evaluate the function on the aggregate column.
 	IsAggregate bool
+
+	// A version of this plugin. VQL queries can target certain
+	// versions of this function if needed.
+	Version int
 }
 
 // Describe a type. This is meant for human consumption so it does not
