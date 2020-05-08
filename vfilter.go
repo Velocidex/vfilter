@@ -165,7 +165,7 @@ var (
 			`|(?ims)(?P<ORDERBY>\bORDER\s+BY\b)` +
 			`|(?ims)(?P<BOOL>\bTRUE\b|\bFALSE\b)` +
 			`|(?ims)(?P<LET>\bLET\b)` +
-			"|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*|`[a-zA-Z_0-9 ]+`)" +
+			"|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*|`[^`]+`)" +
 			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")` +
 			`|(?P<Number>[-+]?(0x)?\d*\.?\d+([eE][-+]?\d+)?)` +
 			`|(?P<Operators><>|!=|<=|>=|=~|[-+*/%,.()=<>{}\[\]])`,
