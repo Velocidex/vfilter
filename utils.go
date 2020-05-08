@@ -55,6 +55,10 @@ func is_exported(name string) bool {
 		return false
 
 	default:
+		if len(name) == 0 || name[0] == '_' {
+			return false
+		}
+
 		runes := []rune(name)
 		return runes[0] == unicode.ToUpper(runes[0])
 	}

@@ -40,7 +40,6 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 	// Make a copy of the args so we can ensure they are all
 	// provided properly.
 	arg_map := *args.ToDict()
-
 	v := reflect.ValueOf(value)
 
 	if v.Type().Kind() == reflect.Ptr {
@@ -236,7 +235,9 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 	// not recognized.
 	if len(arg_map) != 0 {
 		for k, _ := range arg_map {
-			scope.Log("Extra unrecognized arg: %s", k)
+			if is_exported(k) {
+				scope.Log("Extra unrecognized arg: %s", k)
+			}
 		}
 	}
 
