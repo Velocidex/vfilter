@@ -195,7 +195,7 @@ func Parse(expression string) (*VQL, error) {
 	err := vqlParser.ParseString(expression, vql)
 	switch t := err.(type) {
 	case *lexer.Error:
-		end := t.Pos.Offset + 10
+		end := t.Tok.Pos.Offset + 10
 		if end >= len(expression) {
 			end = len(expression) - 1
 		}
@@ -203,12 +203,12 @@ func Parse(expression string) (*VQL, error) {
 			end = 0
 		}
 
-		start := t.Pos.Offset - 10
+		start := t.Tok.Pos.Offset - 10
 		if start < 0 {
 			start = 0
 		}
 
-		pos := t.Pos.Offset
+		pos := t.Tok.Pos.Offset
 		if pos >= len(expression) {
 			pos = len(expression) - 1
 		}
@@ -232,7 +232,7 @@ func MultiParse(expression string) ([]*VQL, error) {
 	err := multiVQLParser.ParseString(expression, vql)
 	switch t := err.(type) {
 	case *lexer.Error:
-		end := t.Pos.Offset + 10
+		end := t.Tok.Pos.Offset + 10
 		if end >= len(expression) {
 			end = len(expression) - 1
 		}
@@ -240,12 +240,12 @@ func MultiParse(expression string) ([]*VQL, error) {
 			end = 0
 		}
 
-		start := t.Pos.Offset - 10
+		start := t.Tok.Pos.Offset - 10
 		if start < 0 {
 			start = 0
 		}
 
-		pos := t.Pos.Offset
+		pos := t.Tok.Pos.Offset
 		if pos >= len(expression) {
 			pos = len(expression) - 1
 		}
