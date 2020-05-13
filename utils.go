@@ -181,34 +181,42 @@ func RowToDict(
 	for _, column := range scope.GetMembers(row) {
 		value, pres := scope.Associative(row, column)
 		if pres {
-			var cell Any
-
-			if value == nil {
-				value = Null{}
-			}
-
-			switch t := value.(type) {
-			case Null:
-				cell = value
-
-			case fmt.Stringer:
-				cell = value
-
-			case []byte:
-				cell = string(t)
-
-			case StoredQuery:
-				cell = Materialize(ctx, scope, t)
-
-			default:
-				// Pass directly to Json Marshal
-				cell = value
-			}
-			result.Set(column, cell)
+			result.Set(column, normalize_value(ctx, scope, value, 0))
 		}
 	}
 
 	return result
+}
+
+func normalize_value(ctx context.Context, scope *Scope, value Any, depth int) Any {
+	if depth > 10 {
+		return Null{}
+	}
+
+	if value == nil {
+		value = Null{}
+	}
+
+	switch t := value.(type) {
+	case Null:
+		return value
+
+	case fmt.Stringer:
+		return value
+
+	case []byte:
+		return string(t)
+
+	case LazyExpr:
+		return normalize_value(ctx, scope, t.Reduce(), depth+1)
+
+	case StoredQuery:
+		return Materialize(ctx, scope, t)
+
+	default:
+		// Pass directly to Json Marshal
+		return value
+	}
 }
 
 // Get a list of similar sounding plugins.

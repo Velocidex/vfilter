@@ -176,6 +176,7 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 			switch t := arg.(type) {
 			case string:
 				field_value.Set(reflect.ValueOf(t))
+
 			case Null, *Null, nil:
 				continue
 			default:
@@ -235,9 +236,7 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 	// not recognized.
 	if len(arg_map) != 0 {
 		for k, _ := range arg_map {
-			if is_exported(k) {
-				scope.Log("Extra unrecognized arg: %s", k)
-			}
+			scope.Log("Extra unrecognized arg: %s", k)
 		}
 	}
 

@@ -574,6 +574,14 @@ var multiVQLTest = []vqlTest{
 		"LET X = SELECT foo, bar AS `Foo Bar` FROM groupbytest() SELECT * FROM X GROUP BY `Foo Bar`"},
 	{"Order by with columns with spaces",
 		"LET X = SELECT foo AS `Foo Bar` FROM groupbytest() SELECT * FROM X ORDER BY `Foo Bar` DESC"},
+	{"LET with expression",
+		"LET X = 'Hello world' SELECT X FROM scope()"},
+	{"LET with expression lazy",
+		"LET X = panic() SELECT 1 + 1 FROM scope()"},
+	{"LET materialize with expression",
+		"LET X <= 'Hello world' SELECT X FROM scope()"},
+	{"Serialization",
+		"SELECT panic(value=1, colume='X'), func_foo() FROM scope()"},
 }
 
 type _RangeArgs struct {

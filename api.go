@@ -116,3 +116,5 @@ func OutputJSON(vql *VQL, ctx context.Context, scope *Scope) ([]byte, error) {
 	s, err := json.MarshalIndent(result, "", " ")
 	return s, err
 }
+
+type Empty struct{}

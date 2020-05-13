@@ -105,5 +105,29 @@
   {
    "Foo Bar": 1
   }
+ ],
+ "008/000 LET with expression: LET X='Hello world'": null,
+ "008/001 LET with expression: SELECT X FROM scope()": [
+  {
+   "X": "Hello world"
+  }
+ ],
+ "009/000 LET with expression lazy: LET X=panic()": null,
+ "009/001 LET with expression lazy: SELECT 1 + 1 FROM scope()": [
+  {
+   "1 + 1": 2
+  }
+ ],
+ "010/000 LET materialize with expression: LET X\u003c='Hello world'": null,
+ "010/001 LET materialize with expression: SELECT X FROM scope()": [
+  {
+   "X": "Hello world"
+  }
+ ],
+ "011/000 Serialization: SELECT panic(value=1, colume='X'), func_foo() FROM scope()": [
+  {
+   "panic(value=1, colume='X')": 1,
+   "func_foo()": 1
+  }
  ]
 }

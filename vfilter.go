@@ -277,9 +277,10 @@ func (self *MultiVQL) GetStatements() []*VQL {
 
 // An opaque object representing the VQL expression.
 type VQL struct {
-	Let         string   `{ LET  @Ident `
-	LetOperator string   ` ( @"=" | @"<=" ) }`
-	Query       *_Select ` @@ `
+	Let         string          `{ LET  @Ident `
+	LetOperator string          ` ( @"=" | @"<=" ) }`
+	Query       *_Select        ` ( @@ |  `
+	Expression  *_AndExpression ` @@ )`
 }
 
 // Returns the type of statement it is:
@@ -304,6 +305,24 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	// query and assign to the scope.
 	if len(self.Let) > 0 {
 		output_chan := make(chan Row)
+
+		// Let assigning an expression.
+		if self.Expression != nil {
+			expr := LazyExpr{
+				Expr:  self.Expression,
+				ctx:   ctx,
+				scope: scope}
+			switch self.LetOperator {
+			case "=":
+				scope.AppendVars(ordereddict.NewDict().
+					Set(self.Let, expr))
+			case "<=":
+				scope.AppendVars(ordereddict.NewDict().
+					Set(self.Let, expr.Reduce()))
+			}
+			close(output_chan)
+			return output_chan
+		}
 
 		// Check if we are about to trash a scope
 		// variable. The _ variable is special - it can be
@@ -336,17 +355,19 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 // Encodes the query into a string again.
 func (self VQL) ToString(scope *Scope) string {
-	result := ""
 	if len(self.Let) > 0 {
 		operator := " = "
 		if self.LetOperator != "" {
 			operator = self.LetOperator
 		}
 
-		result += "LET " + self.Let + operator
+		if self.Expression != nil {
+			return "LET " + self.Let + operator + self.Expression.ToString(scope)
+		}
+		return "LET " + self.Let + operator + self.Query.ToString(scope)
 	}
 
-	return result + self.Query.ToString(scope)
+	return self.Query.ToString(scope)
 }
 
 type _Select struct {
@@ -851,7 +872,7 @@ type _Term struct {
 
 type _SymbolRef struct {
 	Symbol     string   `@Ident`
-	Parameters []*_Args `[ "(" [ @@ { "," @@ } ] ")" ] `
+	Parameters []*_Args `{ "(" [ @@ { "," @@ } ] ")" } `
 
 	mu       sync.Mutex
 	function FunctionInterface
@@ -1698,6 +1719,11 @@ func (self *_SymbolRef) ToString(scope *Scope) string {
 
 	symbol := self.Symbol
 	if self.Parameters == nil {
+		_, pres := scope.functions[symbol]
+		if pres {
+			return symbol + "()"
+		}
+
 		return symbol
 	}
 

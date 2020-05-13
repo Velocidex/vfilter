@@ -141,9 +141,12 @@ func (self *LazyExpr) Reduce() Any {
 		}
 	}
 
-	stored_query, ok := self.Value.(StoredQuery)
-	if ok {
-		self.Value = Materialize(self.ctx, self.scope, stored_query)
+	switch t := self.Value.(type) {
+	case StoredQuery:
+		self.Value = Materialize(self.ctx, self.scope, t)
+
+	case LazyExpr:
+		self.Value = t.Reduce()
 	}
 
 	return self.Value
