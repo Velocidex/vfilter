@@ -277,10 +277,11 @@ func (self *MultiVQL) GetStatements() []*VQL {
 
 // An opaque object representing the VQL expression.
 type VQL struct {
-	Let         string          `{ LET  @Ident `
-	LetOperator string          ` ( @"=" | @"<=" ) }`
-	Query       *_Select        ` ( @@ |  `
-	Expression  *_AndExpression ` @@ )`
+	Let         string          `( LET  @Ident `
+	LetOperator string          ` ( @"=" | @"<=" ) `
+	StoredQuery *_Select        ` ( @@ |  `
+	Expression  *_AndExpression ` @@ ) |`
+	Query       *_Select        `  @@ )  `
 }
 
 // Returns the type of statement it is:
@@ -337,12 +338,12 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 		switch self.LetOperator {
 		case "=":
-			stored_query := NewStoredQuery(self.Query)
+			stored_query := NewStoredQuery(self.StoredQuery)
 			scope.AppendVars(ordereddict.NewDict().Set(self.Let, stored_query))
 
 		case "<=":
 			scope.AppendVars(ordereddict.NewDict().Set(
-				self.Let, Materialize(ctx, scope, self.Query)))
+				self.Let, Materialize(ctx, scope, self.StoredQuery)))
 		}
 
 		close(output_chan)
@@ -364,7 +365,7 @@ func (self VQL) ToString(scope *Scope) string {
 		if self.Expression != nil {
 			return "LET " + self.Let + operator + self.Expression.ToString(scope)
 		}
-		return "LET " + self.Let + operator + self.Query.ToString(scope)
+		return "LET " + self.Let + operator + self.StoredQuery.ToString(scope)
 	}
 
 	return self.Query.ToString(scope)
@@ -1646,15 +1647,16 @@ func (self _Value) ToString(scope *Scope) string {
 
 func (self *_SymbolRef) IsAggregate(scope *Scope) bool {
 	self.mu.Lock()
-	defer self.mu.Unlock()
-
 	// If it is not a function then it can not be an aggregate.
 	if self.Parameters == nil {
 		return false
 	}
 
+	symbol := self.Symbol
+	self.mu.Unlock()
+
 	// The symbol is a function.
-	value, pres := scope.functions[self.Symbol]
+	value, pres := scope.functions[symbol]
 	if !pres {
 		return false
 	}
@@ -1664,11 +1666,13 @@ func (self *_SymbolRef) IsAggregate(scope *Scope) bool {
 
 func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 	self.mu.Lock()
-	defer self.mu.Unlock()
+	parameters := self.Parameters
+	function := self.function
+	self.mu.Unlock()
 
 	// Build up the args to pass to the function.
 	args := ordereddict.NewDict()
-	for _, arg := range self.Parameters {
+	for _, arg := range parameters {
 		if arg.Right != nil {
 			// Lazily evaluate right hand side.
 			args.Set(arg.Left, LazyExpr{
@@ -1687,8 +1691,8 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 
 	// If this AST node previously called a function, we use the
 	// same function copy to ensure it may store internal state.
-	if self.function != nil {
-		return self.function.Call(ctx, scope, args)
+	if function != nil {
+		return function.Call(ctx, scope, args)
 	}
 
 	// Lookup the symbol in the scope. Functions take
@@ -1698,8 +1702,10 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 	func_obj, pres := scope.functions[self.Symbol]
 	if pres {
 		// Make a copy of the function for next time.
+		self.mu.Lock()
 		self.function = func_obj
-		return self.function.Call(ctx, scope, args)
+		self.mu.Unlock()
+		return func_obj.Call(ctx, scope, args)
 	}
 
 	// The symbol is just a constant in the scope.
