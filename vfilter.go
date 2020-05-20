@@ -1692,7 +1692,11 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 	// If this AST node previously called a function, we use the
 	// same function copy to ensure it may store internal state.
 	if function != nil {
-		return function.Call(ctx, scope, args)
+		result := function.Call(ctx, scope, args)
+		if result == nil {
+			return &Null{}
+		}
+		return result
 	}
 
 	// Lookup the symbol in the scope. Functions take
@@ -1705,12 +1709,19 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 		self.mu.Lock()
 		self.function = func_obj
 		self.mu.Unlock()
-		return func_obj.Call(ctx, scope, args)
+		result := func_obj.Call(ctx, scope, args)
+
+		// Do not allow nil in VQL since it is not compatible
+		// with reflect package.
+		if result == nil {
+			return &Null{}
+		}
+		return result
 	}
 
 	// The symbol is just a constant in the scope.
 	value, pres := scope.Resolve(unquote_ident(self.Symbol))
-	if pres {
+	if value != nil && pres {
 		return value
 	}
 

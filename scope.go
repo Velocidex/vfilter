@@ -509,7 +509,7 @@ func (self *Scope) Resolve(field string) (interface{}, bool) {
 		// present.
 		element, pres := self.Associative(subscope, field)
 		if pres {
-			return element, true
+			return element, element != nil
 		}
 
 		// Default value of inner most scope will prevail.

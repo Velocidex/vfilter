@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -238,4 +239,14 @@ func getSimilarPlugins(scope *Scope, name string) []string {
 	sort.Strings(result)
 
 	return result
+}
+
+func RecoverVQL(scope *Scope) {
+	r := recover()
+	if r != nil {
+		scope.Log("PANIC: %v\n", r)
+		buffer := make([]byte, 4096)
+		n := runtime.Stack(buffer, false /* all */)
+		scope.Log("%s", buffer[:n])
+	}
 }
