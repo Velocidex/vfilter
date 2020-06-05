@@ -270,7 +270,7 @@ func makeScope() *Scope {
 		GenericListPlugin{
 			PluginName: "range",
 			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
-				return []Row{1, 2, 3, 4}
+				return []Row{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 			},
 		},
 	)
@@ -661,6 +661,7 @@ func TestMaterializedStoredQuery(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
+	CounterFunctionCount = 0
 	assert.Equal(t, CounterFunctionCount, 0)
 
 	// Running a query directly will evaluate.

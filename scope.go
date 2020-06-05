@@ -509,7 +509,16 @@ func (self *Scope) Resolve(field string) (interface{}, bool) {
 		// present.
 		element, pres := self.Associative(subscope, field)
 		if pres {
-			return element, element != nil
+			// Do not allow go nil to be emitted into the
+			// query - this leads to various panics and
+			// does not interact well with the reflect
+			// package. It is better to emit vfilter Null{}
+			// objects which do the right thing when
+			// participating in protocols.
+			if element == nil {
+				element = Null{}
+			}
+			return element, true
 		}
 
 		// Default value of inner most scope will prevail.
