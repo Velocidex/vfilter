@@ -493,6 +493,8 @@ select * from test() limit 1`},
 
 	{"Group by 1",
 		"select foo, bar from groupbytest() GROUP BY bar"},
+	{"Group by *",
+		"select * from groupbytest() GROUP BY bar"},
 	{"Group by count",
 		"select foo, bar, count(items=bar) from groupbytest() GROUP BY bar"},
 	{"Group by count with where",
@@ -582,6 +584,8 @@ var multiVQLTest = []vqlTest{
 		"LET X <= 'Hello world' SELECT X FROM scope()"},
 	{"Serialization",
 		"SELECT panic(value=1, colume='X'), func_foo() FROM scope()"},
+	{"LET with expression lazy - string concat",
+		"LET X = 'hello' SELECT X + 'world', 'world' + X, 'hello world' =~ X FROM scope()"},
 }
 
 type _RangeArgs struct {

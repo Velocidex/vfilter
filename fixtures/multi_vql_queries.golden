@@ -129,5 +129,13 @@
    "panic(value=1, colume='X')": 1,
    "func_foo()": 1
   }
+ ],
+ "012/000 LET with expression lazy - string concat: LET X='hello'": null,
+ "012/001 LET with expression lazy - string concat: SELECT X + 'world', 'world' + X, 'hello world' =~ X FROM scope()": [
+  {
+   "X + 'world'": "helloworld",
+   "'world' + X": "worldhello",
+   "'hello world' =~ X": true
+  }
  ]
 }

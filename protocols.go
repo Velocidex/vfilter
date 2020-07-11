@@ -465,6 +465,33 @@ func (self _AddStrings) Add(scope *Scope, a Any, b Any) Any {
 	return a_str + b_str
 }
 
+type _AddLazyExpression struct{}
+
+func (self _AddLazyExpression) Applicable(a Any, b Any) bool {
+	_, ok := a.(LazyExpr)
+	if ok {
+		return true
+	}
+
+	_, ok = b.(LazyExpr)
+	if ok {
+		return true
+	}
+	return false
+}
+
+func (self _AddLazyExpression) Add(scope *Scope, a Any, b Any) Any {
+	a_lazy, ok := a.(LazyExpr)
+	if ok {
+		return scope.Add(a_lazy.Reduce(), b)
+	}
+	b_lazy, ok := b.(LazyExpr)
+	if ok {
+		return scope.Add(a, b_lazy.Reduce())
+	}
+	return Null{}
+}
+
 type _AddInts struct{}
 
 func (self _AddInts) Applicable(a Any, b Any) bool {
@@ -1038,6 +1065,33 @@ func (self *_RegexDispatcher) AddImpl(elements ...RegexProtocol) {
 	for _, impl := range elements {
 		self.impl = append(self.impl, impl)
 	}
+}
+
+type _RegexpLazyExpression struct{}
+
+func (self _RegexpLazyExpression) Applicable(a Any, b Any) bool {
+	_, ok := a.(LazyExpr)
+	if ok {
+		return true
+	}
+
+	_, ok = b.(LazyExpr)
+	if ok {
+		return true
+	}
+	return false
+}
+
+func (self _RegexpLazyExpression) Match(scope *Scope, a Any, b Any) bool {
+	a_lazy, ok := a.(LazyExpr)
+	if ok {
+		return scope.Match(a_lazy.Reduce(), b)
+	}
+	b_lazy, ok := b.(LazyExpr)
+	if ok {
+		return scope.Match(a, b_lazy.Reduce())
+	}
+	return false
 }
 
 type _SubstringRegex struct{}
