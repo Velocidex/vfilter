@@ -152,6 +152,26 @@ func (self *LazyExpr) Reduce() Any {
 	return self.Value
 }
 
+// LazyExpr behaves like a function - calling it will just reduce it
+// with the subscope.
+func (self LazyExpr) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
+	return &FunctionInfo{}
+}
+
+func (self LazyExpr) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
+	// Create a sub scope to call the function.
+	sub_scope := scope.Copy()
+	sub_scope.AppendVars(args)
+
+	callee := &LazyExpr{
+		Value: nil, // Force calling the expression and not cache.
+		Expr:  self.Expr,
+		ctx:   self.ctx,
+		scope: sub_scope,
+	}
+	return callee.Reduce()
+}
+
 // Convert the expression to a stored query without materializing
 // it. If the expression is not already a query, we wrap it in a
 // stored query wrapper so the caller receives a stored query.

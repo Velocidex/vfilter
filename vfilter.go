@@ -1730,11 +1730,14 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 	// The symbol is just a constant in the scope.
 	value, pres := scope.Resolve(unquote_ident(self.Symbol))
 	if value != nil && pres {
-		// If the symbol is a lazy expression then referring
-		// to it will materialize it.
-		l, ok := value.(LazyExpr)
+		// If the symbol implements the FunctionInterface we
+		// can call it.
+		l, ok := value.(FunctionInterface)
 		if ok {
-			return l.Reduce()
+			value = l.Call(ctx, scope, args)
+			if value == nil {
+				value = &Null{}
+			}
 		}
 
 		return value

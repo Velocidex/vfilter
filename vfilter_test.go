@@ -594,6 +594,9 @@ var multiVQLTest = []vqlTest{
 
 	{"Calling stored queries as plugins",
 		"LET X = SELECT Foo FROM scope() SELECT * FROM X(Foo=1)"},
+
+	{"Calling lazy expressions as functions",
+		"LET X = Foo + count() SELECT X(Foo=5), X(Foo=6) FROM scope()"},
 }
 
 type _RangeArgs struct {

@@ -159,5 +159,12 @@
   {
    "Foo": 1
   }
+ ],
+ "015/000 Calling lazy expressions as functions: LET X=Foo + count()": null,
+ "015/001 Calling lazy expressions as functions: SELECT X(Foo=5), X(Foo=6) FROM scope()": [
+  {
+   "X(Foo=5)": 9,
+   "X(Foo=6)": 11
+  }
  ]
 }
