@@ -591,6 +591,9 @@ var multiVQLTest = []vqlTest{
 	// lazy and will be re-evaluated each time.
 	{"Lazy expression in arrays",
 		"LET X = count() SELECT (1, X), dict(foo=X, bar=[1,X]) FROM scope()"},
+
+	{"Calling stored queries as plugins",
+		"LET X = SELECT Foo FROM scope() SELECT * FROM X(Foo=1)"},
 }
 
 type _RangeArgs struct {

@@ -55,6 +55,21 @@ func (self *_StoredQuery) ToString(scope *Scope) string {
 	return self.query.ToString(scope)
 }
 
+// Stored queries can also behave like plugins. This just means we
+// evaluate yet with a subscope built on top of the args.
+func (self *_StoredQuery) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
+	return &PluginInfo{}
+}
+
+func (self *_StoredQuery) Call(ctx context.Context,
+	scope *Scope, args *ordereddict.Dict) <-chan Row {
+
+	sub_scope := scope.Copy()
+	sub_scope.AppendVars(args)
+
+	return self.Eval(ctx, sub_scope)
+}
+
 type _StoredQueryAssociative struct{}
 
 func (self _StoredQueryAssociative) Applicable(a Any, b Any) bool {

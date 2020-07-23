@@ -1025,7 +1025,15 @@ func (self *_Plugin) getPlugin(scope *Scope, plugin_name string) (
 	components := strings.Split(plugin_name, ".")
 	// Single plugin reference.
 	if len(components) == 1 {
+		// Try to find the plugin in the scope plugins.
 		plugin, pres := scope.plugins[plugin_name]
+		if !pres {
+			// Otherwise maybe there is a plugin-like
+			// object in the scope.
+			symbol, _ := scope.Resolve(plugin_name)
+			plugin, pres = symbol.(PluginGeneratorInterface)
+		}
+
 		return plugin, pres
 	}
 

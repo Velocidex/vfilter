@@ -153,5 +153,11 @@
     ]
    }
   }
+ ],
+ "014/000 Calling stored queries as plugins: LET X=SELECT Foo FROM scope()": null,
+ "014/001 Calling stored queries as plugins: SELECT * FROM X(Foo=1)": [
+  {
+   "Foo": 1
+  }
  ]
 }
