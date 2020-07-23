@@ -586,6 +586,11 @@ var multiVQLTest = []vqlTest{
 		"SELECT panic(value=1, colume='X'), func_foo() FROM scope()"},
 	{"LET with expression lazy - string concat",
 		"LET X = 'hello' SELECT X + 'world', 'world' + X, 'hello world' =~ X FROM scope()"},
+
+	// count() increments every time it is called proving X is
+	// lazy and will be re-evaluated each time.
+	{"Lazy expression in arrays",
+		"LET X = count() SELECT (1, X), dict(foo=X, bar=[1,X]) FROM scope()"},
 }
 
 type _RangeArgs struct {

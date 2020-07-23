@@ -9,7 +9,7 @@ import (
 )
 
 type _CountFunctionArgs struct {
-	Items Any `vfilter:"required,field=items"`
+	Items Any `vfilter:"optional,field=items"`
 }
 
 type _CountFunction struct{}

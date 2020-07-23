@@ -137,5 +137,21 @@
    "'world' + X": "worldhello",
    "'hello world' =~ X": true
   }
+ ],
+ "013/000 Lazy expression in arrays: LET X=count()": null,
+ "013/001 Lazy expression in arrays: SELECT (1, X), dict(foo=X, bar= [1, X]) FROM scope()": [
+  {
+   "(1, X)": [
+    1,
+    1
+   ],
+   "dict(foo=X, bar= [1, X])": {
+    "foo": 3,
+    "bar": [
+     1,
+     2
+    ]
+   }
+  }
  ]
 }

@@ -1722,6 +1722,13 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 	// The symbol is just a constant in the scope.
 	value, pres := scope.Resolve(unquote_ident(self.Symbol))
 	if value != nil && pres {
+		// If the symbol is a lazy expression then referring
+		// to it will materialize it.
+		l, ok := value.(LazyExpr)
+		if ok {
+			return l.Reduce()
+		}
+
 		return value
 	}
 
