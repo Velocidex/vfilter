@@ -37,12 +37,15 @@ type StoredQuery interface {
 type _StoredQuery struct {
 	// Capture the scope at the point of definition. We will use
 	// this scope when we run the query.
-	query *_Select
+	query      *_Select
+	name       string
+	parameters []string
 }
 
-func NewStoredQuery(query *_Select) *_StoredQuery {
+func NewStoredQuery(query *_Select, name string) *_StoredQuery {
 	return &_StoredQuery{
 		query: query,
+		name:  name,
 	}
 }
 
@@ -63,11 +66,40 @@ func (self *_StoredQuery) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
 
 func (self *_StoredQuery) Call(ctx context.Context,
 	scope *Scope, args *ordereddict.Dict) <-chan Row {
+	self.checkCallingArgs(scope, args)
 
 	sub_scope := scope.Copy()
 	sub_scope.AppendVars(args)
 
 	return self.Eval(ctx, sub_scope)
+}
+
+func (self *_StoredQuery) checkCallingArgs(scope *Scope, args *ordereddict.Dict) {
+	// No parameters - do not warn
+	if self.parameters == nil {
+		return
+	}
+
+	// Check that all parameters are properly called.
+	seen_map := make(map[string]bool)
+	for _, k := range args.Keys() {
+		if !InString(&self.parameters, k) {
+			scope.Log("Extra unrecognized arg %v when calling %v",
+				k, self.name)
+		}
+		seen_map[k] = true
+	}
+
+	// Some args are missing.
+	if len(seen_map) < len(self.parameters) {
+		for _, k := range self.parameters {
+			_, pres := seen_map[k]
+			if !pres {
+				scope.Log("Missing arg %v when calling %v",
+					k, self.name)
+			}
+		}
+	}
 }
 
 type _StoredQueryAssociative struct{}

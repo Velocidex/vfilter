@@ -278,10 +278,30 @@ func (self *MultiVQL) GetStatements() []*VQL {
 // An opaque object representing the VQL expression.
 type VQL struct {
 	Let         string          `( LET  @Ident `
+	Parameters  *_ParameterList `{ "(" @@ ")" }`
 	LetOperator string          ` ( @"=" | @"<=" ) `
 	StoredQuery *_Select        ` ( @@ |  `
 	Expression  *_AndExpression ` @@ ) |`
 	Query       *_Select        `  @@ )  `
+}
+
+type _ParameterList struct {
+	Left  string              ` @Ident `
+	Right *_ParameterListTerm `{ @@ }`
+}
+
+func (self _ParameterList) ToString(scope *Scope) string {
+	result := self.Left
+
+	if self.Right != nil {
+		result += ", " + self.Right.Term.ToString(scope)
+	}
+	return result
+}
+
+type _ParameterListTerm struct {
+	Operator string          `@","`
+	Term     *_ParameterList ` @@ `
 }
 
 // Returns the type of statement it is:
@@ -307,12 +327,23 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	if len(self.Let) > 0 {
 		output_chan := make(chan Row)
 
+		if self.Parameters != nil && self.LetOperator == "<=" {
+			scope.Log("Expression %v takes parameters but is "+
+				"materialized! Did you mean to use '='? ", self.Let)
+		}
+
 		// Let assigning an expression.
 		if self.Expression != nil {
 			expr := LazyExpr{
 				Expr:  self.Expression,
+				name:  self.Let,
 				ctx:   ctx,
 				scope: scope}
+
+			if self.Parameters != nil {
+				expr.parameters = self.getParameters()
+			}
+
 			switch self.LetOperator {
 			case "=":
 				scope.AppendVars(ordereddict.NewDict().
@@ -338,7 +369,11 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 		switch self.LetOperator {
 		case "=":
-			stored_query := NewStoredQuery(self.StoredQuery)
+			stored_query := NewStoredQuery(self.StoredQuery, self.Let)
+			if self.Parameters != nil {
+				stored_query.parameters = self.getParameters()
+			}
+
 			scope.AppendVars(ordereddict.NewDict().Set(self.Let, stored_query))
 
 		case "<=":
@@ -354,18 +389,45 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	}
 }
 
+// Walk the parameters list and collect all the parameter names.
+func visitor(parameters *_ParameterList, result *[]string) {
+	*result = append(*result, parameters.Left)
+	if parameters.Right != nil {
+		visitor(parameters.Right.Term, result)
+	}
+}
+
+func (self VQL) getParameters() []string {
+	result := []string{}
+
+	if self.Let != "" && self.Parameters != nil {
+		visitor(self.Parameters, &result)
+	}
+
+	return result
+}
+
 // Encodes the query into a string again.
 func (self VQL) ToString(scope *Scope) string {
-	if len(self.Let) > 0 {
+	if self.Let != "" {
 		operator := " = "
 		if self.LetOperator != "" {
 			operator = self.LetOperator
 		}
 
-		if self.Expression != nil {
-			return "LET " + self.Let + operator + self.Expression.ToString(scope)
+		parameters := ""
+		if self.Parameters != nil {
+			parameters = "(" +
+				strings.Join(self.getParameters(), ",") +
+				")"
 		}
-		return "LET " + self.Let + operator + self.StoredQuery.ToString(scope)
+
+		if self.Expression != nil {
+			return "LET " + self.Let + parameters +
+				operator + self.Expression.ToString(scope)
+		}
+		return "LET " + self.Let + parameters +
+			operator + self.StoredQuery.ToString(scope)
 	}
 
 	return self.Query.ToString(scope)

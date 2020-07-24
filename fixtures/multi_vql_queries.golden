@@ -166,5 +166,17 @@
    "X(Foo=5)": 9,
    "X(Foo=6)": 11
   }
+ ],
+ "016/000 Defining functions with args: LET X(Foo,Bar)=Foo + Bar": null,
+ "016/001 Defining functions with args: SELECT X(Foo=5, Bar=2) FROM scope()": [
+  {
+   "X(Foo=5, Bar=2)": 7
+  }
+ ],
+ "017/000 Defining stored queries with args: LET X(Foo,Bar)=SELECT Foo + Bar FROM scope()": null,
+ "017/001 Defining stored queries with args: SELECT * FROM X(Foo=5, Bar=2)": [
+  {
+   "Foo + Bar": 7
+  }
  ]
 }

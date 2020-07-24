@@ -10,6 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func marshal_indent(rows []Row) ([]byte, error) {
+	return json.MarshalIndent(rows, "", " ")
+}
+
 func TestAPIGetResponseChannel(t *testing.T) {
 	ctx := context.Background()
 	scope := makeTestScope()
@@ -24,7 +28,9 @@ func TestAPIGetResponseChannel(t *testing.T) {
 	test_GetResponseChannel := func(name string, vql *VQL, max_rows int) {
 		payloads := []*VFilterJsonResult{}
 		serialized := []string{}
-		for result := range GetResponseChannel(vql, ctx, scope, max_rows, 1000) {
+		for result := range GetResponseChannel(
+			vql, ctx, scope, marshal_indent,
+			max_rows, 1000) {
 			serialized = append(serialized, string(result.Payload))
 			payloads = append(payloads, result)
 		}
@@ -40,7 +46,7 @@ func TestAPIGetResponseChannel(t *testing.T) {
 
 	{
 		// OutputJSON dumps everything in one big json blob.
-		serialized, err := OutputJSON(vql, ctx, scope)
+		serialized, err := OutputJSON(vql, ctx, scope, marshal_indent)
 		assert.NoError(t, err)
 		golden.Set("OutputJSON", string(serialized))
 	}

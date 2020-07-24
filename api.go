@@ -2,7 +2,6 @@ package vfilter
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 )
 
@@ -14,11 +13,14 @@ type VFilterJsonResult struct {
 	Payload   []byte
 }
 
+type RowEncoder func(rows []Row) ([]byte, error)
+
 // Returns a channel over which multi part results are sent.
 func GetResponseChannel(
 	vql *VQL,
 	ctx context.Context,
 	scope *Scope,
+	encoder RowEncoder,
 	maxrows int,
 	// Max time to wait before returning some results.
 	max_wait int) <-chan *VFilterJsonResult {
@@ -32,7 +34,7 @@ func GetResponseChannel(
 		rows := []Row{}
 
 		ship_payload := func() {
-			s, err := json.MarshalIndent(rows, "", " ")
+			s, err := encoder(rows)
 			if err != nil {
 				scope.Log("Unable to serialize: %v",
 					err.Error())
@@ -101,7 +103,11 @@ func GetResponseChannel(
 }
 
 // A convenience function to generate JSON output from a VQL query.
-func OutputJSON(vql *VQL, ctx context.Context, scope *Scope) ([]byte, error) {
+func OutputJSON(
+	vql *VQL,
+	ctx context.Context,
+	scope *Scope,
+	encoder RowEncoder) ([]byte, error) {
 	output_chan := vql.Eval(ctx, scope)
 	result := []Row{}
 
@@ -113,7 +119,7 @@ func OutputJSON(vql *VQL, ctx context.Context, scope *Scope) ([]byte, error) {
 		ChargeOp(scope)
 	}
 
-	s, err := json.MarshalIndent(result, "", " ")
+	s, err := encoder(result)
 	return s, err
 }
 

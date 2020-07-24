@@ -126,10 +126,12 @@ func MaterializedLazyRow(row Row, scope *Scope) Row {
 }
 
 type LazyExpr struct {
-	Value Any
-	Expr  *_AndExpression
-	ctx   context.Context
-	scope *Scope
+	Value      Any
+	Expr       *_AndExpression
+	name       string
+	ctx        context.Context
+	parameters []string
+	scope      *Scope
 }
 
 func (self *LazyExpr) Reduce() Any {
@@ -159,15 +161,19 @@ func (self LazyExpr) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 }
 
 func (self LazyExpr) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
+	// Check the call is correct.
+	self.checkCallingArgs(scope, args)
+
 	// Create a sub scope to call the function.
 	sub_scope := scope.Copy()
 	sub_scope.AppendVars(args)
 
 	callee := &LazyExpr{
-		Value: nil, // Force calling the expression and not cache.
-		Expr:  self.Expr,
-		ctx:   self.ctx,
-		scope: sub_scope,
+		Value:      nil, // Force calling the expression and not cache.
+		Expr:       self.Expr,
+		parameters: self.parameters,
+		ctx:        self.ctx,
+		scope:      sub_scope,
 	}
 	return callee.Reduce()
 }
@@ -190,4 +196,32 @@ func (self *LazyExpr) ToStoredQuery(scope *Scope) StoredQuery {
 	}
 
 	return &StoredQueryWrapper{self.Value}
+}
+
+func (self *LazyExpr) checkCallingArgs(scope *Scope, args *ordereddict.Dict) {
+	// No parameters - do not warn
+	if self.parameters == nil {
+		return
+	}
+
+	// Check that all parameters are properly called.
+	seen_map := make(map[string]bool)
+	for _, k := range args.Keys() {
+		if !InString(&self.parameters, k) {
+			scope.Log("Extra unrecognized arg %v when calling %v",
+				k, self.name)
+		}
+		seen_map[k] = true
+	}
+
+	// Some args are missing.
+	if len(seen_map) < len(self.parameters) {
+		for _, k := range self.parameters {
+			_, pres := seen_map[k]
+			if !pres {
+				scope.Log("Missing arg %v when calling %v",
+					k, self.name)
+			}
+		}
+	}
 }

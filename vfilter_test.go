@@ -597,6 +597,12 @@ var multiVQLTest = []vqlTest{
 
 	{"Calling lazy expressions as functions",
 		"LET X = Foo + count() SELECT X(Foo=5), X(Foo=6) FROM scope()"},
+
+	{"Defining functions with args",
+		"LET X(Foo, Bar) = Foo + Bar SELECT X(Foo=5, Bar=2) FROM scope()"},
+
+	{"Defining stored queries with args",
+		"LET X(Foo, Bar) = SELECT Foo + Bar FROM scope() SELECT * FROM X(Foo=5, Bar=2)"},
 }
 
 type _RangeArgs struct {
@@ -672,7 +678,7 @@ func TestMaterializedStoredQuery(t *testing.T) {
 		assert.NoError(t, err)
 
 		ctx := context.Background()
-		_, err = OutputJSON(vql, ctx, scope)
+		_, err = OutputJSON(vql, ctx, scope, marshal_indent)
 		assert.NoError(t, err)
 	}
 
