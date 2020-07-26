@@ -178,5 +178,30 @@
   {
    "Foo + Bar": 7
   }
+ ],
+ "018/000 Defining functions masking variable name: LET X(foo)=foo + 2": null,
+ "018/001 Defining functions masking variable name: SELECT X(foo=foo) FROM test()": [
+  {
+   "X(foo=foo)": 2
+  },
+  {
+   "X(foo=foo)": 4
+  },
+  {
+   "X(foo=foo)": 6
+  }
+ ],
+ "019/000 Defining stored queries masking variable name: LET X(foo)=SELECT * FROM range(start=foo, end=foo + 2)": null,
+ "019/001 Defining stored queries masking variable name: LET foo=2": null,
+ "019/002 Defining stored queries masking variable name: SELECT * FROM X(foo=foo)": [
+  {
+   "value": 2
+  },
+  {
+   "value": 3
+  },
+  {
+   "value": 4
+  }
  ]
 }

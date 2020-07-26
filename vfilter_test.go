@@ -603,6 +603,12 @@ var multiVQLTest = []vqlTest{
 
 	{"Defining stored queries with args",
 		"LET X(Foo, Bar) = SELECT Foo + Bar FROM scope() SELECT * FROM X(Foo=5, Bar=2)"},
+
+	{"Defining functions masking variable name",
+		"LET X(foo) = foo + 2 SELECT X(foo=foo) FROM test()"},
+
+	{"Defining stored queries masking variable name",
+		"LET X(foo) = SELECT * FROM range(start=foo, end=foo + 2) LET foo=2 SELECT * FROM X(foo=foo)"},
 }
 
 type _RangeArgs struct {

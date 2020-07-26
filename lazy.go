@@ -165,7 +165,7 @@ func (self LazyExpr) Call(ctx context.Context, scope *Scope, args *ordereddict.D
 	self.checkCallingArgs(scope, args)
 
 	// Create a sub scope to call the function.
-	sub_scope := scope.Copy()
+	sub_scope := self.scope.Copy()
 	sub_scope.AppendVars(args)
 
 	callee := &LazyExpr{

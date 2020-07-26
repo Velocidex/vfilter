@@ -69,7 +69,20 @@ func (self *_StoredQuery) Call(ctx context.Context,
 	self.checkCallingArgs(scope, args)
 
 	sub_scope := scope.Copy()
-	sub_scope.AppendVars(args)
+
+	vars := ordereddict.NewDict()
+	for _, k := range args.Keys() {
+		v, _ := args.Get(k)
+		switch t := v.(type) {
+		case *LazyExpr:
+			v = t.Reduce()
+		case StoredQuery:
+			v = Materialize(ctx, scope, t)
+		}
+		vars.Set(k, v)
+	}
+
+	sub_scope.AppendVars(vars)
 
 	return self.Eval(ctx, sub_scope)
 }
