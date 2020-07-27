@@ -1792,13 +1792,30 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 	// The symbol is just a constant in the scope.
 	value, pres := scope.Resolve(unquote_ident(self.Symbol))
 	if value != nil && pres {
-		// If the symbol implements the FunctionInterface we
-		// can call it.
-		l, ok := value.(FunctionInterface)
-		if ok {
-			value = l.Call(ctx, scope, args)
+		switch t := value.(type) {
+		case FunctionInterface:
+			// If the symbol implements the FunctionInterface we
+			// can call it.
+			subscope := scope.Copy()
+			value = t.Call(ctx, subscope, args)
 			if value == nil {
 				value = &Null{}
+			}
+
+		case StoredQuery:
+			// If the call site specifies parameters then
+			// we materialize the plugin at this
+			// point. Otherwise pass the stored query
+			// through.
+			if self.Parameters != nil {
+				subscope := scope.Copy()
+				subscope.AppendVars(args)
+
+				result := []Row{}
+				for item := range t.Eval(ctx, subscope) {
+					result = append(result, item)
+				}
+				return result
 			}
 		}
 

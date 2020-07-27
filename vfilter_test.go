@@ -605,10 +605,19 @@ var multiVQLTest = []vqlTest{
 		"LET X(Foo, Bar) = SELECT Foo + Bar FROM scope() SELECT * FROM X(Foo=5, Bar=2)"},
 
 	{"Defining functions masking variable name",
-		"LET X(foo) = foo + 2 SELECT X(foo=foo) FROM test()"},
+		"LET X(foo) = foo + 2 SELECT X(foo=foo), foo FROM test()"},
 
 	{"Defining stored queries masking variable name",
-		"LET X(foo) = SELECT * FROM range(start=foo, end=foo + 2) LET foo=2 SELECT * FROM X(foo=foo)"},
+		"LET X(foo) = SELECT *, foo FROM range(start=foo, end=foo + 2) LET foo=2 SELECT * FROM X(foo=foo)"},
+	{"Calling stored query in function context",
+		// Calling a parameterized stored query in function
+		// context materialized it in place.
+		"LET X(foo) = SELECT *, foo FROM range(start=foo, end=foo + 2) SELECT X(foo=5).value, X(foo=10) FROM scope()"},
+	{"Calling stored query with args",
+		// Referring to a parameterized stored query in an arg
+		// without calling it passes the stored query itself
+		// as an arg.
+		"LET X(foo) = SELECT *, foo FROM range(start=foo, end=foo + 2) LET foo = 8 SELECT * FROM foreach(row=X, query={ SELECT *, value FROM X(foo=value) })"},
 }
 
 type _RangeArgs struct {
