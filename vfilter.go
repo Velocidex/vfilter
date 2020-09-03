@@ -1823,7 +1823,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 				// overflow expressions. eg:
 				// X = 1 + X
 			} else {
-				if t.scope.getDepth() >= 10 {
+				if t.scope.getDepth() >= 1000 {
 					scope.Log("Stack Overflow")
 					return &Null{}
 				}
