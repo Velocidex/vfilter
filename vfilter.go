@@ -935,7 +935,8 @@ type _Term struct {
 
 type _SymbolRef struct {
 	Symbol     string   `@Ident`
-	Parameters []*_Args `{ "(" [ @@ { "," @@ } ] ")" } `
+	Called     bool     `{ @"(" `
+	Parameters []*_Args ` [ @@ { "," @@ } ] ")" } `
 
 	mu       sync.Mutex
 	function FunctionInterface
@@ -1161,8 +1162,11 @@ func (self *_Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		args := ordereddict.NewDict()
 		for _, arg := range self.Args {
 			if arg.Right != nil {
-				args.Set(arg.Left, LazyExpr{
+				name := unquote_ident(arg.Left)
+
+				args.Set(name, LazyExpr{
 					Expr:  arg.Right,
+					name:  "Arg " + name,
 					ctx:   ctx,
 					scope: scope})
 
@@ -1745,8 +1749,10 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 	for _, arg := range parameters {
 		if arg.Right != nil {
 			// Lazily evaluate right hand side.
-			args.Set(arg.Left, LazyExpr{
+			name := unquote_ident(arg.Left)
+			args.Set(name, LazyExpr{
 				Expr:  arg.Right,
+				name:  "Arg " + name,
 				ctx:   ctx,
 				scope: scope})
 
@@ -1789,17 +1795,42 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 		return result
 	}
 
-	// The symbol is just a constant in the scope.
+	// The symbol is just a constant in the scope. It may be a
+	// lazy expression, a function or a stored query or just a
+	// plain value.
 	value, pres := scope.Resolve(unquote_ident(self.Symbol))
 	if value != nil && pres {
 		switch t := value.(type) {
-		case FunctionInterface:
-			// If the symbol implements the FunctionInterface we
-			// can call it.
-			subscope := scope.Copy()
-			value = t.Call(ctx, subscope, args)
-			if value == nil {
-				value = &Null{}
+
+		// If the symbol is a lazy expression deal with that.
+		case LazyExpr:
+			// If we are calling the expression, create a
+			// new scope, pass only the args to it, and
+			// evaluate the expression in the new scope.
+			if self.Called {
+				subscope := scope.Copy()
+				subscope.AppendVars(args)
+
+				t.scope = subscope
+				value = t.Call(ctx, subscope, args)
+				if value == nil {
+					value = &Null{}
+				}
+
+				// Otherwise evaluate the expression
+				// in the current scope but increase
+				// the stack depth to detect stack
+				// overflow expressions. eg:
+				// X = 1 + X
+			} else {
+				if t.scope.getDepth() >= 10 {
+					scope.Log("Stack Overflow")
+					return &Null{}
+				}
+
+				t.scope.incDepth()
+				value = t.Reduce()
+				t.scope.decDepth()
 			}
 
 		case StoredQuery:
@@ -1817,6 +1848,9 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 				}
 				return result
 			}
+
+		default:
+			// Every thing else is taken literally.
 		}
 
 		return value

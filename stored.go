@@ -74,7 +74,7 @@ func (self *_StoredQuery) Call(ctx context.Context,
 	for _, k := range args.Keys() {
 		v, _ := args.Get(k)
 		switch t := v.(type) {
-		case *LazyExpr:
+		case LazyExpr:
 			v = t.Reduce()
 		case StoredQuery:
 			v = Materialize(ctx, scope, t)

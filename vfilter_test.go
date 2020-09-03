@@ -595,8 +595,11 @@ var multiVQLTest = []vqlTest{
 	{"Calling stored queries as plugins",
 		"LET X = SELECT Foo FROM scope() SELECT * FROM X(Foo=1)"},
 
-	{"Calling lazy expressions as functions",
-		"LET X = Foo + count() SELECT X(Foo=5), X(Foo=6) FROM scope()"},
+	// First two calls to Y are not function calls so they
+	// evaluate on the current scope. Third call makes a new scope
+	// which resets count().
+	{"Calling lazy expressions as functions creates a new scope",
+		"LET Y = count() SELECT Y AS Y1, Y AS Y2, Y() AS Y3 FROM scope()"},
 
 	{"Defining functions with args",
 		"LET X(Foo, Bar) = Foo + Bar SELECT X(Foo=5, Bar=2) FROM scope()"},
@@ -618,6 +621,24 @@ var multiVQLTest = []vqlTest{
 		// without calling it passes the stored query itself
 		// as an arg.
 		"LET X(foo) = SELECT *, foo FROM range(start=foo, end=foo + 2) LET foo = 8 SELECT * FROM foreach(row=X, query={ SELECT *, value FROM X(foo=value) })"},
+
+	{"Lazy expression evaluates in caller's scope",
+		"LET X(foo) = 1 + foo SELECT X(foo= foo + 1 ), foo FROM test()"},
+
+	{"Calling lazy expressions as functions allows access to global scope",
+		"LET Xk = 5 LET Y = Xk + count() SELECT Y AS Y1, Y AS Y2, Y() AS Y3 FROM scope()"},
+
+	{"Overflow condition - should not get stuck",
+		"LET X = 1 + X SELECT X(X=1), X FROM test()"},
+
+	{"Overflow condition - should not get stuck",
+		"LET X = 1 + X  LET Y = 1 + Y SELECT X, Y FROM scope()"},
+
+	{"Overflow condition materialized - should not get stuck",
+		"LET X <= 1 + X  LET Y = 1 + Y SELECT X, Y FROM scope()"},
+
+	{"Escaped identifiers for arg parameters",
+		"SELECT dict(`arg-with-special chars`=TRUE) FROM scope()"},
 }
 
 type _RangeArgs struct {
@@ -749,11 +770,12 @@ func TestVQLQueries(t *testing.T) {
 }
 
 func TestMultiVQLQueries(t *testing.T) {
-	scope := makeTestScope()
 
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range multiVQLTest {
+		scope := makeTestScope()
+
 		multi_vql, err := MultiParse(testCase.vql)
 		if err != nil {
 			t.Fatalf("Failed to parse %v: %v", testCase.vql, err)

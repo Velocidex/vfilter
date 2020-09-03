@@ -152,6 +152,8 @@ func (self _ChainPlugin) Call(
 
 		for _, query := range queries {
 			new_scope := scope.Copy()
+			defer new_scope.Close()
+
 			in_chan := query.Eval(ctx, new_scope)
 			for item := range in_chan {
 				output_chan <- item

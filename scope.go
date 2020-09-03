@@ -62,6 +62,8 @@ type Scope struct {
 	Tracer *log.Logger
 
 	context *ordereddict.Dict
+
+	stack_depth int
 }
 
 // Create a new scope from this scope.
@@ -227,13 +229,23 @@ func (self *Scope) Match(a Any, b Any) bool {
 	return self.regex.Match(self, a, b)
 }
 
-/*
-func (self Scope) Copy() *Scope {
-	copy_of_vars := append([]Row{}, self.vars...)
-	self.vars = copy_of_vars
-	return &self
+func (self *Scope) incDepth() {
+	self.Lock()
+	defer self.Unlock()
+	self.stack_depth++
 }
-*/
+
+func (self *Scope) decDepth() {
+	self.Lock()
+	defer self.Unlock()
+	self.stack_depth--
+}
+
+func (self *Scope) getDepth() int {
+	self.Lock()
+	defer self.Unlock()
+	return self.stack_depth
+}
 
 func (self *Scope) Copy() *Scope {
 	self.Lock()
@@ -244,7 +256,7 @@ func (self *Scope) Copy() *Scope {
 		plugins:   self.plugins,
 		Logger:    self.Logger,
 		Tracer:    self.Tracer,
-		vars:      append([]Row{}, self.vars...),
+		vars:      append([]Row(nil), self.vars...),
 		context:   self.context,
 
 		bool:        self.bool.Copy(),
@@ -257,6 +269,7 @@ func (self *Scope) Copy() *Scope {
 		membership:  self.membership.Copy(),
 		associative: self.associative.Copy(),
 		regex:       self.regex.Copy(),
+		stack_depth: self.stack_depth + 1,
 	}
 }
 

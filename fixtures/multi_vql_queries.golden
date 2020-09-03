@@ -160,11 +160,12 @@
    "Foo": 1
   }
  ],
- "015/000 Calling lazy expressions as functions: LET X=Foo + count()": null,
- "015/001 Calling lazy expressions as functions: SELECT X(Foo=5), X(Foo=6) FROM scope()": [
+ "015/000 Calling lazy expressions as functions creates a new scope: LET Y=count()": null,
+ "015/001 Calling lazy expressions as functions creates a new scope: SELECT Y AS Y1, Y AS Y2, Y AS Y3 FROM scope()": [
   {
-   "X(Foo=5)": 9,
-   "X(Foo=6)": 11
+   "Y1": 1,
+   "Y2": 2,
+   "Y3": 3
   }
  ],
  "016/000 Defining functions with args: LET X(Foo,Bar)=Foo + Bar": null,
@@ -272,6 +273,68 @@
   {
    "foo": 10,
    "value": 12
+  }
+ ],
+ "022/000 Lazy expression evaluates in caller's scope: LET X(foo)=1 + foo": null,
+ "022/001 Lazy expression evaluates in caller's scope: SELECT X(foo=foo + 1), foo FROM test()": [
+  {
+   "X(foo=foo + 1)": 2,
+   "foo": 0
+  },
+  {
+   "X(foo=foo + 1)": 4,
+   "foo": 2
+  },
+  {
+   "X(foo=foo + 1)": 6,
+   "foo": 4
+  }
+ ],
+ "023/000 Calling lazy expressions as functions allows access to global scope: LET Xk=5": null,
+ "023/001 Calling lazy expressions as functions allows access to global scope: LET Y=Xk + count()": null,
+ "023/002 Calling lazy expressions as functions allows access to global scope: SELECT Y AS Y1, Y AS Y2, Y AS Y3 FROM scope()": [
+  {
+   "Y1": 6,
+   "Y2": 7,
+   "Y3": 8
+  }
+ ],
+ "024/000 Overflow condition - should not get stuck: LET X=1 + X": null,
+ "024/001 Overflow condition - should not get stuck: SELECT X(X=1), X FROM test()": [
+  {
+   "X(X=1)": 2,
+   "X": null
+  },
+  {
+   "X(X=1)": 2,
+   "X": null
+  },
+  {
+   "X(X=1)": 2,
+   "X": null
+  }
+ ],
+ "025/000 Overflow condition - should not get stuck: LET X=1 + X": null,
+ "025/001 Overflow condition - should not get stuck: LET Y=1 + Y": null,
+ "025/002 Overflow condition - should not get stuck: SELECT X, Y FROM scope()": [
+  {
+   "X": null,
+   "Y": null
+  }
+ ],
+ "026/000 Overflow condition materialized - should not get stuck: LET X\u003c=1 + X": null,
+ "026/001 Overflow condition materialized - should not get stuck: LET Y=1 + Y": null,
+ "026/002 Overflow condition materialized - should not get stuck: SELECT X, Y FROM scope()": [
+  {
+   "X": null,
+   "Y": null
+  }
+ ],
+ "027/000 Escaped identifiers for arg parameters: SELECT dict(`arg-with-special chars`=TRUE) FROM scope()": [
+  {
+   "dict(`arg-with-special chars`=TRUE)": {
+    "arg-with-special chars": true
+   }
   }
  ]
 }

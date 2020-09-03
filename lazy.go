@@ -139,13 +139,13 @@ func (self *LazyExpr) Reduce() Any {
 		if self.Expr == nil {
 			self.Value = &Null{}
 		} else {
-			self.Value = self.Expr.Reduce(self.ctx, self.scope)
+			self.Value = self.Expr.Reduce(self.ctx, self.scope.Copy())
 		}
 	}
 
 	switch t := self.Value.(type) {
 	case StoredQuery:
-		self.Value = Materialize(self.ctx, self.scope, t)
+		self.Value = Materialize(self.ctx, self.scope.Copy(), t)
 
 	case LazyExpr:
 		self.Value = t.Reduce()
@@ -168,11 +168,12 @@ func (self LazyExpr) Call(ctx context.Context, scope *Scope, args *ordereddict.D
 	sub_scope := self.scope.Copy()
 	sub_scope.AppendVars(args)
 
-	callee := &LazyExpr{
+	callee := LazyExpr{
 		Value:      nil, // Force calling the expression and not cache.
 		Expr:       self.Expr,
 		parameters: self.parameters,
 		ctx:        self.ctx,
+		name:       self.name,
 		scope:      sub_scope,
 	}
 	return callee.Reduce()
