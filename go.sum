@@ -4,6 +4,8 @@ github.com/Velocidex/ordereddict v0.0.0-20191103004826-c16e1910ce18 h1:rDmEjo1na
 github.com/Velocidex/ordereddict v0.0.0-20191103004826-c16e1910ce18/go.mod h1:pxJpvN5ISMtDwrdIdqnJ3ZrjIngCw+WT6gfNil6Zjvo=
 github.com/Velocidex/ordereddict v0.0.0-20191103011020-3b5a5f6957d4 h1:0sJvmFhuTT8W/qOlka2y3L1FrbRcP9ZxXMKejTGMCno=
 github.com/Velocidex/ordereddict v0.0.0-20191103011020-3b5a5f6957d4/go.mod h1:pxJpvN5ISMtDwrdIdqnJ3ZrjIngCw+WT6gfNil6Zjvo=
+github.com/Velocidex/ordereddict v0.0.0-20200723153557-9460a6764ab8 h1:wRt5CLsj5hS3OpJjQYJMuUrmxKwRfUn76+4sqjfmNbA=
+github.com/Velocidex/ordereddict v0.0.0-20200723153557-9460a6764ab8/go.mod h1:pxJpvN5ISMtDwrdIdqnJ3ZrjIngCw+WT6gfNil6Zjvo=
 github.com/alecthomas/participle v0.2.0 h1:MBYD61je/vgb5ktXrXth/OdH23fn1lNnT5cZLw3fkh8=
 github.com/alecthomas/participle v0.2.0/go.mod h1:SW6HZGeZgSIpcUWX3fXpfZhuaWHnmoD5KCVaqSaNTkk=
 github.com/alecthomas/participle v0.4.4 h1:ZhPi9STNpixhITQx0RuoA/3UqCMu3cLsJVCfpT6iOGE=

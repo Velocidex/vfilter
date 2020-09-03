@@ -437,7 +437,7 @@ type _Select struct {
 	SelectExpression *_SelectExpression `SELECT @@`
 	From             *_From             `FROM @@`
 	Where            *_CommaExpression  `[ WHERE @@ ]`
-	GroupBy          *string            `[ GROUPBY @Ident ]`
+	GroupBy          *_CommaExpression  `[ GROUPBY @@ ]`
 	OrderBy          *string            `[ ORDERBY @Ident `
 	OrderByDesc      *bool              ` [ @DESC ] ]`
 	Limit            *int64             `[ LIMIT @Number ]`
@@ -460,7 +460,7 @@ func (self *_Select) ToString(scope *Scope) string {
 	}
 
 	if self.GroupBy != nil {
-		result += " GROUP BY " + *self.GroupBy
+		result += " GROUP BY " + self.GroupBy.ToString(scope)
 	}
 
 	if self.OrderBy != nil {
@@ -486,8 +486,6 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		go func() {
 			defer close(output_chan)
 
-			group_by := *self.GroupBy
-
 			// Aggregate functions (count, sum etc)
 			// operate by storing data in the scope
 			// context between rows. When we group by we
@@ -496,7 +494,7 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			// value are placed in the same bin and share
 			// the same context.
 			type AggregateContext struct {
-				row     Row
+				row     *ordereddict.Dict
 				context *ordereddict.Dict
 			}
 
@@ -516,14 +514,14 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				transformed_row := self.SelectExpression.Transform(
 					ctx, scope, row)
 
+				new_scope := scope.Copy()
+
+				// Order matters - transformed
+				// row may mask original row.
+				new_scope.AppendVars(row)
+				new_scope.AppendVars(transformed_row)
+
 				if self.Where != nil {
-					new_scope := scope.Copy()
-
-					// Order matters - transformed
-					// row may mask original row.
-					new_scope.AppendVars(row)
-					new_scope.AppendVars(transformed_row)
-
 					expression := self.Where.Reduce(ctx, new_scope)
 					// If the filtered expression returns
 					// a bool false, then skip the row.
@@ -533,27 +531,19 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					}
 				}
 
-				gb_element, pres := scope.Associative(
-					transformed_row, unquote_ident(group_by))
-				if !pres {
-					// This should not happen -
-					// the group by column is not
-					// present in the row.
-					gb_element = Null{}
-				}
+				// Evaluate the group by expression on the transformed row.
+				gb_element := self.GroupBy.Reduce(ctx, new_scope)
 
-				// We can not aggregate by arrays. Should we serialize them?
-				if is_array(gb_element) {
-					gb_element = Null{}
-				}
+				// Stringify the result to index into the bins.
+				bin_idx := fmt.Sprintf("%v", gb_element)
 
-				aggregate_ctx, pres := bins[gb_element]
+				aggregate_ctx, pres := bins[bin_idx]
 				// No previous aggregate_row - initialize with a new context.
 				if !pres {
 					aggregate_ctx = &AggregateContext{
 						context: ordereddict.NewDict(),
 					}
-					bins[gb_element] = aggregate_ctx
+					bins[bin_idx] = aggregate_ctx
 				}
 
 				// The transform function receives
@@ -566,13 +556,17 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				// these rows because evaluating the
 				// row may have side effects (e.g. for
 				// aggregate functions).
-				aggregate_ctx.row = MaterializedLazyRow(
-					self.SelectExpression.Transform(
-						ctx, new_scope, row), scope)
+				new_transformed_row := self.SelectExpression.Transform(
+					ctx, new_scope, row)
+
+				new_row := MaterializedLazyRow(new_transformed_row, scope)
+				new_row.Set("$groupby", bin_idx)
+
+				aggregate_ctx.row = new_row
 			}
 
 			result_set := &ResultSet{
-				OrderBy: group_by,
+				OrderBy: "$groupby",
 				scope:   scope,
 			}
 
@@ -596,7 +590,12 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				if self.Limit != nil && idx >= int(*self.Limit) {
 					break
 				}
-				output_chan <- MaterializedLazyRow(row, new_scope)
+
+				// Remove the group by column.
+				emitted_row := MaterializedLazyRow(row, new_scope)
+				emitted_row.Delete("$groupby")
+
+				output_chan <- emitted_row
 			}
 		}()
 
@@ -976,7 +975,7 @@ type Row interface{}
 // Receives a row from the FROM clause and transforms it according to
 // the select expression to produce a new row.
 func (self *_SelectExpression) Transform(
-	ctx context.Context, scope *Scope, row Row) Row {
+	ctx context.Context, scope *Scope, row Row) *LazyRow {
 	// The select uses a * to relay all the rows without
 	// filtering
 

@@ -336,5 +336,37 @@
     "arg-with-special chars": true
    }
   }
+ ],
+ "028/000 Group by hidden column: SELECT bar, baz FROM groupbytest() GROUP BY bar": [
+  {
+   "bar": 2,
+   "baz": "d"
+  },
+  {
+   "bar": 5,
+   "baz": "b"
+  }
+ ],
+ "028/001 Group by hidden column: SELECT baz FROM groupbytest() GROUP BY bar": [
+  {
+   "baz": "d"
+  },
+  {
+   "baz": "b"
+  }
+ ],
+ "029/000 Group by expression: SELECT *, bar + bar FROM groupbytest() GROUP BY bar + bar": [
+  {
+   "foo": 2,
+   "bar": 5,
+   "baz": "b",
+   "bar + bar": 10
+  },
+  {
+   "foo": 4,
+   "bar": 2,
+   "baz": "d",
+   "bar + bar": 4
+  }
  ]
 }

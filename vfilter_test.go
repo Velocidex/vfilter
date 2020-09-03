@@ -639,6 +639,15 @@ var multiVQLTest = []vqlTest{
 
 	{"Escaped identifiers for arg parameters",
 		"SELECT dict(`arg-with-special chars`=TRUE) FROM scope()"},
+
+	// The following two queries should be the same.
+	{"Group by hidden column",
+		"select bar, baz from groupbytest() GROUP BY bar select baz from groupbytest() GROUP BY bar "},
+
+	// A group by can refer to an expression, in which case the
+	// expression is calculated for each row.
+	{"Group by expression",
+		"select *, bar + bar from groupbytest() GROUP BY bar + bar"},
 }
 
 type _RangeArgs struct {

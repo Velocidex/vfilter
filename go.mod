@@ -1,7 +1,7 @@
 module www.velocidex.com/golang/vfilter
 
 require (
-	github.com/Velocidex/ordereddict v0.0.0-20191103011020-3b5a5f6957d4
+	github.com/Velocidex/ordereddict v0.0.0-20200723153557-9460a6764ab8
 	github.com/alecthomas/participle v0.4.4
 	github.com/alecthomas/repr v0.0.0-20181024024818-d37bc2a10ba1
 	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc
