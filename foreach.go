@@ -8,9 +8,10 @@ import (
 )
 
 type _ForeachPluginImplArgs struct {
-	Row   LazyExpr    `vfilter:"required,field=row,doc=A query or slice which generates rows."`
-	Query StoredQuery `vfilter:"required,field=query,doc=Run this query for each row."`
-	Async bool        `vfilter:"optional,field=async,doc=If set we run all queries asyncronously."`
+	Row    LazyExpr    `vfilter:"required,field=row,doc=A query or slice which generates rows."`
+	Query  StoredQuery `vfilter:"optional,field=query,doc=Run this query for each row."`
+	Async  bool        `vfilter:"optional,field=async,doc=If set we run all queries asyncronously."`
+	Column string      `vfilter:"optional,field=column,doc=If set we only extract the column from row."`
 }
 
 type _ForeachPluginImpl struct{}
@@ -35,40 +36,69 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 		stored_query := arg.Row.ToStoredQuery(scope)
 
 		wg := sync.WaitGroup{}
-		for row_item := range stored_query.Eval(ctx, scope) {
-			wg.Add(1)
+		row_chan := stored_query.Eval(ctx, scope)
 
-			// Evaluate the query on a new sub scope. The
-			// query can refer to rows returned by the
-			// "row" query.
-			child_scope := scope.Copy()
-			child_scope.AppendVars(row_item)
-			child_ctx, cancel := context.WithCancel(ctx)
+		for {
+			select {
+			case <-ctx.Done():
+				return
 
-			run_query := func() {
-				defer wg.Done()
-
-				// Cancel the context when the child query is
-				// done. This will force any cleanup functions
-				// used by the child query to be run now
-				// instead of waiting for our parent query to
-				// complete.
-				defer cancel()
-
-				query_chan := arg.Query.Eval(child_ctx, child_scope)
-				for query_chan_item := range query_chan {
-					output_chan <- query_chan_item
+			case row_item, ok := <-row_chan:
+				if !ok {
+					return
 				}
-			}
 
-			// Maybe run it asyncronously.
-			if arg.Async {
-				go run_query()
-			} else {
-				run_query()
-			}
+				// This allows callers to deconstruct
+				// a SELECT with dicts as columns into
+				// entire rows.
+				if arg.Column != "" {
+					value, pres := scope.Associative(row_item, arg.Column)
+					if pres {
+						row_item = value
+					} else {
+						row_item = Null{}
+					}
+				}
 
-			wg.Wait()
+				if arg.Query == nil {
+					output_chan <- row_item
+					continue
+				}
+
+				// Evaluate the query on a new sub scope. The
+				// query can refer to rows returned by the
+				// "row" query.
+				child_scope := scope.Copy()
+				child_scope.AppendVars(row_item)
+				child_ctx, cancel := context.WithCancel(ctx)
+
+				run_query := func() {
+					defer wg.Done()
+
+					// Cancel the context when the child query is
+					// done. This will force any cleanup functions
+					// used by the child query to be run now
+					// instead of waiting for our parent query to
+					// complete.
+					defer cancel()
+
+					query_chan := arg.Query.Eval(child_ctx, child_scope)
+					for query_chan_item := range query_chan {
+						output_chan <- query_chan_item
+					}
+				}
+
+				// Maybe run it asyncronously.
+				if arg.Async {
+					wg.Add(1)
+					go run_query()
+				} else {
+					wg.Add(1)
+					run_query()
+				}
+
+				wg.Wait()
+			}
 		}
 	}()
 

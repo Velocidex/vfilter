@@ -221,10 +221,15 @@ func (self *StoredQueryWrapper) Eval(ctx context.Context, scope *Scope) <-chan R
 		if slice.Type().Kind() == reflect.Slice {
 			for i := 0; i < slice.Len(); i++ {
 				value := slice.Index(i).Interface()
-				output_chan <- self.toRow(scope, value)
+				if !is_null_obj(value) {
+					output_chan <- self.toRow(scope, value)
+				}
 			}
 		} else {
-			output_chan <- self.toRow(scope, self.Delegate)
+			row_value := self.toRow(scope, self.Delegate)
+			if !is_null_obj(row_value) {
+				output_chan <- row_value
+			}
 		}
 	}()
 	return output_chan
@@ -240,6 +245,10 @@ func (self *StoredQueryWrapper) ToString(scope *Scope) string {
 }
 
 func (self *StoredQueryWrapper) toRow(scope *Scope, value Any) Row {
+	if is_null_obj(value) {
+		return Null{}
+	}
+
 	members := scope.GetMembers(value)
 	if len(members) > 0 {
 		return value

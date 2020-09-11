@@ -149,6 +149,12 @@ type LazyExpr struct {
 	scope      *Scope
 }
 
+func (self *LazyExpr) ReduceWithScope(scope *Scope) Any {
+	self.Value = nil
+	self.scope = scope
+	return self.Reduce()
+}
+
 func (self *LazyExpr) Reduce() Any {
 	if self.Value == nil {
 		if self.Expr == nil {

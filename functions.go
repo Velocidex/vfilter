@@ -285,7 +285,7 @@ func (self _EncodeFunction) Call(
 }
 
 type LenFunctionArgs struct {
-	List Any `vfilter:"required,field=list,doc=A list of items too filter"`
+	List Any `vfilter:"required,field=list,doc=A list of items"`
 }
 type LenFunction struct{}
 

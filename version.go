@@ -15,8 +15,9 @@ type _GetVersion struct {
 
 func (self _GetVersion) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
-		Name: "version",
-		Doc:  "Gets the version of a VQL plugin or function.",
+		Name:    "version",
+		Doc:     "Gets the version of a VQL plugin or function.",
+		ArgType: type_map.AddType(scope, &_GetVersion{}),
 	}
 }
 

@@ -456,20 +456,21 @@ func NewScope() *Scope {
 
 	// Protocol handlers.
 	result.AddProtocolImpl(
+		// Most common objects come first to optimise O(n) algorithm.
+		_ScopeAssociative{}, _LazyRowAssociative{}, _DictAssociative{},
+
 		_NullAssociative{}, _NullEqProtocol{}, _NullBoolProtocol{},
 		_BoolImpl{}, _BoolInt{}, _BoolString{}, _BoolSlice{}, _BoolDict{},
 		_NumericLt{}, _StringLt{},
 		_StringEq{}, _IntEq{}, _NumericEq{}, _ArrayEq{}, _DictEq{},
-		_AddNull{}, _AddStrings{}, _AddInts{}, _AddFloats{}, _AddSlices{}, _AddSliceAny{},
+		_AddStrings{}, _AddInts{}, _AddFloats{}, _AddSlices{}, _AddSliceAny{}, _AddNull{},
 		_StoredQueryAdd{},
 		_SubInts{}, _SubFloats{},
 		_SubstringMembership{},
 		_MulInt{}, _NumericMul{},
 		_NumericDiv{},
-		_DictAssociative{},
 		_SubstringRegex{}, _ArrayRegex{},
 		_StoredQueryAssociative{}, _StoredQueryBool{},
-		_ScopeAssociative{}, _LazyRowAssociative{},
 	)
 
 	// Built in functions.

@@ -470,6 +470,22 @@ var vqlTests = []vqlTest{
 	{"Foreach with non row elements",
 		"SELECT * FROM foreach(row=[1,2,3], query={SELECT _value FROM scope()})"},
 
+	{"Foreach with no query - single object",
+		"SELECT * FROM foreach(row=dict(X=1))"},
+
+	{"Foreach with no query - array of objects",
+		"SELECT * FROM foreach(row=[dict(X=1), dict(X=2)])"},
+
+	{"Foreach with no query - select with column",
+		"SELECT * FROM foreach(row={ SELECT dict(X=1) AS X FROM scope()}, column='X')"},
+
+	// Foreach ignores NULL rows.
+	{"Foreach with no query - with null",
+		"SELECT * FROM foreach(row=NULL)"},
+
+	{"Foreach with no query - with null in array",
+		"SELECT * FROM foreach(row=[NULL, NULL, dict(X=1)])"},
+
 	{"Query plugin with dots", "Select * from Artifact.Linux.Sys()"},
 	{"Order by", "select * from test() order by foo"},
 	{"Order by desc", "select * from test() order by foo DESC"},
