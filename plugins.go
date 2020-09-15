@@ -45,7 +45,11 @@ func (self GenericListPlugin) Call(
 		defer close(output_chan)
 
 		for _, item := range self.Function(scope, args) {
-			output_chan <- item
+			select {
+			case <-ctx.Done():
+				return
+			case output_chan <- item:
+			}
 		}
 	}()
 
@@ -154,7 +158,11 @@ func (self _ChainPlugin) Call(
 			new_scope := scope.Copy()
 			in_chan := query.Eval(ctx, new_scope)
 			for item := range in_chan {
-				output_chan <- item
+				select {
+				case <-ctx.Done():
+					return
+				case output_chan <- item:
+				}
 			}
 		}
 	}()

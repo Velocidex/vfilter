@@ -61,7 +61,11 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 				}
 
 				if arg.Query == nil {
-					output_chan <- row_item
+					select {
+					case <-ctx.Done():
+						return
+					case output_chan <- row_item:
+					}
 					continue
 				}
 
@@ -84,7 +88,11 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 
 					query_chan := arg.Query.Eval(child_ctx, child_scope)
 					for query_chan_item := range query_chan {
-						output_chan <- query_chan_item
+						select {
+						case <-ctx.Done():
+							return
+						case output_chan <- query_chan_item:
+						}
 					}
 				}
 

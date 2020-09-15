@@ -594,8 +594,11 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				// Remove the group by column.
 				emitted_row := MaterializedLazyRow(row, new_scope)
 				emitted_row.Delete("$groupby")
-
-				output_chan <- emitted_row
+				select {
+				case <-ctx.Done():
+					return
+				case output_chan <- emitted_row:
+				}
 			}
 		}()
 
@@ -617,7 +620,11 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			defer cancel()
 
 			for row := range self_copy.Eval(sub_ctx, scope) {
-				output_chan <- row
+				select {
+				case <-ctx.Done():
+					return
+				case output_chan <- row:
+				}
 				count += 1
 				if count > limit {
 					return
@@ -654,7 +661,11 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			defer close(output_chan)
 
 			for _, row := range result_set.Items {
-				output_chan <- row
+				select {
+				case <-ctx.Done():
+					return
+				case output_chan <- row:
+				}
 			}
 		}()
 		return output_chan
@@ -685,7 +696,11 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					ctx, scope, row)
 
 				if self.Where == nil {
-					output_chan <- MaterializedLazyRow(transformed_row, scope)
+					select {
+					case <-ctx.Done():
+						return
+					case output_chan <- MaterializedLazyRow(transformed_row, scope):
+					}
 				} else {
 					// If there is a filter clause, we
 					// need to filter the row using a new
@@ -708,8 +723,12 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					// a bool true, then pass the row to
 					// the output.
 					if expression != nil && scope.Bool(expression) {
-						output_chan <- MaterializedLazyRow(
-							transformed_row, new_scope)
+						select {
+						case <-ctx.Done():
+							return
+						case output_chan <- MaterializedLazyRow(
+							transformed_row, new_scope):
+						}
 					} else {
 						scope.Trace("Row rejected")
 					}
@@ -1058,18 +1077,12 @@ func (self *_From) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	input_chan := self.Plugin.Eval(ctx, scope)
 	go func() {
 		defer close(output_chan)
-		for {
+		for row := range input_chan {
 			select {
 			case <-ctx.Done():
 				return
 
-			case row, ok := <-input_chan:
-				{
-					if !ok {
-						return
-					}
-					output_chan <- row
-				}
+			case output_chan <- row:
 			}
 		}
 	}()
@@ -1137,16 +1150,28 @@ func (self *_Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				if ok {
 					from_chan := stored_query.Eval(ctx, scope)
 					for row := range from_chan {
-						output_chan <- row
+						select {
+						case <-ctx.Done():
+							return
+						case output_chan <- row:
+						}
 					}
 
 				} else if is_array(variable) {
 					var_slice := reflect.ValueOf(variable)
 					for i := 0; i < var_slice.Len(); i++ {
-						output_chan <- var_slice.Index(i).Interface()
+						select {
+						case <-ctx.Done():
+							return
+						case output_chan <- var_slice.Index(i).Interface():
+						}
 					}
 				} else {
-					output_chan <- variable
+					select {
+					case <-ctx.Done():
+						return
+					case output_chan <- variable:
+					}
 				}
 			} else {
 				scope.Log("SELECTing from %v failed! No such var in scope",
@@ -1172,7 +1197,11 @@ func (self *_Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			} else if arg.Array != nil {
 				value := arg.Array.Reduce(ctx, scope)
 				if value == nil {
-					output_chan <- Null{}
+					select {
+					case <-ctx.Done():
+						return
+					case output_chan <- Null{}:
+					}
 					return
 				}
 				args.Set(arg.Left, value)
@@ -1184,7 +1213,12 @@ func (self *_Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 		if plugin, pres := self.getPlugin(scope, self.Name); pres {
 			for row := range plugin.Call(ctx, scope, args) {
-				output_chan <- row
+				select {
+				case <-ctx.Done():
+					return
+
+				case output_chan <- row:
+				}
 			}
 		} else {
 			options := getSimilarPlugins(scope, self.Name)

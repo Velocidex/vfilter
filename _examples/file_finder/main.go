@@ -137,7 +137,11 @@ func (self Glob) Call(
 		}
 
 		for _, hit := range matches {
-			output_chan <- FileInfo{Path: hit}
+			select {
+			case <-ctx.Done():
+				return
+			case output_chan <- FileInfo{Path: hit}:
+			}
 		}
 	}()
 

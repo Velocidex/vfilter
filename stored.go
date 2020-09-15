@@ -222,13 +222,21 @@ func (self *StoredQueryWrapper) Eval(ctx context.Context, scope *Scope) <-chan R
 			for i := 0; i < slice.Len(); i++ {
 				value := slice.Index(i).Interface()
 				if !is_null_obj(value) {
-					output_chan <- self.toRow(scope, value)
+					select {
+					case <-ctx.Done():
+						return
+					case output_chan <- self.toRow(scope, value):
+					}
 				}
 			}
 		} else {
 			row_value := self.toRow(scope, self.Delegate)
 			if !is_null_obj(row_value) {
-				output_chan <- row_value
+				select {
+				case <-ctx.Done():
+					return
+				case output_chan <- row_value:
+				}
 			}
 		}
 	}()

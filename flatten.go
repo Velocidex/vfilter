@@ -36,7 +36,11 @@ func (self _FlattenPluginImpl) Call(ctx context.Context,
 			}
 			members := scope.GetMembers(row_item)
 			for _, item := range flatten(scope, row_item, members, 0) {
-				output_chan <- item
+				select {
+				case <-ctx.Done():
+					return
+				case output_chan <- item:
+				}
 			}
 		}
 	}()
