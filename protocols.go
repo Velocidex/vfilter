@@ -920,6 +920,9 @@ func (self DefaultAssociative) Associative(scope *Scope, a Any, b Any) (res Any,
 				if field_value.Kind() == reflect.Ptr && field_value.IsNil() {
 					return &Null{}, true
 				}
+				if field_value.Kind() == reflect.Ptr {
+					field_value = field_value.Elem()
+				}
 				return field_value.Interface(), true
 			}
 		}
