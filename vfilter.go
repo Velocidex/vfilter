@@ -332,11 +332,13 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				"materialized! Did you mean to use '='? ", self.Let)
 		}
 
+		name := unquote_ident(self.Let)
+
 		// Let assigning an expression.
 		if self.Expression != nil {
 			expr := LazyExpr{
 				Expr:  self.Expression,
-				name:  self.Let,
+				name:  name,
 				ctx:   ctx,
 				scope: scope}
 
@@ -347,10 +349,10 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			switch self.LetOperator {
 			case "=":
 				scope.AppendVars(ordereddict.NewDict().
-					Set(self.Let, expr))
+					Set(name, expr))
 			case "<=":
 				scope.AppendVars(ordereddict.NewDict().
-					Set(self.Let, expr.Reduce()))
+					Set(name, expr.Reduce()))
 			}
 			close(output_chan)
 			return output_chan
@@ -359,26 +361,25 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		// Check if we are about to trash a scope
 		// variable. The _ variable is special - it can be
 		// trashed without a warning.
-		if self.Let != "_" {
-			_, pres := scope.Resolve(self.Let)
+		if name != "_" {
+			_, pres := scope.Resolve(name)
 			if pres {
 				scope.Log("WARNING: LET query overrides a variable for %s",
-					self.Let)
+					name)
 			}
 		}
 
 		switch self.LetOperator {
 		case "=":
-			stored_query := NewStoredQuery(self.StoredQuery, self.Let)
+			stored_query := NewStoredQuery(self.StoredQuery, name)
 			if self.Parameters != nil {
 				stored_query.parameters = self.getParameters()
 			}
 
-			scope.AppendVars(ordereddict.NewDict().Set(self.Let, stored_query))
-
+			scope.AppendVars(ordereddict.NewDict().Set(name, stored_query))
 		case "<=":
 			scope.AppendVars(ordereddict.NewDict().Set(
-				self.Let, Materialize(ctx, scope, self.StoredQuery)))
+				name, Materialize(ctx, scope, self.StoredQuery)))
 		}
 
 		close(output_chan)
