@@ -368,5 +368,14 @@
    "baz": "d",
    "bar + bar": 4
   }
+ ],
+ "030/000 Variable can not mask a function.: LET dict(x)=1": null,
+ "030/001 Variable can not mask a function.: SELECT 1 AS dict, dict(foo=1) FROM scope() WHERE dict()": [
+  {
+   "dict": 1,
+   "dict(foo=1)": {
+    "foo": 1
+   }
+  }
  ]
 }

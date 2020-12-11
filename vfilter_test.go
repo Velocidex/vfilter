@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
 	"reflect"
 	"testing"
 
@@ -664,6 +666,9 @@ var multiVQLTest = []vqlTest{
 	// expression is calculated for each row.
 	{"Group by expression",
 		"select *, bar + bar from groupbytest() GROUP BY bar + bar"},
+
+	{"Variable can not mask a function.",
+		"LET dict(x) = 1 SELECT 1 AS dict, dict(foo=1) FROM scope() WHERE dict"},
 }
 
 type _RangeArgs struct {
@@ -672,7 +677,7 @@ type _RangeArgs struct {
 }
 
 func makeTestScope() *Scope {
-	return makeScope().AppendPlugins(
+	result := makeScope().AppendPlugins(
 		GenericListPlugin{
 			PluginName: "test",
 			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
@@ -727,6 +732,8 @@ func makeTestScope() *Scope {
 				}
 			},
 		})
+	result.Logger = log.New(os.Stdout, "Log: ", log.Ldate|log.Ltime|log.Lshortfile)
+	return result
 }
 
 // This checks that lazy queries are not evaluated unnecessarily. We

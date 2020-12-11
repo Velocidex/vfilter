@@ -332,6 +332,11 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				"materialized! Did you mean to use '='? ", self.Let)
 		}
 
+		_, pres := scope.functions[self.Let]
+		if pres {
+			scope.Log("LET expression is masking a built in function %v", self.Let)
+		}
+
 		name := unquote_ident(self.Let)
 
 		// Let assigning an expression.
@@ -1812,21 +1817,23 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 	// Lookup the symbol in the scope. Functions take
 	// precedence over symbols.
 
-	// The symbol is a function.
-	func_obj, pres := scope.functions[self.Symbol]
-	if pres {
-		// Make a copy of the function for next time.
-		self.mu.Lock()
-		self.function = func_obj
-		self.mu.Unlock()
-		result := func_obj.Call(ctx, scope, args)
+	// The symbol is a function and we were called.
+	if self.Called {
+		func_obj, pres := scope.functions[self.Symbol]
+		if pres {
+			// Make a copy of the function for next time.
+			self.mu.Lock()
+			self.function = func_obj
+			self.mu.Unlock()
+			result := func_obj.Call(ctx, scope, args)
 
-		// Do not allow nil in VQL since it is not compatible
-		// with reflect package.
-		if result == nil {
-			return &Null{}
+			// Do not allow nil in VQL since it is not compatible
+			// with reflect package.
+			if result == nil {
+				return &Null{}
+			}
+			return result
 		}
-		return result
 	}
 
 	// The symbol is just a constant in the scope. It may be a

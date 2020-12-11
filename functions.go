@@ -136,7 +136,7 @@ func (self _SplitFunction) Call(ctx context.Context, scope *Scope, args *ordered
 
 type _IfFunctionArgs struct {
 	Condition Any      `vfilter:"required,field=condition"`
-	Then      LazyExpr `vfilter:"required,field=then"`
+	Then      LazyExpr `vfilter:"optional,field=then"`
 	Else      LazyExpr `vfilter:"optional,field=else"`
 }
 
