@@ -363,17 +363,6 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 			return output_chan
 		}
 
-		// Check if we are about to trash a scope
-		// variable. The _ variable is special - it can be
-		// trashed without a warning.
-		if name != "_" {
-			_, pres := scope.Resolve(name)
-			if pres {
-				scope.Log("WARNING: LET query overrides a variable for %s",
-					name)
-			}
-		}
-
 		switch self.LetOperator {
 		case "=":
 			stored_query := NewStoredQuery(self.StoredQuery, name)
