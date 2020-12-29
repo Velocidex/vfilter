@@ -1,9 +1,12 @@
 package vfilter
 
 import (
+	"context"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 type _BoolDispatcher struct {
@@ -601,7 +604,6 @@ func (self _SubDispatcher) Sub(scope *Scope, a Any, b Any) Any {
 
 func (self *_SubDispatcher) AddImpl(elements ...SubProtocol) {
 	for _, impl := range elements {
-
 		self.impl = append(self.impl, impl)
 	}
 }
@@ -1097,4 +1099,50 @@ func (self _ArrayRegex) Match(scope *Scope, pattern Any, target Any) bool {
 
 type StringProtocol interface {
 	ToString(scope *Scope) string
+}
+
+// The Iterator protocol allows types to be iterated over.
+type _IterateDispatcher struct {
+	impl []IterateProtocol
+}
+
+func (self _IterateDispatcher) Copy() _IterateDispatcher {
+	return _IterateDispatcher{
+		append([]IterateProtocol{}, self.impl...)}
+}
+
+func (self _IterateDispatcher) Iterate(
+	ctx context.Context, scope *Scope, a Any) <-chan Row {
+	for _, impl := range self.impl {
+		if impl.Applicable(a) {
+			return impl.Iterate(ctx, scope, a)
+		}
+	}
+
+	scope.Trace("Protocol Iterate not found for %v (%T)", a, a)
+
+	// By default if no other iterator is available, prepare a row
+	// with the value as the _value column.
+	output_chan := make(chan Row)
+	go func() {
+		defer close(output_chan)
+
+		if !is_null(a) {
+			output_chan <- ordereddict.NewDict().Set("_value", a)
+		}
+	}()
+
+	return output_chan
+}
+
+func (self *_IterateDispatcher) AddImpl(elements ...IterateProtocol) {
+	for _, impl := range elements {
+		self.impl = append(self.impl, impl)
+	}
+}
+
+// This protocol implements the truth value.
+type IterateProtocol interface {
+	Applicable(a Any) bool
+	Iterate(ctx context.Context, scope *Scope, a Any) <-chan Row
 }

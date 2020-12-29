@@ -1,6 +1,7 @@
 package vfilter
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -54,6 +55,7 @@ type Scope struct {
 	membership  _MembershipDispatcher
 	associative _AssociativeDispatcher
 	regex       _RegexDispatcher
+	iterator    _IterateDispatcher
 
 	Logger *log.Logger
 
@@ -90,6 +92,7 @@ func (self *Scope) NewScope() *Scope {
 		membership:  self.membership.Copy(),
 		associative: self.associative.Copy(),
 		regex:       self.regex.Copy(),
+		iterator:    self.iterator.Copy(),
 		Logger:      self.Logger,
 		Tracer:      self.Tracer,
 	}
@@ -229,6 +232,10 @@ func (self *Scope) Match(a Any, b Any) bool {
 	return self.regex.Match(self, a, b)
 }
 
+func (self *Scope) Iterate(ctx context.Context, a Any) <-chan Row {
+	return self.iterator.Iterate(ctx, self, a)
+}
+
 func (self *Scope) incDepth() {
 	self.Lock()
 	defer self.Unlock()
@@ -269,6 +276,7 @@ func (self *Scope) Copy() *Scope {
 		membership:  self.membership.Copy(),
 		associative: self.associative.Copy(),
 		regex:       self.regex.Copy(),
+		iterator:    self.iterator.Copy(),
 		stack_depth: self.stack_depth + 1,
 	}
 }
@@ -302,6 +310,8 @@ func (self *Scope) AddProtocolImpl(implementations ...Any) *Scope {
 			self.associative.AddImpl(t)
 		case RegexProtocol:
 			self.regex.AddImpl(t)
+		case IterateProtocol:
+			self.iterator.AddImpl(t)
 		default:
 			Debug(t)
 			panic("Unsupported interface")
@@ -471,6 +481,8 @@ func NewScope() *Scope {
 		_NumericDiv{},
 		_SubstringRegex{}, _ArrayRegex{},
 		_StoredQueryAssociative{}, _StoredQueryBool{},
+
+		_SliceIterator{}, _LazyExprIterator{}, _StoredQueryIterator{}, _DictIterator{},
 	)
 
 	// Built in functions.

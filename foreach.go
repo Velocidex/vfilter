@@ -31,12 +31,8 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 			return
 		}
 
-		// If it is a stored query call it otherwise wrap the
-		// object - this allows us to iterate on arrays.
-		stored_query := arg.Row.ToStoredQuery(scope)
-
 		wg := sync.WaitGroup{}
-		row_chan := stored_query.Eval(ctx, scope)
+		row_chan := scope.Iterate(ctx, arg.Row)
 
 		for {
 			select {
