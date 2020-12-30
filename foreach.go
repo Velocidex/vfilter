@@ -8,10 +8,11 @@ import (
 )
 
 type _ForeachPluginImplArgs struct {
-	Row    LazyExpr    `vfilter:"required,field=row,doc=A query or slice which generates rows."`
-	Query  StoredQuery `vfilter:"optional,field=query,doc=Run this query for each row."`
-	Async  bool        `vfilter:"optional,field=async,doc=If set we run all queries asyncronously."`
-	Column string      `vfilter:"optional,field=column,doc=If set we only extract the column from row."`
+	Row     LazyExpr    `vfilter:"required,field=row,doc=A query or slice which generates rows."`
+	Query   StoredQuery `vfilter:"optional,field=query,doc=Run this query for each row."`
+	Async   bool        `vfilter:"optional,field=async,doc=If set we run all queries asyncronously (implies workers=1000)."`
+	Workers int64       `vfilter:"optional,field=workers,doc=Total number of asyncronous workers."`
+	Column  string      `vfilter:"optional,field=column,doc=If set we only extract the column from row."`
 }
 
 type _ForeachPluginImpl struct{}
@@ -31,7 +32,22 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 			return
 		}
 
-		wg := sync.WaitGroup{}
+		if arg.Async && arg.Workers == 0 {
+			arg.Workers = 1000
+		}
+
+		// At least one worker
+		if arg.Workers == 0 {
+			arg.Workers = 1
+		}
+
+		// Create a worker pool to run the subquery in.
+		if arg.Workers > 1 {
+			scope.Log("Creating %v workers for foreach plugin\n", arg.Workers)
+		}
+		pool := newWorkerPool(ctx, arg.Query, output_chan, int(arg.Workers))
+		defer pool.Close()
+
 		row_chan := scope.Iterate(ctx, arg.Row)
 
 		for {
@@ -70,38 +86,7 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 				// "row" query.
 				child_scope := scope.Copy()
 				child_scope.AppendVars(row_item)
-				child_ctx, cancel := context.WithCancel(ctx)
-
-				run_query := func() {
-					defer wg.Done()
-
-					// Cancel the context when the child query is
-					// done. This will force any cleanup functions
-					// used by the child query to be run now
-					// instead of waiting for our parent query to
-					// complete.
-					defer cancel()
-
-					query_chan := arg.Query.Eval(child_ctx, child_scope)
-					for query_chan_item := range query_chan {
-						select {
-						case <-ctx.Done():
-							return
-						case output_chan <- query_chan_item:
-						}
-					}
-				}
-
-				// Maybe run it asyncronously.
-				if arg.Async {
-					wg.Add(1)
-					go run_query()
-				} else {
-					wg.Add(1)
-					run_query()
-				}
-
-				wg.Wait()
+				pool.RunScope(child_scope)
 			}
 		}
 	}()
@@ -120,4 +105,78 @@ func (self _ForeachPluginImpl) Info(scope *Scope, type_map *TypeMap) *PluginInfo
 
 		ArgType: type_map.AddType(scope, &_ForeachPluginImplArgs{}),
 	}
+}
+
+type workerPool struct {
+	wg          sync.WaitGroup
+	ch          chan *Scope
+	query       StoredQuery
+	output_chan chan Row
+}
+
+func (self *workerPool) RunScope(scope *Scope) {
+	self.ch <- scope
+}
+
+func (self *workerPool) Close() {
+	close(self.ch)
+	self.wg.Wait()
+}
+
+func (self *workerPool) runQuery(ctx context.Context, scope *Scope) {
+	child_ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	query_chan := self.query.Eval(child_ctx, scope)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case query_chan_item, ok := <-query_chan:
+			if !ok {
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case self.output_chan <- query_chan_item:
+			}
+		}
+	}
+}
+
+func (self *workerPool) worker(ctx context.Context) {
+	defer self.wg.Done()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+			// Take a scope from the channel and re-run
+			// the query with the new scope. Prepare for
+			// cancellations at any point.
+		case scope, ok := <-self.ch:
+			if !ok {
+				return
+			}
+			self.runQuery(ctx, scope)
+		}
+	}
+}
+
+func newWorkerPool(ctx context.Context, query StoredQuery,
+	output_chan chan Row, size int) *workerPool {
+	self := &workerPool{
+		ch:          make(chan *Scope),
+		query:       query,
+		output_chan: output_chan,
+	}
+
+	for i := 0; i < size; i++ {
+		self.wg.Add(1)
+		go self.worker(ctx)
+	}
+
+	return self
 }

@@ -95,6 +95,7 @@ type _DictIterator struct{}
 
 func (self _DictIterator) Applicable(a Any) bool {
 	_, ok := a.(*ordereddict.Dict)
+
 	return ok
 }
 
