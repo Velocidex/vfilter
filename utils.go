@@ -234,6 +234,18 @@ func normalize_value(ctx context.Context, scope *Scope, value Any, depth int) An
 	case Materializer:
 		return t.Materialize(ctx, scope)
 
+	case Memberer:
+		result := ordereddict.NewDict()
+		for _, member := range t.Members() {
+			value, pres := scope.Associative(t, member)
+			if !pres {
+				value = Null{}
+			}
+			result.Set(member,
+				normalize_value(ctx, scope, value, depth+1))
+		}
+		return result
+
 	default:
 		a_value := reflect.Indirect(reflect.ValueOf(value))
 		a_type := a_value.Type()

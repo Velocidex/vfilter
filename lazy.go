@@ -173,6 +173,9 @@ func (self *LazyExpr) Reduce() Any {
 	case StoredQuery:
 		self.Value = Materialize(self.ctx, self.scope.Copy(), t)
 
+	case func() Any:
+		self.Value = t()
+
 	case LazyExpr:
 		self.Value = t.Reduce()
 	}
