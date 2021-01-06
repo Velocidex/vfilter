@@ -554,7 +554,7 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				new_transformed_row := self.SelectExpression.Transform(
 					ctx, new_scope, row)
 
-				new_row := MaterializedLazyRow(new_transformed_row, scope)
+				new_row := MaterializedLazyRow(ctx, new_transformed_row, scope)
 				new_row.Set("$groupby", bin_idx)
 
 				aggregate_ctx.row = new_row
@@ -587,7 +587,7 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				}
 
 				// Remove the group by column.
-				emitted_row := MaterializedLazyRow(row, new_scope)
+				emitted_row := MaterializedLazyRow(ctx, row, new_scope)
 				emitted_row.Delete("$groupby")
 				select {
 				case <-ctx.Done():
@@ -686,53 +686,61 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				if !ok {
 					return
 				}
-
-				transformed_row := self.SelectExpression.Transform(
-					ctx, scope, row)
-
-				if self.Where == nil {
-					select {
-					case <-ctx.Done():
-						return
-					case output_chan <- MaterializedLazyRow(transformed_row, scope):
-					}
-				} else {
-					// If there is a filter clause, we
-					// need to filter the row using a new
-					// scope.
-					new_scope := scope.Copy()
-
-					// Filters can access both the
-					// untransformed row and the
-					// transformed row. This
-					// allows WHERE clause to
-					// refer to both the raw
-					// plugin output as well as
-					// aliases of transformations
-					// on the row.
-					new_scope.AppendVars(row)
-					new_scope.AppendVars(transformed_row)
-
-					expression := self.Where.Reduce(ctx, new_scope)
-					// If the filtered expression returns
-					// a bool true, then pass the row to
-					// the output.
-					if expression != nil && scope.Bool(expression) {
-						select {
-						case <-ctx.Done():
-							return
-						case output_chan <- MaterializedLazyRow(
-							transformed_row, new_scope):
-						}
-					} else {
-						scope.Trace("Row rejected")
-					}
-				}
+				self.processSingleRow(ctx, scope, row, output_chan)
 			}
 		}
 	}()
 
 	return output_chan
+}
+
+func (self *_Select) processSingleRow(
+	ctx context.Context, scope *Scope, row Row, output_chan chan Row) {
+	subscope := scope.Copy()
+	defer subscope.Close()
+
+	transformed_row := self.SelectExpression.Transform(
+		ctx, subscope, row)
+
+	if self.Where == nil {
+		select {
+		case <-ctx.Done():
+			return
+		case output_chan <- MaterializedLazyRow(
+			ctx, transformed_row, subscope):
+		}
+	} else {
+		// If there is a filter clause, we
+		// need to filter the row using a new
+		// scope.
+		new_scope := subscope.Copy()
+
+		// Filters can access both the
+		// untransformed row and the
+		// transformed row. This
+		// allows WHERE clause to
+		// refer to both the raw
+		// plugin output as well as
+		// aliases of transformations
+		// on the row.
+		new_scope.AppendVars(row)
+		new_scope.AppendVars(transformed_row)
+
+		expression := self.Where.Reduce(ctx, new_scope)
+		// If the filtered expression returns
+		// a bool true, then pass the row to
+		// the output.
+		if expression != nil && scope.Bool(expression) {
+			select {
+			case <-ctx.Done():
+				return
+			case output_chan <- MaterializedLazyRow(
+				ctx, transformed_row, new_scope):
+			}
+		} else {
+			scope.Trace("Row rejected")
+		}
+	}
 }
 
 type _From struct {

@@ -1,381 +1,381 @@
 {
- "000/000 Query with LET: LET X=SELECT * FROM test()": null,
- "000/001 Query with LET: SELECT * FROM X": [
-  {
-   "foo": 0,
-   "bar": 0
-  },
-  {
-   "foo": 2,
-   "bar": 1
-  },
-  {
-   "foo": 4,
-   "bar": 2
-  }
- ],
- "001/000 MultiSelect: SELECT 'Bar' AS Foo FROM scope()": [
-  {
-   "Foo": "Bar"
-  }
- ],
- "001/001 MultiSelect: SELECT 'Foo' AS Foo FROM scope()": [
-  {
-   "Foo": "Foo"
-  }
- ],
- "002/000 LET with index: LET X=SELECT * FROM test()": null,
- "002/001 LET with index: SELECT X[0], X[1].bar FROM scope()": [
-  {
-   "X[0]": {
-    "foo": 0,
-    "bar": 0
-   },
-   "X[1].bar": 1
-  }
- ],
- "003/000 LET with extra columns: LET X=SELECT * FROM test()": null,
- "003/001 LET with extra columns: SELECT *, 1 FROM X": [
-  {
-   "foo": 0,
-   "bar": 0,
-   "1": 1
-  },
-  {
-   "foo": 2,
-   "bar": 1,
-   "1": 1
-  },
-  {
-   "foo": 4,
-   "bar": 2,
-   "1": 1
-  }
- ],
- "004/000 LET materialized with extra columns: LET X\u003c=SELECT * FROM test()": null,
- "004/001 LET materialized with extra columns: SELECT *, 1 FROM X": [
-  {
-   "foo": 0,
-   "bar": 0,
-   "1": 1
-  },
-  {
-   "foo": 2,
-   "bar": 1,
-   "1": 1
-  },
-  {
-   "foo": 4,
-   "bar": 2,
-   "1": 1
-  }
- ],
- "005/000 Column name with space: LET X\u003c=SELECT 2 AS `Hello World` FROM scope()": null,
- "005/001 Column name with space: SELECT `Hello World`, `Hello World` + 4 AS Foo, X.`Hello World` FROM X": [
-  {
-   "Hello World": 2,
-   "Foo": 6,
-   "X.`Hello World`": [
-    2
-   ]
-  }
- ],
- "006/000 Group by with columns with spaces: LET X=SELECT foo, bar AS `Foo Bar` FROM groupbytest()": null,
- "006/001 Group by with columns with spaces: SELECT * FROM X GROUP BY `Foo Bar`": [
-  {
-   "foo": 4,
-   "Foo Bar": 2
-  },
-  {
-   "foo": 2,
-   "Foo Bar": 5
-  }
- ],
- "007/000 Order by with columns with spaces: LET X=SELECT foo AS `Foo Bar` FROM groupbytest()": null,
- "007/001 Order by with columns with spaces: SELECT * FROM X ORDER BY `Foo Bar` DESC ": [
-  {
-   "Foo Bar": 4
-  },
-  {
-   "Foo Bar": 3
-  },
-  {
-   "Foo Bar": 2
-  },
-  {
-   "Foo Bar": 1
-  }
- ],
- "008/000 LET with expression: LET X='Hello world'": null,
- "008/001 LET with expression: SELECT X FROM scope()": [
-  {
-   "X": "Hello world"
-  }
- ],
- "009/000 LET with expression lazy: LET X=panic()": null,
- "009/001 LET with expression lazy: SELECT 1 + 1 FROM scope()": [
-  {
-   "1 + 1": 2
-  }
- ],
- "010/000 LET materialize with expression: LET X\u003c='Hello world'": null,
- "010/001 LET materialize with expression: SELECT X FROM scope()": [
-  {
-   "X": "Hello world"
-  }
- ],
- "011/000 Serialization: SELECT panic(value=1, colume='X'), func_foo() FROM scope()": [
-  {
-   "panic(value=1, colume='X')": 1,
-   "func_foo()": 1
-  }
- ],
- "012/000 LET with expression lazy - string concat: LET X='hello'": null,
- "012/001 LET with expression lazy - string concat: SELECT X + 'world', 'world' + X, 'hello world' =~ X FROM scope()": [
-  {
-   "X + 'world'": "helloworld",
-   "'world' + X": "worldhello",
-   "'hello world' =~ X": true
-  }
- ],
- "013/000 Lazy expression in arrays: LET X=count()": null,
- "013/001 Lazy expression in arrays: SELECT (1, X), dict(foo=X, bar= [1, X]) FROM scope()": [
-  {
-   "(1, X)": [
-    1,
-    1
-   ],
-   "dict(foo=X, bar= [1, X])": {
-    "foo": 3,
-    "bar": [
-     1,
-     2
-    ]
-   }
-  }
- ],
- "014/000 Calling stored queries as plugins: LET X=SELECT Foo FROM scope()": null,
- "014/001 Calling stored queries as plugins: SELECT * FROM X(Foo=1)": [
-  {
-   "Foo": 1
-  }
- ],
- "015/000 Calling lazy expressions as functions creates a new scope: LET Y=count()": null,
- "015/001 Calling lazy expressions as functions creates a new scope: SELECT Y AS Y1, Y AS Y2, Y AS Y3 FROM scope()": [
-  {
-   "Y1": 1,
-   "Y2": 2,
-   "Y3": 3
-  }
- ],
- "016/000 Defining functions with args: LET X(Foo,Bar)=Foo + Bar": null,
- "016/001 Defining functions with args: SELECT X(Foo=5, Bar=2) FROM scope()": [
-  {
-   "X(Foo=5, Bar=2)": 7
-  }
- ],
- "017/000 Defining stored queries with args: LET X(Foo,Bar)=SELECT Foo + Bar FROM scope()": null,
- "017/001 Defining stored queries with args: SELECT * FROM X(Foo=5, Bar=2)": [
-  {
-   "Foo + Bar": 7
-  }
- ],
- "018/000 Defining functions masking variable name: LET X(foo)=foo + 2": null,
- "018/001 Defining functions masking variable name: SELECT X(foo=foo), foo FROM test()": [
-  {
-   "X(foo=foo)": 2,
-   "foo": 0
-  },
-  {
-   "X(foo=foo)": 4,
-   "foo": 2
-  },
-  {
-   "X(foo=foo)": 6,
-   "foo": 4
-  }
- ],
- "019/000 Defining stored queries masking variable name: LET X(foo)=SELECT *, foo FROM range(start=foo, end=foo + 2)": null,
- "019/001 Defining stored queries masking variable name: LET foo=2": null,
- "019/002 Defining stored queries masking variable name: SELECT * FROM X(foo=foo)": [
-  {
-   "value": 2,
-   "foo": 2
-  },
-  {
-   "value": 3,
-   "foo": 2
-  },
-  {
-   "value": 4,
-   "foo": 2
-  }
- ],
- "020/000 Calling stored query in function context: LET X(foo)=SELECT *, foo FROM range(start=foo, end=foo + 2)": null,
- "020/001 Calling stored query in function context: SELECT X(foo=5).value, X(foo=10) FROM scope()": [
-  {
-   "X(foo=5).value": [
-    5,
-    6,
-    7
-   ],
-   "X(foo=10)": [
+  "000/000 Query with LET: LET X=SELECT * FROM test()": null,
+  "000/001 Query with LET: SELECT * FROM X": [
     {
-     "value": 10,
-     "foo": 10
+      "foo": 0,
+      "bar": 0
     },
     {
-     "value": 11,
-     "foo": 10
+      "foo": 2,
+      "bar": 1
     },
     {
-     "value": 12,
-     "foo": 10
+      "foo": 4,
+      "bar": 2
     }
-   ]
-  }
- ],
- "021/000 Calling stored query with args: LET X(foo)=SELECT *, foo FROM range(start=foo, end=foo + 2)": null,
- "021/001 Calling stored query with args: LET foo=8": null,
- "021/002 Calling stored query with args: SELECT * FROM foreach(row=X, query= { SELECT *, value FROM X(foo=value)})": [
-  {
-   "foo": 8,
-   "value": 8
-  },
-  {
-   "foo": 8,
-   "value": 9
-  },
-  {
-   "foo": 8,
-   "value": 10
-  },
-  {
-   "foo": 9,
-   "value": 9
-  },
-  {
-   "foo": 9,
-   "value": 10
-  },
-  {
-   "foo": 9,
-   "value": 11
-  },
-  {
-   "foo": 10,
-   "value": 10
-  },
-  {
-   "foo": 10,
-   "value": 11
-  },
-  {
-   "foo": 10,
-   "value": 12
-  }
- ],
- "022/000 Lazy expression evaluates in caller's scope: LET X(foo)=1 + foo": null,
- "022/001 Lazy expression evaluates in caller's scope: SELECT X(foo=foo + 1), foo FROM test()": [
-  {
-   "X(foo=foo + 1)": 2,
-   "foo": 0
-  },
-  {
-   "X(foo=foo + 1)": 4,
-   "foo": 2
-  },
-  {
-   "X(foo=foo + 1)": 6,
-   "foo": 4
-  }
- ],
- "023/000 Calling lazy expressions as functions allows access to global scope: LET Xk=5": null,
- "023/001 Calling lazy expressions as functions allows access to global scope: LET Y=Xk + count()": null,
- "023/002 Calling lazy expressions as functions allows access to global scope: SELECT Y AS Y1, Y AS Y2, Y AS Y3 FROM scope()": [
-  {
-   "Y1": 6,
-   "Y2": 7,
-   "Y3": 8
-  }
- ],
- "024/000 Overflow condition - should not get stuck: LET X=1 + X": null,
- "024/001 Overflow condition - should not get stuck: SELECT X(X=1), X FROM test()": [
-  {
-   "X(X=1)": 2,
-   "X": null
-  },
-  {
-   "X(X=1)": 2,
-   "X": null
-  },
-  {
-   "X(X=1)": 2,
-   "X": null
-  }
- ],
- "025/000 Overflow condition - should not get stuck: LET X=1 + X": null,
- "025/001 Overflow condition - should not get stuck: LET Y=1 + Y": null,
- "025/002 Overflow condition - should not get stuck: SELECT X, Y FROM scope()": [
-  {
-   "X": null,
-   "Y": null
-  }
- ],
- "026/000 Overflow condition materialized - should not get stuck: LET X\u003c=1 + X": null,
- "026/001 Overflow condition materialized - should not get stuck: LET Y=1 + Y": null,
- "026/002 Overflow condition materialized - should not get stuck: SELECT X, Y FROM scope()": [
-  {
-   "X": null,
-   "Y": null
-  }
- ],
- "027/000 Escaped identifiers for arg parameters: SELECT dict(`arg-with-special chars`=TRUE) FROM scope()": [
-  {
-   "dict(`arg-with-special chars`=TRUE)": {
-    "arg-with-special chars": true
-   }
-  }
- ],
- "028/000 Group by hidden column: SELECT bar, baz FROM groupbytest() GROUP BY bar": [
-  {
-   "bar": 2,
-   "baz": "d"
-  },
-  {
-   "bar": 5,
-   "baz": "b"
-  }
- ],
- "028/001 Group by hidden column: SELECT baz FROM groupbytest() GROUP BY bar": [
-  {
-   "baz": "d"
-  },
-  {
-   "baz": "b"
-  }
- ],
- "029/000 Group by expression: SELECT *, bar + bar FROM groupbytest() GROUP BY bar + bar": [
-  {
-   "foo": 2,
-   "bar": 5,
-   "baz": "b",
-   "bar + bar": 10
-  },
-  {
-   "foo": 4,
-   "bar": 2,
-   "baz": "d",
-   "bar + bar": 4
-  }
- ],
- "030/000 Variable can not mask a function.: LET dict(x)=1": null,
- "030/001 Variable can not mask a function.: SELECT 1 AS dict, dict(foo=1) FROM scope() WHERE dict()": [
-  {
-   "dict": 1,
-   "dict(foo=1)": {
-    "foo": 1
-   }
-  }
- ]
+  ],
+  "001/000 MultiSelect: SELECT 'Bar' AS Foo FROM scope()": [
+    {
+      "Foo": "Bar"
+    }
+  ],
+  "001/001 MultiSelect: SELECT 'Foo' AS Foo FROM scope()": [
+    {
+      "Foo": "Foo"
+    }
+  ],
+  "002/000 LET with index: LET X=SELECT * FROM test()": null,
+  "002/001 LET with index: SELECT X[0], X[1].bar FROM scope()": [
+    {
+      "X[0]": {
+        "foo": 0,
+        "bar": 0
+      },
+      "X[1].bar": 1
+    }
+  ],
+  "003/000 LET with extra columns: LET X=SELECT * FROM test()": null,
+  "003/001 LET with extra columns: SELECT *, 1 FROM X": [
+    {
+      "foo": 0,
+      "bar": 0,
+      "1": 1
+    },
+    {
+      "foo": 2,
+      "bar": 1,
+      "1": 1
+    },
+    {
+      "foo": 4,
+      "bar": 2,
+      "1": 1
+    }
+  ],
+  "004/000 LET materialized with extra columns: LET X\u003c=SELECT * FROM test()": null,
+  "004/001 LET materialized with extra columns: SELECT *, 1 FROM X": [
+    {
+      "foo": 0,
+      "bar": 0,
+      "1": 1
+    },
+    {
+      "foo": 2,
+      "bar": 1,
+      "1": 1
+    },
+    {
+      "foo": 4,
+      "bar": 2,
+      "1": 1
+    }
+  ],
+  "005/000 Column name with space: LET X\u003c=SELECT 2 AS `Hello World` FROM scope()": null,
+  "005/001 Column name with space: SELECT `Hello World`, `Hello World` + 4 AS Foo, X.`Hello World` FROM X": [
+    {
+      "Hello World": 2,
+      "Foo": 6,
+      "X.`Hello World`": [
+        2
+      ]
+    }
+  ],
+  "006/000 Group by with columns with spaces: LET X=SELECT foo, bar AS `Foo Bar` FROM groupbytest()": null,
+  "006/001 Group by with columns with spaces: SELECT * FROM X GROUP BY `Foo Bar`": [
+    {
+      "foo": 4,
+      "Foo Bar": 2
+    },
+    {
+      "foo": 2,
+      "Foo Bar": 5
+    }
+  ],
+  "007/000 Order by with columns with spaces: LET X=SELECT foo AS `Foo Bar` FROM groupbytest()": null,
+  "007/001 Order by with columns with spaces: SELECT * FROM X ORDER BY `Foo Bar` DESC ": [
+    {
+      "Foo Bar": 4
+    },
+    {
+      "Foo Bar": 3
+    },
+    {
+      "Foo Bar": 2
+    },
+    {
+      "Foo Bar": 1
+    }
+  ],
+  "008/000 LET with expression: LET X='Hello world'": null,
+  "008/001 LET with expression: SELECT X FROM scope()": [
+    {
+      "X": "Hello world"
+    }
+  ],
+  "009/000 LET with expression lazy: LET X=panic()": null,
+  "009/001 LET with expression lazy: SELECT 1 + 1 FROM scope()": [
+    {
+      "1 + 1": 2
+    }
+  ],
+  "010/000 LET materialize with expression: LET X\u003c='Hello world'": null,
+  "010/001 LET materialize with expression: SELECT X FROM scope()": [
+    {
+      "X": "Hello world"
+    }
+  ],
+  "011/000 Serialization: SELECT panic(value=1, colume='X'), func_foo() FROM scope()": [
+    {
+      "panic(value=1, colume='X')": 1,
+      "func_foo()": 1
+    }
+  ],
+  "012/000 LET with expression lazy - string concat: LET X='hello'": null,
+  "012/001 LET with expression lazy - string concat: SELECT X + 'world', 'world' + X, 'hello world' =~ X FROM scope()": [
+    {
+      "X + 'world'": "helloworld",
+      "'world' + X": "worldhello",
+      "'hello world' =~ X": true
+    }
+  ],
+  "013/000 Lazy expression in arrays: LET X=count()": null,
+  "013/001 Lazy expression in arrays: SELECT (1, X), dict(foo=X, bar= [1, X]) FROM scope()": [
+    {
+      "(1, X)": [
+        1,
+        1
+      ],
+      "dict(foo=X, bar= [1, X])": {
+        "foo": 3,
+        "bar": [
+          1,
+          2
+        ]
+      }
+    }
+  ],
+  "014/000 Calling stored queries as plugins: LET X=SELECT Foo FROM scope()": null,
+  "014/001 Calling stored queries as plugins: SELECT * FROM X(Foo=1)": [
+    {
+      "Foo": 1
+    }
+  ],
+  "015/000 Calling lazy expressions as functions creates a new scope: LET Y=count()": null,
+  "015/001 Calling lazy expressions as functions creates a new scope: SELECT Y AS Y1, Y AS Y2, Y AS Y3 FROM scope()": [
+    {
+      "Y1": 1,
+      "Y2": 2,
+      "Y3": 3
+    }
+  ],
+  "016/000 Defining functions with args: LET X(Foo,Bar)=Foo + Bar": null,
+  "016/001 Defining functions with args: SELECT X(Foo=5, Bar=2) FROM scope()": [
+    {
+      "X(Foo=5, Bar=2)": 7
+    }
+  ],
+  "017/000 Defining stored queries with args: LET X(Foo,Bar)=SELECT Foo + Bar FROM scope()": null,
+  "017/001 Defining stored queries with args: SELECT * FROM X(Foo=5, Bar=2)": [
+    {
+      "Foo + Bar": 7
+    }
+  ],
+  "018/000 Defining functions masking variable name: LET X(foo)=foo + 2": null,
+  "018/001 Defining functions masking variable name: SELECT X(foo=foo), foo FROM test()": [
+    {
+      "X(foo=foo)": 2,
+      "foo": 0
+    },
+    {
+      "X(foo=foo)": 4,
+      "foo": 2
+    },
+    {
+      "X(foo=foo)": 6,
+      "foo": 4
+    }
+  ],
+  "019/000 Defining stored queries masking variable name: LET X(foo)=SELECT *, foo FROM range(start=foo, end=foo + 2)": null,
+  "019/001 Defining stored queries masking variable name: LET foo=2": null,
+  "019/002 Defining stored queries masking variable name: SELECT * FROM X(foo=foo)": [
+    {
+      "value": 2,
+      "foo": 2
+    },
+    {
+      "value": 3,
+      "foo": 2
+    },
+    {
+      "value": 4,
+      "foo": 2
+    }
+  ],
+  "020/000 Calling stored query in function context: LET X(foo)=SELECT *, foo FROM range(start=foo, end=foo + 2)": null,
+  "020/001 Calling stored query in function context: SELECT X(foo=5).value, X(foo=10) FROM scope()": [
+    {
+      "X(foo=5).value": [
+        5,
+        6,
+        7
+      ],
+      "X(foo=10)": [
+        {
+          "value": 10,
+          "foo": 10
+        },
+        {
+          "value": 11,
+          "foo": 10
+        },
+        {
+          "value": 12,
+          "foo": 10
+        }
+      ]
+    }
+  ],
+  "021/000 Calling stored query with args: LET X(foo)=SELECT *, foo FROM range(start=foo, end=foo + 2)": null,
+  "021/001 Calling stored query with args: LET foo=8": null,
+  "021/002 Calling stored query with args: SELECT * FROM foreach(row=X, query= { SELECT *, value FROM X(foo=value)})": [
+    {
+      "foo": 8,
+      "value": 8
+    },
+    {
+      "foo": 8,
+      "value": 9
+    },
+    {
+      "foo": 8,
+      "value": 10
+    },
+    {
+      "foo": 9,
+      "value": 9
+    },
+    {
+      "foo": 9,
+      "value": 10
+    },
+    {
+      "foo": 9,
+      "value": 11
+    },
+    {
+      "foo": 10,
+      "value": 10
+    },
+    {
+      "foo": 10,
+      "value": 11
+    },
+    {
+      "foo": 10,
+      "value": 12
+    }
+  ],
+  "022/000 Lazy expression evaluates in caller's scope: LET X(foo)=1 + foo": null,
+  "022/001 Lazy expression evaluates in caller's scope: SELECT X(foo=foo + 1), foo FROM test()": [
+    {
+      "X(foo=foo + 1)": 2,
+      "foo": 0
+    },
+    {
+      "X(foo=foo + 1)": 4,
+      "foo": 2
+    },
+    {
+      "X(foo=foo + 1)": 6,
+      "foo": 4
+    }
+  ],
+  "023/000 Calling lazy expressions as functions allows access to global scope: LET Xk=5": null,
+  "023/001 Calling lazy expressions as functions allows access to global scope: LET Y=Xk + count()": null,
+  "023/002 Calling lazy expressions as functions allows access to global scope: SELECT Y AS Y1, Y AS Y2, Y AS Y3 FROM scope()": [
+    {
+      "Y1": 6,
+      "Y2": 7,
+      "Y3": 8
+    }
+  ],
+  "024/000 Overflow condition - should not get stuck: LET X=1 + X": null,
+  "024/001 Overflow condition - should not get stuck: SELECT X(X=1), X FROM test()": [
+    {
+      "X(X=1)": 2,
+      "X": null
+    },
+    {
+      "X(X=1)": 2,
+      "X": null
+    },
+    {
+      "X(X=1)": 2,
+      "X": null
+    }
+  ],
+  "025/000 Overflow condition - should not get stuck: LET X=1 + X": null,
+  "025/001 Overflow condition - should not get stuck: LET Y=1 + Y": null,
+  "025/002 Overflow condition - should not get stuck: SELECT X, Y FROM scope()": [
+    {
+      "X": null,
+      "Y": null
+    }
+  ],
+  "026/000 Overflow condition materialized - should not get stuck: LET X\u003c=1 + X": null,
+  "026/001 Overflow condition materialized - should not get stuck: LET Y=1 + Y": null,
+  "026/002 Overflow condition materialized - should not get stuck: SELECT X, Y FROM scope()": [
+    {
+      "X": null,
+      "Y": null
+    }
+  ],
+  "027/000 Escaped identifiers for arg parameters: SELECT dict(`arg-with-special chars`=TRUE) FROM scope()": [
+    {
+      "dict(`arg-with-special chars`=TRUE)": {
+        "arg-with-special chars": true
+      }
+    }
+  ],
+  "028/000 Group by hidden column: SELECT bar, baz FROM groupbytest() GROUP BY bar": [
+    {
+      "bar": 2,
+      "baz": "d"
+    },
+    {
+      "bar": 5,
+      "baz": "b"
+    }
+  ],
+  "028/001 Group by hidden column: SELECT baz FROM groupbytest() GROUP BY bar": [
+    {
+      "baz": "d"
+    },
+    {
+      "baz": "b"
+    }
+  ],
+  "029/000 Group by expression: SELECT *, bar + bar FROM groupbytest() GROUP BY bar + bar": [
+    {
+      "foo": 2,
+      "bar": 5,
+      "baz": "b",
+      "bar + bar": 10
+    },
+    {
+      "foo": 4,
+      "bar": 2,
+      "baz": "d",
+      "bar + bar": 4
+    }
+  ],
+  "030/000 Variable can not mask a function.: LET dict(x)=1": null,
+  "030/001 Variable can not mask a function.: SELECT 1 AS dict, dict(foo=1) FROM scope() WHERE dict()": [
+    {
+      "dict": 1,
+      "dict(foo=1)": {
+        "foo": 1
+      }
+    }
+  ]
 }

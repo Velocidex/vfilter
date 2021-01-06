@@ -1,51 +1,51 @@
 {
- "GetResponseChannel": [
-  {
-   "Part": 0,
-   "TotalRows": 3,
-   "Columns": [
-    "foo",
-    "bar"
-   ],
-   "Payload": "WwogewogICJmb28iOiAwLAogICJiYXIiOiAwCiB9LAogewogICJmb28iOiAyLAogICJiYXIiOiAxCiB9LAogewogICJmb28iOiA0LAogICJiYXIiOiAyCiB9Cl0="
-  }
- ],
- "GetResponseChannel.Payloads": [
-  "[\n {\n  \"foo\": 0,\n  \"bar\": 0\n },\n {\n  \"foo\": 2,\n  \"bar\": 1\n },\n {\n  \"foo\": 4,\n  \"bar\": 2\n }\n]"
- ],
- "GetResponseChannel_Small": [
-  {
-   "Part": 0,
-   "TotalRows": 1,
-   "Columns": [
-    "foo",
-    "bar"
-   ],
-   "Payload": "WwogewogICJmb28iOiAwLAogICJiYXIiOiAwCiB9Cl0="
-  },
-  {
-   "Part": 1,
-   "TotalRows": 1,
-   "Columns": [
-    "foo",
-    "bar"
-   ],
-   "Payload": "WwogewogICJmb28iOiAyLAogICJiYXIiOiAxCiB9Cl0="
-  },
-  {
-   "Part": 2,
-   "TotalRows": 1,
-   "Columns": [
-    "foo",
-    "bar"
-   ],
-   "Payload": "WwogewogICJmb28iOiA0LAogICJiYXIiOiAyCiB9Cl0="
-  }
- ],
- "GetResponseChannel_Small.Payloads": [
-  "[\n {\n  \"foo\": 0,\n  \"bar\": 0\n }\n]",
-  "[\n {\n  \"foo\": 2,\n  \"bar\": 1\n }\n]",
-  "[\n {\n  \"foo\": 4,\n  \"bar\": 2\n }\n]"
- ],
- "OutputJSON": "[\n {\n  \"foo\": 0,\n  \"bar\": 0\n },\n {\n  \"foo\": 2,\n  \"bar\": 1\n },\n {\n  \"foo\": 4,\n  \"bar\": 2\n }\n]"
+  "GetResponseChannel": [
+    {
+      "Part": 0,
+      "TotalRows": 3,
+      "Columns": [
+        "foo",
+        "bar"
+      ],
+      "Payload": "WwogewogICJmb28iOiAwLAogICJiYXIiOiAwCiB9LAogewogICJmb28iOiAyLAogICJiYXIiOiAxCiB9LAogewogICJmb28iOiA0LAogICJiYXIiOiAyCiB9Cl0="
+    }
+  ],
+  "GetResponseChannel.Payloads": [
+    "[\n {\n  \"foo\": 0,\n  \"bar\": 0\n },\n {\n  \"foo\": 2,\n  \"bar\": 1\n },\n {\n  \"foo\": 4,\n  \"bar\": 2\n }\n]"
+  ],
+  "GetResponseChannel_Small": [
+    {
+      "Part": 0,
+      "TotalRows": 1,
+      "Columns": [
+        "foo",
+        "bar"
+      ],
+      "Payload": "WwogewogICJmb28iOiAwLAogICJiYXIiOiAwCiB9Cl0="
+    },
+    {
+      "Part": 1,
+      "TotalRows": 1,
+      "Columns": [
+        "foo",
+        "bar"
+      ],
+      "Payload": "WwogewogICJmb28iOiAyLAogICJiYXIiOiAxCiB9Cl0="
+    },
+    {
+      "Part": 2,
+      "TotalRows": 1,
+      "Columns": [
+        "foo",
+        "bar"
+      ],
+      "Payload": "WwogewogICJmb28iOiA0LAogICJiYXIiOiAyCiB9Cl0="
+    }
+  ],
+  "GetResponseChannel_Small.Payloads": [
+    "[\n {\n  \"foo\": 0,\n  \"bar\": 0\n }\n]",
+    "[\n {\n  \"foo\": 2,\n  \"bar\": 1\n }\n]",
+    "[\n {\n  \"foo\": 4,\n  \"bar\": 2\n }\n]"
+  ],
+  "OutputJSON": "[\n {\n  \"foo\": 0,\n  \"bar\": 0\n },\n {\n  \"foo\": 2,\n  \"bar\": 1\n },\n {\n  \"foo\": 4,\n  \"bar\": 2\n }\n]"
 }

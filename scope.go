@@ -15,8 +15,6 @@ import (
 // be reached from any nested scope and only destroyed when the root
 // scope is destroyed.
 type _destructors struct {
-	mu sync.Mutex
-
 	fn           []func()
 	is_destroyed bool
 	wg           sync.WaitGroup
@@ -66,6 +64,12 @@ type Scope struct {
 	context *ordereddict.Dict
 
 	stack_depth int
+
+	// All children of this scope.
+	children []*Scope
+
+	// Any destructors attached to this scope.
+	destructors _destructors
 }
 
 // Create a new scope from this scope.
@@ -78,8 +82,8 @@ func (self *Scope) NewScope() *Scope {
 		context: ordereddict.NewDict(),
 		vars: []Row{
 			ordereddict.NewDict().
-				Set("NULL", Null{}).
-				Set("__destructors", &_destructors{})},
+				Set("NULL", Null{}),
+		},
 		functions:   self.functions,
 		plugins:     self.plugins,
 		bool:        self.bool.Copy(),
@@ -118,8 +122,7 @@ func (self *Scope) ClearContext() {
 
 	self.context = ordereddict.NewDict()
 	self.vars = append(self.vars, ordereddict.NewDict().
-		Set("NULL", Null{}).
-		Set("__destructors", &_destructors{}))
+		Set("NULL", Null{}))
 }
 
 func (self *Scope) SetContext(name string, value Any) {
@@ -258,7 +261,7 @@ func (self *Scope) Copy() *Scope {
 	self.Lock()
 	defer self.Unlock()
 
-	return &Scope{
+	child_scope := &Scope{
 		functions: self.functions,
 		plugins:   self.plugins,
 		Logger:    self.Logger,
@@ -279,6 +282,11 @@ func (self *Scope) Copy() *Scope {
 		iterator:    self.iterator.Copy(),
 		stack_depth: self.stack_depth + 1,
 	}
+
+	// Remember our children.
+	self.children = append(self.children, child_scope)
+
+	return child_scope
 }
 
 // Add various protocol implementations into this
@@ -394,59 +402,56 @@ func (self *Scope) Trace(format string, a ...interface{}) {
 	}
 }
 
+// Adding a destructor to the current scope will call it when any
+// parent scopes are closed.
 func (self *Scope) AddDestructor(fn func()) {
-	destructors_any, _ := self.Resolve("__destructors")
-	destructors, ok := destructors_any.(*_destructors)
-	if ok {
-		destructors.mu.Lock()
-		defer destructors.mu.Unlock()
+	self.Lock()
+	defer self.Unlock()
 
-		// Scope is already destroyed - call the destructor now.
-		if destructors.is_destroyed {
-			fn()
-		} else {
-			destructors.fn = append(destructors.fn, fn)
-		}
+	// Scope is already destroyed - call the destructor now.
+	if self.destructors.is_destroyed {
+		fn()
 	} else {
-		panic("Can not get destructors")
+		self.destructors.fn = append(self.destructors.fn, fn)
 	}
 }
 
+// Closing a scope will also close all its children. Note that
+// destructors may use the scope so we can not lock it for the
+// duration.
 func (self *Scope) Close() {
-	destructors_any, _ := self.Resolve("__destructors")
-	destructors, ok := destructors_any.(*_destructors)
-	if ok {
-		destructors.mu.Lock()
+	self.Lock()
+	for _, child := range self.children {
+		child.Close()
+	}
 
-		// Stop new destructors from appearing.
-		destructors.is_destroyed = true
-		ds := append(destructors.fn[:0:0], destructors.fn...)
-		destructors.fn = []func(){}
+	// Stop new destructors from appearing.
+	self.destructors.is_destroyed = true
 
-		destructors.mu.Unlock()
+	// Remove destructors from list so they are not run again.
+	ds := append(self.destructors.fn[:0:0], self.destructors.fn...)
+	self.destructors.fn = []func(){}
 
-		// Destructors are called in reverse order to their
-		// declerations.
-		for i := len(ds) - 1; i >= 0; i-- {
-			destructors.wg.Add(1)
-			go func(dest func()) {
-				defer destructors.wg.Done()
-				select {
+	// Unlock the scope and start running the
+	// destructors. Destructors may actually add new destructors
+	// to this scope but hopefully the parent scope will be
+	// deleted later.
+	self.Unlock()
 
-				// Destructor stuck - abandon it.
-				case <-time.After(100 * time.Second):
+	// Destructors are called in reverse order to their
+	// declerations.
+	for i := len(ds) - 1; i >= 0; i-- {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+		go func() {
+			ds[i]()
+			cancel()
+		}()
 
-				default:
-					// Wait 100 sec for the
-					// destructor to finish.
-					dest()
-				}
-
-			}(ds[i])
+		select {
+		// Wait a maximum 60 seconds for the
+		// destructor before moving on.
+		case <-ctx.Done():
 		}
-
-		// Wait for all destructors to finish.
-		destructors.wg.Wait()
 	}
 }
 
@@ -461,8 +466,7 @@ func NewScope() *Scope {
 	result.context = ordereddict.NewDict()
 	result.AppendVars(
 		ordereddict.NewDict().
-			Set("NULL", Null{}).
-			Set("__destructors", &_destructors{}))
+			Set("NULL", Null{}))
 
 	// Protocol handlers.
 	result.AddProtocolImpl(

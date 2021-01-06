@@ -864,6 +864,12 @@ func (self *_AssociativeDispatcher) Associative(
 
 func (self *_AssociativeDispatcher) GetMembers(
 	scope *Scope, a Any) []string {
+
+	memberer, ok := a.(Memberer)
+	if ok {
+		return memberer.Members()
+	}
+
 	for _, impl := range self.impl {
 		if impl.Applicable(a, "") {
 			return impl.GetMembers(scope, a)
@@ -1145,4 +1151,13 @@ func (self *_IterateDispatcher) AddImpl(elements ...IterateProtocol) {
 type IterateProtocol interface {
 	Applicable(a Any) bool
 	Iterate(ctx context.Context, scope *Scope, a Any) <-chan Row
+}
+
+// Allow types to enumerate members
+type Memberer interface {
+	Members() []string
+}
+
+type Materializer interface {
+	Materialize(ctx context.Context, scope *Scope) Any
 }

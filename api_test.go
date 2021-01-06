@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/Velocidex/ordereddict"
-	"github.com/sebdah/goldie"
+	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -51,6 +51,11 @@ func TestAPIGetResponseChannel(t *testing.T) {
 		golden.Set("OutputJSON", string(serialized))
 	}
 
-	result_json, _ := json.MarshalIndent(golden, "", " ")
-	goldie.Assert(t, "api", result_json)
+	g := goldie.New(
+		t,
+		goldie.WithFixtureDir("fixtures"),
+		goldie.WithNameSuffix(".golden"),
+		goldie.WithDiffEngine(goldie.ColoredDiff),
+	)
+	g.AssertJson(t, "api", golden)
 }

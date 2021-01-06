@@ -2,7 +2,6 @@ package vfilter
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -11,7 +10,7 @@ import (
 
 	"github.com/Velocidex/ordereddict"
 	"github.com/go-test/deep"
-	"github.com/sebdah/goldie"
+	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -797,8 +796,13 @@ func TestVQLQueries(t *testing.T) {
 			vql.ToString(scope)), output)
 	}
 
-	result_json, _ := json.MarshalIndent(result, "", " ")
-	goldie.Assert(t, "vql_queries", result_json)
+	g := goldie.New(
+		t,
+		goldie.WithFixtureDir("fixtures"),
+		goldie.WithNameSuffix(".golden"),
+		goldie.WithDiffEngine(goldie.ColoredDiff),
+	)
+	g.AssertJson(t, "vql_queries", result)
 }
 
 func TestMultiVQLQueries(t *testing.T) {
@@ -826,8 +830,13 @@ func TestMultiVQLQueries(t *testing.T) {
 		}
 	}
 
-	result_json, _ := json.MarshalIndent(result, "", " ")
-	goldie.Assert(t, "multi_vql_queries", result_json)
+	g := goldie.New(
+		t,
+		goldie.WithFixtureDir("fixtures"),
+		goldie.WithNameSuffix(".golden"),
+		goldie.WithDiffEngine(goldie.ColoredDiff),
+	)
+	g.AssertJson(t, "multi_vql_queries", result)
 }
 
 // Check that ToString() methods work properly - convert an AST back

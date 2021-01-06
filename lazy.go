@@ -9,6 +9,14 @@ import (
 	"github.com/Velocidex/ordereddict"
 )
 
+// FIXME: Can this be refactored to use ordereddict?
+
+// A LazyRow holds callbacks as columns. When a column is accessed,
+// the LazyRow will call the callback to materialize it, then cache
+// the results.  LazyRows are used to avoid calling expensive
+// functions when the query does not need them - LazyRows are created
+// in the SELECT transformer to delay evaluation of column specifiers
+// until the are accessed.
 type LazyRow struct {
 	ctx     context.Context
 	getters map[string]func(ctx context.Context, scope *Scope) Any
@@ -18,13 +26,16 @@ type LazyRow struct {
 	columns []string
 	cache   *ordereddict.Dict
 
+	closer []func()
+
 	mu sync.Mutex
 }
 
 func (self *LazyRow) AddColumn(
-	name string, getter func(ctx context.Context, scope *Scope) Any) {
+	name string, getter func(ctx context.Context, scope *Scope) Any) *LazyRow {
 	self.getters[name] = getter
 	self.columns = append(self.columns, name)
+	return self
 }
 
 func NewLazyRow(ctx context.Context) *LazyRow {
@@ -105,39 +116,33 @@ func (self _LazyRowAssociative) GetMembers(scope *Scope, a Any) []string {
 	return value.columns
 }
 
-func MaterializedLazyRow(row Row, scope *Scope) *ordereddict.Dict {
+// Takes a row returned from a plugin and materialize it into basic
+// types. Generally this should only be LazyRow as this is only called
+// from the Transformer.  NOTE: This function only materialized the
+// columns - it does not recursively materialize all objects.
+func MaterializedLazyRow(ctx context.Context, row Row, scope *Scope) *ordereddict.Dict {
 	// If it is already materialized, just return what we have.
-	dict, ok := row.(*ordereddict.Dict)
-	if ok {
-		return dict
-	}
+	switch t := row.(type) {
+	case *ordereddict.Dict:
+		return t
 
-	result := ordereddict.NewDict()
-
-	// If it is a lazy row, materialize all its columns.
-	lazy_row, ok := row.(*LazyRow)
-	if ok {
+	case *LazyRow:
+		result := ordereddict.NewDict()
 		// Preserve column ordering.
-		for _, column := range lazy_row.columns {
-			value, pres := lazy_row.cache.Get(column)
+		for _, column := range t.columns {
+			value, pres := t.cache.Get(column)
 			if !pres {
-				getter, _ := lazy_row.getters[column]
-				value = getter(lazy_row.ctx, scope)
+				getter, _ := t.getters[column]
+				value = getter(ctx, scope)
 			}
 
 			result.Set(column, value)
 		}
+		return result
 
-		// If is something else...
-	} else {
-		for _, k := range scope.GetMembers(row) {
-			v, pres := scope.Associative(row, k)
-			if pres {
-				result.Set(k, v)
-			}
-		}
+	default:
+		return RowToDict(ctx, scope, row)
 	}
-	return result
 }
 
 type LazyExpr struct {

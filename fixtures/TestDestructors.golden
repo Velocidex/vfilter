@@ -1,0 +1,54 @@
+{
+  "000 Destructor as function: SELECT destructor() AS X FROM scope() - markers": [
+    "Func Open  1",
+    "Func Close  1"
+  ],
+  "001 Destructor as plugin: SELECT * FROM destructor() - markers": [
+    "Plugin Open  1",
+    "Plugin Close  1"
+  ],
+  "002 Both: SELECT destructor() AS X FROM destructor(rows=2) - markers": [
+    "Plugin Open  1",
+    "Func Open  1",
+    "Func Close  1",
+    "Func Open  2",
+    "Func Close  2",
+    "Plugin Close  1"
+  ],
+  "003 Nested foreach - destructors in row clause: SELECT * FROM foreach(row= { SELECT destructor(name='row_func') FROM scope()}, query= { SELECT * FROM destructor(name='inner_query')}) - markers": [
+    "Func Open row_func 1",
+    "Func Close row_func 1",
+    "Plugin Open inner_query 1",
+    "Plugin Close inner_query 1"
+  ],
+  "004 Nested foreach - destructor in query clause: SELECT * FROM foreach(row= { SELECT * FROM destructor(name='rows_query', rows=2)}, query= { SELECT destructor(name='iterator_func') FROM scope()}) - markers": [
+    "Plugin Open rows_query 1",
+    "Func Open iterator_func 1",
+    "Func Close iterator_func 1",
+    "Func Open iterator_func 2",
+    "Func Close iterator_func 2",
+    "Plugin Close rows_query 1"
+  ],
+  "005 Lazy function: SELECT destructor(name='lazy_func') AS X FROM scope() WHERE FALSE - markers": [],
+  "006 Lazy stored function: LET lazy(x)=destructor(name='lazy_func')SELECT lazy(x=1) FROM scope() WHERE FALSE - markers": [],
+  "007 Lazy stored function evaluated: LET lazy(x)=destructor(name='lazy_func')SELECT lazy(x=1) AS X FROM scope() WHERE X AND FALSE - markers": [
+    "Func Open lazy_func 1",
+    "Func Close lazy_func 1"
+  ],
+  "008 Lazy stored query: LET lazy(x)=SELECT * FROM destructor(name='stored_query', rows=2)SELECT X FROM lazy(x=1) WHERE FALSE - markers": [
+    "Plugin Open stored_query 1",
+    "Plugin Close stored_query 1"
+  ],
+  "009 Indirect functions: SELECT dict(x=destructor(name='inner')) AS Foo FROM scope() - markers": [
+    "Func Open inner 1",
+    "Func Close inner 1"
+  ],
+  "010 Multiple functions: SELECT destructor(name='one'), destructor(name='two'), destructor(name='three') FROM scope() - markers": [
+    "Func Open one 1",
+    "Func Open two 2",
+    "Func Open three 3",
+    "Func Close three 3",
+    "Func Close two 3",
+    "Func Close one 3"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "000 Lazy function hide method: SELECT * FROM lazy()": [
+    {
+      "Foo": "Hello",
+      "Const": ""
+    }
+  ],
+  "000 Lazy function hide method: SELECT * FROM lazy() - markers": [
+    "Foo ran"
+  ],
+  "001 Lazy function extra method: SELECT *, Bar FROM lazy()": [
+    {
+      "Foo": "Hello",
+      "Const": "",
+      "Bar": "Goodbye"
+    }
+  ],
+  "001 Lazy function extra method: SELECT *, Bar FROM lazy() - markers": [
+    "Foo ran",
+    "Bar ran"
+  ],
+  "002 Lazy dict plugin: SELECT Bar FROM lazy_dict()": [
+    {
+      "Bar": "Goodbye"
+    }
+  ],
+  "002 Lazy dict plugin: SELECT Bar FROM lazy_dict() - markers": [
+    "Bar ran"
+  ]
+}

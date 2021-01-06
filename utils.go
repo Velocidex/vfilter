@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/Velocidex/ordereddict"
@@ -189,6 +190,8 @@ func RowToDict(
 	return result
 }
 
+// Recursively convert types in the rows to standard types to allow
+// for json encoding.
 func normalize_value(ctx context.Context, scope *Scope, value Any, depth int) Any {
 	if depth > 10 {
 		return Null{}
@@ -199,7 +202,13 @@ func normalize_value(ctx context.Context, scope *Scope, value Any, depth int) An
 	}
 
 	switch t := value.(type) {
-	case Null:
+
+	// All valid JSON types.
+	case string, Null, *Null, bool, float64, int, uint,
+		int8, int16, int32, int64,
+		uint8, uint16, uint32, uint64,
+		time.Time, *time.Time,
+		*ordereddict.Dict:
 		return value
 
 	case fmt.Stringer:
@@ -208,14 +217,52 @@ func normalize_value(ctx context.Context, scope *Scope, value Any, depth int) An
 	case []byte:
 		return string(t)
 
+		// Reduce any LazyExpr to materialized types
 	case LazyExpr:
 		return normalize_value(ctx, scope, t.Reduce(), depth+1)
 
+		// Materialize stored queries into an array.
 	case StoredQuery:
-		return Materialize(ctx, scope, t)
+		result := Materialize(ctx, scope, t)
+		return result
+
+		// A dict may expose a callable as a member - we just
+		// call it lazily if it is here.
+	case func() Any:
+		return normalize_value(ctx, scope, t(), depth+1)
+
+	case Materializer:
+		return t.Materialize(ctx, scope)
 
 	default:
-		// Pass directly to Json Marshal
+		a_value := reflect.Indirect(reflect.ValueOf(value))
+		a_type := a_value.Type()
+		if a_type == nil {
+			return Null{}
+		}
+
+		if a_type.Kind() == reflect.Slice || a_type.Kind() == reflect.Array {
+			length := a_value.Len()
+			result := make([]Any, 0, length)
+			for i := 0; i < length; i++ {
+				result = append(result, normalize_value(
+					ctx, scope, a_value.Index(i).Interface(), depth+1))
+			}
+			return result
+
+		} else if a_type.Kind() == reflect.Map {
+			result := ordereddict.NewDict()
+			for _, key := range a_value.MapKeys() {
+				str_key, ok := key.Interface().(string)
+				if ok {
+					result.Set(str_key, normalize_value(
+						ctx, scope, a_value.MapIndex(key).Interface(),
+						depth+1))
+				}
+			}
+			return result
+		}
+
 		return value
 	}
 }
