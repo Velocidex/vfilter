@@ -1,6 +1,6 @@
 // Utility functions for extracting and validating inputs to functions
 // and plugins.
-package vfilter
+package arg_parser
 
 import (
 	"context"
@@ -10,6 +10,22 @@ import (
 
 	"github.com/Velocidex/ordereddict"
 	errors "github.com/pkg/errors"
+	"www.velocidex.com/golang/vfilter/types"
+	"www.velocidex.com/golang/vfilter/utils"
+)
+
+type tmpTypes struct {
+	any    types.Any
+	stored types.StoredQuery
+	lazy   types.LazyExpr
+}
+
+var (
+	// A bit of a hack to get the type of interface fields
+	testType        = tmpTypes{}
+	anyType         = reflect.ValueOf(testType).Type().Field(0).Type
+	storedQueryType = reflect.ValueOf(testType).Type().Field(1).Type
+	lazyExprType    = reflect.ValueOf(testType).Type().Field(2).Type
 )
 
 // Structs may tag fields with this name to control parsing.
@@ -35,10 +51,12 @@ const tagName = "vfilter"
 // NOTE: In order for the field to be populated by this function, the
 // field must be exported (i.e. name begins with cap) and it must have
 // vfilter tags.
-func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error {
 
-	// Make a copy of the args so we can ensure they are all
-	// provided properly.
+// FIXME - this code can be better optimized.
+func ExtractArgs(scope types.Scope, args *ordereddict.Dict, value interface{}) error {
+
+	// Make a copy of the args that we can modify so we can ensure
+	// they are all provided properly.
 	arg_map := *args.ToDict()
 	v := reflect.ValueOf(value)
 
@@ -80,7 +98,7 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 		// required, it is an error.
 		arg, pres := arg_map[field_name]
 		if !pres {
-			if InString(&directives, "required") {
+			if utils.InString(&directives, "required") {
 				return errors.New(fmt.Sprintf(
 					"Field %s is required.", field_name))
 			}
@@ -103,48 +121,27 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 		// The plugin may specify the arg as being a LazyExpr,
 		// in which case it is completely up to it to evaluate
 		// the expression (if at all).
-		if field_types_value.Type.String() == "vfilter.LazyExpr" {
-			// Only assign if it really is a LazyExpr
-			_, ok := arg.(LazyExpr)
-			if ok {
-				field_value.Set(reflect.ValueOf(arg))
-				continue
-			}
-
-			// It is not a LazyExpr so we wrap it in one.
-			field_value.Set(reflect.ValueOf(LazyExpr{
-				Value: arg,
-				scope: scope,
-				ctx:   context.Background()}))
+		if field_types_value.Type == lazyExprType {
+			// It is not a types.LazyExpr, we wrap it in one.
+			field_value.Set(reflect.ValueOf(ToLazyExpr(scope, arg)))
 			continue
 		}
 
-		// The target field is a StoredQuery - check that what
+		// The target field is a types.StoredQuery - check that what
 		// was provided is actually one of those.
-		if field_types_value.Type.String() == "vfilter.StoredQuery" {
-			lazy_arg, ok := arg.(LazyExpr)
-			if ok {
-				arg = lazy_arg.ToStoredQuery(scope)
-			}
-
-			stored_query, ok := arg.(StoredQuery)
-			if !ok {
-				stored_query = &StoredQueryWrapper{arg}
-			}
-
-			field_value.Set(reflect.ValueOf(stored_query))
+		if field_types_value.Type == storedQueryType {
+			field_value.Set(reflect.ValueOf(ToStoredQuery(arg)))
 			continue
 		}
 
 		// From here below, arg has to be non-lazy so we can
 		// deal with its materialized form.
-		lazy_arg, ok := arg.(LazyExpr)
+		lazy_arg, ok := arg.(types.LazyExpr)
 		if ok {
 			arg = lazy_arg.Reduce()
 		}
-
-		// The target field is an Any type - just assign it directly.
-		if field_types_value.Type.String() == "vfilter.Any" {
+		// The target field is an types.Any type - just assign it directly.
+		if field_types_value.Type == anyType {
 			field_value.Set(reflect.ValueOf(arg))
 			continue
 		}
@@ -165,7 +162,7 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 			// first element. This allows us to simply
 			// coerce a query into a variable without
 			// using get.
-			if is_array(arg) {
+			if utils.IsArray(arg) {
 				new_value, pres := _ExtractStringArray(scope, arg)
 				if pres && len(new_value) == 1 {
 					field_value.Set(reflect.ValueOf(new_value[0]))
@@ -177,7 +174,7 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 			case string:
 				field_value.Set(reflect.ValueOf(t))
 
-			case Null, *Null, nil:
+			case types.Null, *types.Null, nil:
 				continue
 			default:
 				field_value.Set(reflect.ValueOf(
@@ -188,7 +185,7 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 			field_value.Set(reflect.ValueOf(scope.Bool(arg)))
 
 		case reflect.Float64:
-			a, ok := to_float(arg)
+			a, ok := utils.ToFloat(arg)
 			if ok {
 				field_value.Set(reflect.ValueOf(a))
 			} else {
@@ -197,7 +194,7 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 					field_types_value.Name, arg))
 			}
 		case reflect.Int64:
-			a, ok := to_int64(arg)
+			a, ok := utils.ToInt64(arg)
 			if ok {
 				field_value.Set(reflect.ValueOf(a))
 			} else {
@@ -206,7 +203,7 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 					field_types_value.Name))
 			}
 		case reflect.Uint64:
-			a, ok := to_int64(arg)
+			a, ok := utils.ToInt64(arg)
 			if ok {
 				field_value.Set(reflect.ValueOf(uint64(a)))
 			} else {
@@ -215,7 +212,7 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 					field_types_value.Name))
 			}
 		case reflect.Int:
-			a, ok := to_int64(arg)
+			a, ok := utils.ToInt64(arg)
 			if ok {
 				field_value.Set(reflect.ValueOf(int(a)))
 			} else {
@@ -224,7 +221,7 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 					field_types_value.Name))
 			}
 		default:
-			if InString(&directives, "required") {
+			if utils.InString(&directives, "required") {
 				return errors.New(fmt.Sprintf(
 					"Field %s is required.", field_name))
 			}
@@ -245,11 +242,11 @@ func ExtractArgs(scope *Scope, args *ordereddict.Dict, value interface{}) error 
 
 // Try to retrieve an arg name from the Dict of args. Coerce the arg
 // into something resembling a list of strings.
-func _ExtractStringArray(scope *Scope, arg Any) ([]string, bool) {
+func _ExtractStringArray(scope types.Scope, arg types.Any) ([]string, bool) {
 	var result []string
 
 	// Handle potentially lazy args.
-	lazy_arg, ok := arg.(LazyExpr)
+	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
 		arg = lazy_arg.Reduce()
 	}
@@ -259,7 +256,7 @@ func _ExtractStringArray(scope *Scope, arg Any) ([]string, bool) {
 	if slice.Type().Kind() == reflect.Slice {
 		for i := 0; i < slice.Len(); i++ {
 			value := slice.Index(i).Interface()
-			item, ok := to_string(value)
+			item, ok := utils.ToString(value)
 			if ok {
 				result = append(result, item)
 				continue
@@ -271,7 +268,7 @@ func _ExtractStringArray(scope *Scope, arg Any) ([]string, bool) {
 			if len(members) == 1 {
 				member, ok := scope.Associative(value, members[0])
 				if ok {
-					item, ok := to_string(member)
+					item, ok := utils.ToString(member)
 					if ok {
 						result = append(result, item)
 					}
@@ -285,11 +282,117 @@ func _ExtractStringArray(scope *Scope, arg Any) ([]string, bool) {
 	}
 
 	// A single string just expands into a list of length 1.
-	item, ok := to_string(slice.Interface())
+	item, ok := utils.ToString(slice.Interface())
 	if ok {
 		result = append(result, item)
 		return result, true
 	}
 
 	return nil, false
+}
+
+// Convert a type to a stored query
+func ToStoredQuery(arg types.Any) types.StoredQuery {
+	switch t := arg.(type) {
+	case types.LazyExpr:
+		return ToStoredQuery(t.Reduce())
+
+	case types.StoredQuery:
+		return t
+	default:
+		return &storedQueryWrapper{arg}
+	}
+}
+
+type storedQueryWrapper struct {
+	value types.Any
+}
+
+func (self *storedQueryWrapper) Eval(ctx context.Context, scope types.Scope) <-chan types.Row {
+	output_chan := make(chan types.Row)
+	go func() {
+		defer close(output_chan)
+
+		slice := reflect.ValueOf(self.value)
+		if slice.Type().Kind() == reflect.Slice {
+			for i := 0; i < slice.Len(); i++ {
+				value := slice.Index(i).Interface()
+				if !types.IsNullObject(value) {
+					select {
+					case <-ctx.Done():
+						return
+					case output_chan <- self.toRow(scope, value):
+					}
+				}
+			}
+		} else {
+			row_value := self.toRow(scope, self.value)
+			if !types.IsNullObject(row_value) {
+				select {
+				case <-ctx.Done():
+					return
+				case output_chan <- row_value:
+				}
+			}
+		}
+
+	}()
+	return output_chan
+}
+
+func (self *storedQueryWrapper) toRow(scope types.Scope, value types.Any) types.Row {
+	if types.IsNullObject(value) {
+		return types.Null{}
+	}
+
+	members := scope.GetMembers(value)
+	if len(members) > 0 {
+		return value
+	}
+
+	return ordereddict.NewDict().Set("_value", value)
+}
+
+func ToLazyExpr(scope types.Scope, arg types.Any) types.LazyExpr {
+	// Fixme...
+	ctx := context.Background()
+
+	switch t := arg.(type) {
+	case types.LazyExpr:
+		return t
+
+	case types.StoredQuery:
+		return &storedQueryWrapperLazyExpression{
+			ctx: ctx, scope: scope, query: t}
+	default:
+		return &lazyExpressionWrapper{arg}
+	}
+}
+
+type storedQueryWrapperLazyExpression struct {
+	ctx   context.Context
+	scope types.Scope
+	query types.StoredQuery
+}
+
+func (self *storedQueryWrapperLazyExpression) Reduce() types.Any {
+	result := []types.Row{}
+
+	for row := range self.query.Eval(self.ctx, self.scope) {
+		result = append(result, row)
+	}
+
+	return result
+}
+
+type lazyExpressionWrapper struct {
+	value types.Any
+}
+
+func (self *lazyExpressionWrapper) Reduce() types.Any {
+	return self.value
+}
+
+type StringProtocol interface {
+	ToString() string
 }

@@ -151,42 +151,21 @@
       "func_foo(return=q1 + 4)": 7
     }
   ],
-  "016 Subselect functions.: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM test()": [
+  "016 Subselect in column.: SELECT bar, { SELECT * FROM dict(column=bar) } AS Query FROM test()": [
     {
       "bar": 0,
-      "Query": [
-        {
-          "column": 0
-        }
-      ]
+      "Query": 0
     },
     {
       "bar": 1,
-      "Query": [
-        {
-          "column": 1
-        }
-      ]
+      "Query": 1
     },
     {
       "bar": 2,
-      "Query": [
-        {
-          "column": 2
-        }
-      ]
+      "Query": 2
     }
   ],
-  "017 Subselect functions in filter.: SELECT bar, query(vql= { SELECT * FROM dict(column=bar)}) AS Query FROM test() WHERE 1 IN Query.column": [
-    {
-      "bar": 1,
-      "Query": [
-        {
-          "column": 1
-        }
-      ]
-    }
-  ],
+  "017 Subselect functions in filter.: SELECT bar, { SELECT * FROM dict(column=bar) } AS Query FROM test() WHERE 1 IN Query.column": null,
   "018 Subselect in columns: SELECT bar, { SELECT column FROM dict(column=bar) } AS subquery FROM test()": [
     {
       "bar": 0,
@@ -276,7 +255,7 @@
   "029 Foreach evals query in row scope 2/4: LET foreach_query=SELECT ColumnName123 FROM scope()": null,
   "030 Foreach evals query in row scope 3/4: SELECT * FROM foreach(row=row_query, query=foreach_query)": [
     {
-      "ColumnName123": 1
+      "ColumnName123": null
     }
   ],
   "031 Foreach evals query in row scope 4/4: SELECT * FROM foreach(row=row_query, query= { SELECT ColumnName123 FROM scope()})": [

@@ -1,21 +1,24 @@
 // VQL functions to deal with aggregates. This is mostly useful with
 // group by clause.
-package vfilter
+package functions
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Velocidex/ordereddict"
+	"www.velocidex.com/golang/vfilter/arg_parser"
+	"www.velocidex.com/golang/vfilter/types"
 )
 
 type _CountFunctionArgs struct {
-	Items Any `vfilter:"optional,field=items"`
+	Items types.Any `vfilter:"optional,field=items"`
 }
 
 type _CountFunction struct{}
 
-func (self _CountFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
-	return &FunctionInfo{
+func (self _CountFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
+	return &types.FunctionInfo{
 		Name:        "count",
 		Doc:         "Counts the items.",
 		ArgType:     type_map.AddType(scope, _CountFunctionArgs{}),
@@ -25,18 +28,18 @@ func (self _CountFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 
 func (self _CountFunction) Call(
 	ctx context.Context,
-	scope *Scope,
-	args *ordereddict.Dict) Any {
+	scope types.Scope,
+	args *ordereddict.Dict) types.Any {
 	arg := &_CountFunctionArgs{}
-	err := ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgs(scope, args, arg)
 	if err != nil {
 		scope.Log("count: %s", err.Error())
-		return Null{}
+		return types.Null{}
 	}
 
 	count := uint64(0)
-	previous_value_any := scope.GetContext(GetID(self))
-	if previous_value_any != nil {
+	previous_value_any, pres := scope.GetContext(GetID(self))
+	if pres {
 		count = previous_value_any.(uint64)
 	}
 
@@ -48,8 +51,8 @@ func (self _CountFunction) Call(
 
 type _MinFunction struct{}
 
-func (self _MinFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
-	return &FunctionInfo{
+func (self _MinFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
+	return &types.FunctionInfo{
 		Name:        "min",
 		Doc:         "Finds the smallest item in the aggregate.",
 		ArgType:     type_map.AddType(scope, _CountFunctionArgs{}),
@@ -59,19 +62,18 @@ func (self _MinFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 
 func (self _MinFunction) Call(
 	ctx context.Context,
-	scope *Scope,
-	args *ordereddict.Dict) Any {
+	scope types.Scope,
+	args *ordereddict.Dict) types.Any {
 	arg := &_CountFunctionArgs{}
-	err := ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgs(scope, args, arg)
 	if err != nil {
 		scope.Log("min: %s", err.Error())
-		return Null{}
+		return types.Null{}
 	}
 
-	var min_value Any = arg.Items
-	previous_value := scope.GetContext(GetID(self))
-
-	if previous_value != nil && !scope.Lt(min_value, previous_value) {
+	var min_value types.Any = arg.Items
+	previous_value, pres := scope.GetContext(GetID(self))
+	if pres && !scope.Lt(min_value, previous_value) {
 		min_value = previous_value
 	}
 
@@ -82,8 +84,8 @@ func (self _MinFunction) Call(
 
 type _MaxFunction struct{}
 
-func (self _MaxFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
-	return &FunctionInfo{
+func (self _MaxFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
+	return &types.FunctionInfo{
 		Name:        "max",
 		Doc:         "Finds the largest item in the aggregate.",
 		ArgType:     type_map.AddType(scope, _CountFunctionArgs{}),
@@ -93,18 +95,18 @@ func (self _MaxFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
 
 func (self _MaxFunction) Call(
 	ctx context.Context,
-	scope *Scope,
-	args *ordereddict.Dict) Any {
+	scope types.Scope,
+	args *ordereddict.Dict) types.Any {
 	arg := &_CountFunctionArgs{}
-	err := ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgs(scope, args, arg)
 	if err != nil {
 		scope.Log("min: %s", err.Error())
-		return Null{}
+		return types.Null{}
 	}
 
-	var max_value Any = arg.Items
-	previous_value := scope.GetContext(GetID(self))
-	if previous_value != nil && scope.Lt(max_value, previous_value) {
+	var max_value types.Any = arg.Items
+	previous_value, pres := scope.GetContext(GetID(self))
+	if pres && scope.Lt(max_value, previous_value) {
 		max_value = previous_value
 	}
 
@@ -115,8 +117,8 @@ func (self _MaxFunction) Call(
 
 type _EnumerateFunction struct{}
 
-func (self _EnumerateFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
-	return &FunctionInfo{
+func (self _EnumerateFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
+	return &types.FunctionInfo{
 		Name:        "enumerate",
 		Doc:         "Collect all the items in each group by bin.",
 		ArgType:     type_map.AddType(scope, _CountFunctionArgs{}),
@@ -126,24 +128,32 @@ func (self _EnumerateFunction) Info(scope *Scope, type_map *TypeMap) *FunctionIn
 
 func (self _EnumerateFunction) Call(
 	ctx context.Context,
-	scope *Scope,
-	args *ordereddict.Dict) Any {
+	scope types.Scope,
+	args *ordereddict.Dict) types.Any {
 	arg := &_CountFunctionArgs{}
-	err := ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgs(scope, args, arg)
 	if err != nil {
 		scope.Log("enumerate: %s", err.Error())
-		return Null{}
+		return types.Null{}
 	}
 
-	var value Any
-	previous_value, ok := scope.GetContext(GetID(self)).([]Any)
+	var value types.Any
+	previous_value, ok := scope.GetContext(GetID(self))
 	if ok {
-		value = append(previous_value, arg.Items)
+		previous_value_array, ok := previous_value.([]types.Any)
+		if ok {
+			value = append(previous_value_array, arg.Items)
+		}
 	} else {
-		value = []Any{arg.Items}
+		value = []types.Any{arg.Items}
 	}
 
 	scope.SetContext(GetID(self), value)
 
 	return value
+}
+
+// Returns a unique ID for the object.
+func GetID(obj types.Any) string {
+	return fmt.Sprintf("%p", obj)
 }

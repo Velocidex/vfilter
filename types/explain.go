@@ -1,80 +1,17 @@
-package vfilter
+package types
 
-/* This file implements the explain algorithm.
-
-We use reflection to explain all VQL extensions.
-*/
 import (
 	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/Velocidex/ordereddict"
+	"www.velocidex.com/golang/vfilter/utils"
 )
 
 var (
 	field_regex = regexp.MustCompile("field=([a-zA-Z0-9_]+)")
 )
-
-// Populated with information about the scope.
-type ScopeInformation struct {
-	Plugins   []*PluginInfo
-	Functions []*FunctionInfo
-}
-
-// Describes the specific plugin.
-type PluginInfo struct {
-	// The name of the plugin.
-	Name string
-
-	// A helpful description about the plugin.
-	Doc string
-
-	ArgType string
-
-	// A version of this plugin. VQL queries can target certain
-	// versions of this plugin if needed.
-	Version int
-}
-
-// Describe functions.
-type FunctionInfo struct {
-	Name    string
-	Doc     string
-	ArgType string
-
-	// This is true for functions which operate on aggregates
-	// (i.e. group by). For any columns which contains such a
-	// function, vfilter will first run the group by clause then
-	// re-evaluate the function on the aggregate column.
-	IsAggregate bool
-
-	// A version of this plugin. VQL queries can target certain
-	// versions of this function if needed.
-	Version int
-}
-
-// Describe a type. This is meant for human consumption so it does not
-// need to be so accurate. Fields is a map between the Associative
-// member and the type that is supposed to be returned. Note that
-// Velocifilter automatically calls accessor methods so they look like
-// standard exported fields.
-type TypeDescription struct {
-	Fields *ordereddict.Dict
-}
-
-// This describes what type is returned when we reference this field
-// from the TypeDescription.
-type TypeReference struct {
-	Target   string
-	Repeated bool
-	Tag      string
-}
-
-// Map between type name and its description.
-type TypeMap struct {
-	desc *ordereddict.Dict
-}
 
 func NewTypeMap() *TypeMap {
 	return &TypeMap{
@@ -86,7 +23,7 @@ func canonicalTypeName(a_type reflect.Type) string {
 	return strings.TrimLeft(a_type.String(), "*[]")
 }
 
-func (self *TypeMap) Get(scope *Scope, name string) (*TypeDescription, bool) {
+func (self *TypeMap) Get(scope Scope, name string) (*TypeDescription, bool) {
 	res, pres := self.desc.Get(name)
 	if res != nil {
 		return res.(*TypeDescription), pres
@@ -96,7 +33,7 @@ func (self *TypeMap) Get(scope *Scope, name string) (*TypeDescription, bool) {
 
 // Introspect the type of the parameter. Add type descriptor to the
 // type map and return the type name.
-func (self *TypeMap) AddType(scope *Scope, a Any) string {
+func (self *TypeMap) AddType(scope Scope, a Any) string {
 	// Dont do anything if the caller does not care about a type
 	// map.
 	if self == nil || scope == nil {
@@ -104,7 +41,6 @@ func (self *TypeMap) AddType(scope *Scope, a Any) string {
 	}
 
 	fields := scope.GetMembers(a)
-
 	v := reflect.ValueOf(a)
 	if v.Type().Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -116,7 +52,7 @@ func (self *TypeMap) AddType(scope *Scope, a Any) string {
 	return canonicalTypeName(a_type)
 }
 
-func (self *TypeMap) addType(scope *Scope, a_type reflect.Type, fields *[]string) {
+func (self *TypeMap) addType(scope Scope, a_type reflect.Type, fields *[]string) {
 	_, pres := self.desc.Get(canonicalTypeName(a_type))
 	if pres {
 		return
@@ -130,7 +66,7 @@ func (self *TypeMap) addType(scope *Scope, a_type reflect.Type, fields *[]string
 	self.addMethods(scope, a_type, &result, fields)
 }
 
-func (self *TypeMap) addFields(scope *Scope, a_type reflect.Type, desc *TypeDescription,
+func (self *TypeMap) addFields(scope Scope, a_type reflect.Type, desc *TypeDescription,
 	fields *[]string) {
 	if a_type.Kind() != reflect.Struct {
 		return
@@ -145,13 +81,14 @@ func (self *TypeMap) addFields(scope *Scope, a_type reflect.Type, desc *TypeDesc
 			self.addFields(scope, field_value.Type, desc, fields)
 			continue
 		}
+
 		// Skip un-exported names.
-		if !is_exported(field_value.Name) {
+		if !utils.IsExported(field_value.Name) {
 			continue
 		}
 
 		// Ignore missing fields.
-		if len(*fields) > 0 && !InString(fields, field_value.Name) {
+		if len(*fields) > 0 && !utils.InString(fields, field_value.Name) {
 			continue
 		}
 
@@ -186,7 +123,7 @@ func (self *TypeMap) addFields(scope *Scope, a_type reflect.Type, desc *TypeDesc
 	}
 }
 
-func (self *TypeMap) addMethods(scope *Scope, a_type reflect.Type,
+func (self *TypeMap) addMethods(scope Scope, a_type reflect.Type,
 	desc *TypeDescription, fields *[]string) {
 	// If a method has a pointer receiver than we will be able to
 	// reflect on its literal type. We need to work on pointers.
@@ -198,12 +135,12 @@ func (self *TypeMap) addMethods(scope *Scope, a_type reflect.Type,
 		method_value := a_type.Method(i)
 
 		// Skip un-exported names.
-		if !is_exported(method_value.Name) {
+		if !utils.IsExported(method_value.Name) {
 			continue
 		}
 
 		// Ignore missing fields.
-		if len(*fields) > 0 && !InString(fields, method_value.Name) {
+		if len(*fields) > 0 && !utils.InString(fields, method_value.Name) {
 			continue
 		}
 

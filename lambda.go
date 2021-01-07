@@ -6,6 +6,7 @@ import (
 
 	"github.com/Velocidex/ordereddict"
 	"github.com/alecthomas/participle"
+	"www.velocidex.com/golang/vfilter/types"
 )
 
 var (
@@ -31,12 +32,12 @@ func (self *Lambda) GetParameters() []string {
 	return result
 }
 
-func (self *Lambda) ToString(scope *Scope) string {
+func (self *Lambda) ToString(scope types.Scope) string {
 	return fmt.Sprintf("%v => %v", self.Parameters.ToString(scope),
 		self.Expression.ToString(scope))
 }
 
-func (self *Lambda) Reduce(ctx context.Context, scope *Scope, parameters []Any) Any {
+func (self *Lambda) Reduce(ctx context.Context, scope types.Scope, parameters []Any) Any {
 	my_parameters := self.GetParameters()
 	if len(my_parameters) != len(parameters) {
 		scope.Log("Incorrect number of parameters is Lambda call")

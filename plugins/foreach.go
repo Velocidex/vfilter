@@ -1,39 +1,41 @@
-package vfilter
+package plugins
 
 import (
 	"context"
 	"sync"
 
 	"github.com/Velocidex/ordereddict"
+	"www.velocidex.com/golang/vfilter/arg_parser"
+	"www.velocidex.com/golang/vfilter/types"
 )
 
 type _ForeachPluginImplArgs struct {
-	Row     LazyExpr    `vfilter:"required,field=row,doc=A query or slice which generates rows."`
-	Query   StoredQuery `vfilter:"optional,field=query,doc=Run this query for each row."`
-	Async   bool        `vfilter:"optional,field=async,doc=If set we run all queries asyncronously (implies workers=1000)."`
-	Workers int64       `vfilter:"optional,field=workers,doc=Total number of asyncronous workers."`
-	Column  string      `vfilter:"optional,field=column,doc=If set we only extract the column from row."`
+	Row     types.LazyExpr    `vfilter:"required,field=row,doc=A query or slice which generates rows."`
+	Query   types.StoredQuery `vfilter:"optional,field=query,doc=Run this query for each row."`
+	Async   bool              `vfilter:"optional,field=async,doc=If set we run all queries asyncronously (implies workers=1000)."`
+	Workers int64             `vfilter:"optional,field=workers,doc=Total number of asyncronous workers."`
+	Column  string            `vfilter:"optional,field=column,doc=If set we only extract the column from row."`
 }
 
 type _ForeachPluginImpl struct{}
 
 func (self _ForeachPluginImpl) Call(ctx context.Context,
-	scope *Scope,
-	args *ordereddict.Dict) <-chan Row {
-	output_chan := make(chan Row)
+	scope types.Scope,
+	args *ordereddict.Dict) <-chan types.Row {
+	output_chan := make(chan types.Row)
 
 	go func() {
 		defer close(output_chan)
 
 		arg := _ForeachPluginImplArgs{}
-		err := ExtractArgs(scope, args, &arg)
+		err := arg_parser.ExtractArgs(scope, args, &arg)
 		if err != nil {
 			scope.Log("foreach: %v", err)
 			return
 		}
 
 		if arg.Async && arg.Workers == 0 {
-			arg.Workers = 1000
+			arg.Workers = 100
 		}
 
 		// At least one worker
@@ -68,7 +70,7 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 					if pres {
 						row_item = value
 					} else {
-						row_item = Null{}
+						row_item = types.Null{}
 					}
 				}
 
@@ -98,8 +100,8 @@ func (self _ForeachPluginImpl) Name() string {
 	return "foreach"
 }
 
-func (self _ForeachPluginImpl) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
-	return &PluginInfo{
+func (self _ForeachPluginImpl) Info(scope types.Scope, type_map *types.TypeMap) *types.PluginInfo {
+	return &types.PluginInfo{
 		Name: "foreach",
 		Doc:  "Executes 'query' once for each row in the 'row' query.",
 
@@ -109,12 +111,12 @@ func (self _ForeachPluginImpl) Info(scope *Scope, type_map *TypeMap) *PluginInfo
 
 type workerPool struct {
 	wg          sync.WaitGroup
-	ch          chan *Scope
-	query       StoredQuery
-	output_chan chan Row
+	ch          chan types.Scope
+	query       types.StoredQuery
+	output_chan chan types.Row
 }
 
-func (self *workerPool) RunScope(scope *Scope) {
+func (self *workerPool) RunScope(scope types.Scope) {
 	self.ch <- scope
 }
 
@@ -123,7 +125,7 @@ func (self *workerPool) Close() {
 	self.wg.Wait()
 }
 
-func (self *workerPool) runQuery(ctx context.Context, scope *Scope) {
+func (self *workerPool) runQuery(ctx context.Context, scope types.Scope) {
 	child_ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -165,10 +167,10 @@ func (self *workerPool) worker(ctx context.Context) {
 	}
 }
 
-func newWorkerPool(ctx context.Context, query StoredQuery,
-	output_chan chan Row, size int) *workerPool {
+func newWorkerPool(ctx context.Context, query types.StoredQuery,
+	output_chan chan types.Row, size int) *workerPool {
 	self := &workerPool{
-		ch:          make(chan *Scope),
+		ch:          make(chan types.Scope),
 		query:       query,
 		output_chan: output_chan,
 	}

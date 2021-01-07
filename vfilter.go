@@ -115,7 +115,7 @@ the Foo object.
   }
 
   // Actually implement the addition between two Foo objects.
-  func (self FooAdder) Add(scope *Scope, a Any, b Any) Any {
+  func (self FooAdder) Add(scope types.Scope, a Any, b Any) Any {
     ... return new object (does not have to be Foo{}).
   }
 
@@ -141,6 +141,9 @@ import (
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
 	errors "github.com/pkg/errors"
+	"www.velocidex.com/golang/vfilter/scope"
+	"www.velocidex.com/golang/vfilter/types"
+	"www.velocidex.com/golang/vfilter/utils"
 )
 
 var (
@@ -290,7 +293,7 @@ type _ParameterList struct {
 	Right *_ParameterListTerm `{ @@ }`
 }
 
-func (self _ParameterList) ToString(scope *Scope) string {
+func (self _ParameterList) ToString(scope types.Scope) string {
 	result := self.Left
 
 	if self.Right != nil {
@@ -321,7 +324,7 @@ func (self *VQL) Type() string {
 
 // Evaluate the expression. Returns a channel which emits a series of
 // rows.
-func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
+func (self VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	// If this is a Let expression we need to create a stored
 	// query and assign to the scope.
 	if len(self.Let) > 0 {
@@ -332,7 +335,7 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				"materialized! Did you mean to use '='? ", self.Let)
 		}
 
-		_, pres := scope.functions[self.Let]
+		_, pres := scope.GetFunction(self.Let)
 		if pres {
 			scope.Log("LET expression is masking a built in function %v", self.Let)
 		}
@@ -341,28 +344,33 @@ func (self VQL) Eval(ctx context.Context, scope *Scope) <-chan Row {
 
 		// Let assigning an expression.
 		if self.Expression != nil {
-			expr := LazyExpr{
-				Expr:  self.Expression,
-				name:  name,
-				ctx:   ctx,
-				scope: scope}
+			expr := &StoredExpression{
+				Expr: self.Expression,
+				name: name,
+			}
 
 			if self.Parameters != nil {
 				expr.parameters = self.getParameters()
 			}
 
 			switch self.LetOperator {
+			// Store the expression in the scope for later.
 			case "=":
 				scope.AppendVars(ordereddict.NewDict().
 					Set(name, expr))
+
+				// If we are materializing here,
+				// reduce it now.
 			case "<=":
 				scope.AppendVars(ordereddict.NewDict().
-					Set(name, expr.Reduce()))
+					Set(name, expr.Reduce(ctx, scope)))
 			}
 			close(output_chan)
 			return output_chan
 		}
 
+		// LET is for stored query: LET X = SELECT ...
+		fmt.Printf("StoredQuery %v\n", self.StoredQuery.ToString(scope))
 		switch self.LetOperator {
 		case "=":
 			stored_query := NewStoredQuery(self.StoredQuery, name)
@@ -403,7 +411,7 @@ func (self VQL) getParameters() []string {
 }
 
 // Encodes the query into a string again.
-func (self VQL) ToString(scope *Scope) string {
+func (self VQL) ToString(scope types.Scope) string {
 	if self.Let != "" {
 		operator := " = "
 		if self.LetOperator != "" {
@@ -438,7 +446,7 @@ type _Select struct {
 	Limit            *int64             `[ LIMIT @Number ]`
 }
 
-func (self *_Select) ToString(scope *Scope) string {
+func (self *_Select) ToString(scope types.Scope) string {
 	result := "SELECT "
 	if self.SelectExpression != nil {
 		result += self.SelectExpression.ToString(scope)
@@ -474,7 +482,7 @@ func (self *_Select) ToString(scope *Scope) string {
 	return result
 }
 
-func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
+func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	output_chan := make(chan Row)
 
 	if self.GroupBy != nil {
@@ -544,7 +552,7 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 				// The transform function receives
 				// its own unique context for the
 				// specific aggregate group.
-				new_scope.context = aggregate_ctx.context
+				GetIntScope(new_scope).SetContextDict(aggregate_ctx.context)
 
 				// Update the row with the transformed
 				// columns. Note we must materialize
@@ -695,7 +703,7 @@ func (self *_Select) Eval(ctx context.Context, scope *Scope) <-chan Row {
 }
 
 func (self *_Select) processSingleRow(
-	ctx context.Context, scope *Scope, row Row, output_chan chan Row) {
+	ctx context.Context, scope types.Scope, row Row, output_chan chan Row) {
 	subscope := scope.Copy()
 	defer subscope.Close()
 
@@ -775,14 +783,14 @@ type _AliasedExpression struct {
 	cache *string
 }
 
-func (self *_AliasedExpression) GetName(scope *Scope) string {
+func (self *_AliasedExpression) GetName(scope types.Scope) string {
 	if self.As != "" {
 		return self.As
 	}
 	return self.ToString(scope)
 }
 
-func (self *_AliasedExpression) IsAggregate(scope *Scope) bool {
+func (self *_AliasedExpression) IsAggregate(scope types.Scope) bool {
 	if self.SubSelect != nil {
 		return true
 	}
@@ -794,7 +802,7 @@ func (self *_AliasedExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self *_AliasedExpression) Reduce(ctx context.Context, scope *Scope) Any {
+func (self *_AliasedExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	if self.Expression != nil {
 		return self.Expression.Reduce(ctx, scope)
 	}
@@ -828,7 +836,7 @@ func (self *_AliasedExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	return nil
 }
 
-func (self *_AliasedExpression) ToString(scope *Scope) string {
+func (self *_AliasedExpression) ToString(scope types.Scope) string {
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
@@ -982,22 +990,10 @@ type _Value struct {
 	cache Any
 }
 
-// A Generic object which may be returned in a row from a plugin.
-type Any interface{}
-
-// Plugins may return anything as long as there is a valid
-// Associative() protocol handler. VFilter will simply call
-// scope.Associative(row, column) to retrieve the cell value for each
-// column. Note that VFilter will use reflection to implement the
-// DefaultAssociative{} protocol - this means that plugins may just
-// return any struct with exported methods and fields and it will be
-// supported automatically.
-type Row interface{}
-
 // Receives a row from the FROM clause and transforms it according to
 // the select expression to produce a new row.
 func (self *_SelectExpression) Transform(
-	ctx context.Context, scope *Scope, row Row) *LazyRow {
+	ctx context.Context, scope types.Scope, row Row) types.LazyRow {
 	// The select uses a * to relay all the rows without
 	// filtering
 
@@ -1012,7 +1008,7 @@ func (self *_SelectExpression) Transform(
 	// generate the name by converting the
 	// expression to a string using its ToString()
 	// method.
-	new_row := NewLazyRow(ctx)
+	new_row := NewLazyRow(ctx, scope)
 	new_scope := scope.Copy()
 	new_scope.AppendVars(row)
 
@@ -1025,7 +1021,7 @@ func (self *_SelectExpression) Transform(
 			value, pres := scope.Associative(row, member)
 			if pres {
 				new_row.AddColumn(member,
-					func(ctx context.Context, scope *Scope) Any {
+					func(ctx context.Context, scope types.Scope) Any {
 						return value
 					})
 			}
@@ -1052,7 +1048,7 @@ func (self *_SelectExpression) Transform(
 			// may be accessed in any scope but
 			// needs to resolve members in the
 			// scope it was created from.
-			func(ctx context.Context, scope *Scope) Any {
+			func(ctx context.Context, scope types.Scope) Any {
 				return expr.Reduce(ctx, new_scope)
 			})
 	}
@@ -1060,7 +1056,7 @@ func (self *_SelectExpression) Transform(
 	return new_row
 }
 
-func (self *_SelectExpression) ToString(scope *Scope) string {
+func (self *_SelectExpression) ToString(scope types.Scope) string {
 	var substrings []string
 	if self.All {
 		substrings = append(substrings, "*")
@@ -1074,7 +1070,7 @@ func (self *_SelectExpression) ToString(scope *Scope) string {
 
 // The From expression runs the Plugin and then filters each row
 // according to the Where clause.
-func (self *_From) Eval(ctx context.Context, scope *Scope) <-chan Row {
+func (self *_From) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	output_chan := make(chan Row)
 
 	input_chan := self.Plugin.Eval(ctx, scope)
@@ -1093,18 +1089,18 @@ func (self *_From) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	return output_chan
 }
 
-func (self *_From) ToString(scope *Scope) string {
+func (self *_From) ToString(scope types.Scope) string {
 	result := self.Plugin.ToString(scope)
 	return result
 }
 
-func (self *_Plugin) getPlugin(scope *Scope, plugin_name string) (
+func (self *_Plugin) getPlugin(scope types.Scope, plugin_name string) (
 	PluginGeneratorInterface, bool) {
 	components := strings.Split(plugin_name, ".")
 	// Single plugin reference.
 	if len(components) == 1 {
 		// Try to find the plugin in the scope plugins.
-		plugin, pres := scope.plugins[plugin_name]
+		plugin, pres := scope.GetPlugin(plugin_name)
 		if !pres {
 			// Otherwise maybe there is a plugin-like
 			// object in the scope.
@@ -1136,7 +1132,7 @@ func (self *_Plugin) getPlugin(scope *Scope, plugin_name string) (
 	return nil, false
 }
 
-func (self *_Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
+func (self *_Plugin) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	output_chan := make(chan Row)
 
 	go func() {
@@ -1145,7 +1141,8 @@ func (self *_Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		// The FROM clause refers to a var and not a
 		// plugin. Just read the var from the scope.
 		if !self.Call {
-			if variable, pres := scope.Resolve(self.Name); pres {
+			variable, pres := scope.Resolve(self.Name)
+			if pres {
 				// If the variable is a stored query
 				// we just copy from its channel to
 				// the output.
@@ -1160,7 +1157,7 @@ func (self *_Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 						}
 					}
 
-				} else if is_array(variable) {
+				} else if utils.IsArray(variable) {
 					var_slice := reflect.ValueOf(variable)
 					for i := 0; i < var_slice.Len(); i++ {
 						select {
@@ -1190,12 +1187,7 @@ func (self *_Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		for _, arg := range self.Args {
 			if arg.Right != nil {
 				name := unquote_ident(arg.Left)
-
-				args.Set(name, LazyExpr{
-					Expr:  arg.Right,
-					name:  "Arg " + name,
-					ctx:   ctx,
-					scope: scope})
+				args.Set(name, NewLazyExpr(ctx, scope, arg.Right))
 
 			} else if arg.Array != nil {
 				value := arg.Array.Reduce(ctx, scope)
@@ -1215,16 +1207,18 @@ func (self *_Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 		}
 
 		if plugin, pres := self.getPlugin(scope, self.Name); pres {
+			scope.GetStats().IncPluginsCalled()
 			for row := range plugin.Call(ctx, scope, args) {
 				select {
 				case <-ctx.Done():
 					return
 
 				case output_chan <- row:
+					scope.GetStats().IncRowsScanned()
 				}
 			}
 		} else {
-			options := getSimilarPlugins(scope, self.Name)
+			options := scope.GetSimilarPlugins(self.Name)
 			message := fmt.Sprintf("Plugin %v not found. ", self.Name)
 			if len(options) > 0 {
 				message += fmt.Sprintf(
@@ -1232,7 +1226,7 @@ func (self *_Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 					strings.Join(options, " "))
 			}
 
-			_, pres := scope.functions[self.Name]
+			_, pres := scope.GetFunction(self.Name)
 			if pres {
 				message += fmt.Sprintf(
 					"There is a VQL function called \"%v\" "+
@@ -1247,7 +1241,7 @@ func (self *_Plugin) Eval(ctx context.Context, scope *Scope) <-chan Row {
 	return output_chan
 }
 
-func (self *_Plugin) ToString(scope *Scope) string {
+func (self *_Plugin) ToString(scope types.Scope) string {
 	result := self.Name
 	if self.Call {
 		var substrings []string
@@ -1261,7 +1255,7 @@ func (self *_Plugin) ToString(scope *Scope) string {
 	return result
 }
 
-func (self *_Args) ToString(scope *Scope) string {
+func (self *_Args) ToString(scope types.Scope) string {
 	if self.Right != nil {
 		return self.Left + "=" + self.Right.ToString(scope)
 	} else if self.SubSelect != nil {
@@ -1272,7 +1266,7 @@ func (self *_Args) ToString(scope *Scope) string {
 	return ""
 }
 
-func (self *_MemberExpression) IsAggregate(scope *Scope) bool {
+func (self *_MemberExpression) IsAggregate(scope types.Scope) bool {
 	if self.Left != nil && self.Left.IsAggregate(scope) {
 		return true
 	}
@@ -1280,7 +1274,7 @@ func (self *_MemberExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self *_MemberExpression) Reduce(ctx context.Context, scope *Scope) Any {
+func (self *_MemberExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	lhs := self.Left.Reduce(ctx, scope)
 	for _, term := range self.Right {
 		var pres bool
@@ -1299,7 +1293,7 @@ func (self *_MemberExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	return lhs
 }
 
-func (self *_MemberExpression) ToString(scope *Scope) string {
+func (self *_MemberExpression) ToString(scope types.Scope) string {
 	result := self.Left.ToString(scope)
 
 	for _, right := range self.Right {
@@ -1313,7 +1307,7 @@ func (self *_MemberExpression) ToString(scope *Scope) string {
 	return result
 }
 
-func (self *_CommaExpression) IsAggregate(scope *Scope) bool {
+func (self *_CommaExpression) IsAggregate(scope types.Scope) bool {
 	if self.Left != nil && self.Left.IsAggregate(scope) {
 		return true
 	}
@@ -1327,7 +1321,7 @@ func (self *_CommaExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _CommaExpression) Reduce(ctx context.Context, scope *Scope) Any {
+func (self _CommaExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	lhs := self.Left.Reduce(ctx, scope)
 	if lhs == nil {
 		return Null{}
@@ -1350,7 +1344,7 @@ func (self _CommaExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	return result
 }
 
-func (self _CommaExpression) ToString(scope *Scope) string {
+func (self _CommaExpression) ToString(scope types.Scope) string {
 	result := []string{self.Left.ToString(scope)}
 
 	for _, right := range self.Right {
@@ -1363,7 +1357,7 @@ func (self _CommaExpression) ToString(scope *Scope) string {
 	return strings.Join(result, ", ")
 }
 
-func (self *_AndExpression) IsAggregate(scope *Scope) bool {
+func (self *_AndExpression) IsAggregate(scope types.Scope) bool {
 	if self.Left.IsAggregate(scope) {
 		return true
 	}
@@ -1377,7 +1371,7 @@ func (self *_AndExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _AndExpression) Reduce(ctx context.Context, scope *Scope) Any {
+func (self _AndExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	result := self.Left.Reduce(ctx, scope)
 	if self.Right == nil {
 		return result
@@ -1396,7 +1390,7 @@ func (self _AndExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	return true
 }
 
-func (self _AndExpression) ToString(scope *Scope) string {
+func (self _AndExpression) ToString(scope types.Scope) string {
 	result := []string{self.Left.ToString(scope)}
 
 	for _, right := range self.Right {
@@ -1405,7 +1399,7 @@ func (self _AndExpression) ToString(scope *Scope) string {
 	return strings.Join(result, " AND ")
 }
 
-func (self *_OrExpression) IsAggregate(scope *Scope) bool {
+func (self *_OrExpression) IsAggregate(scope types.Scope) bool {
 	if self.Left.IsAggregate(scope) {
 		return true
 	}
@@ -1418,7 +1412,7 @@ func (self *_OrExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _OrExpression) Reduce(ctx context.Context, scope *Scope) Any {
+func (self _OrExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	result := self.Left.Reduce(ctx, scope)
 	if self.Right == nil {
 		return result
@@ -1438,7 +1432,7 @@ func (self _OrExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	return false
 }
 
-func (self _OrExpression) ToString(scope *Scope) string {
+func (self _OrExpression) ToString(scope types.Scope) string {
 	result := []string{self.Left.ToString(scope)}
 
 	for _, right := range self.Right {
@@ -1447,7 +1441,7 @@ func (self _OrExpression) ToString(scope *Scope) string {
 	return strings.Join(result, " OR ")
 }
 
-func (self _AdditionExpression) IsAggregate(scope *Scope) bool {
+func (self _AdditionExpression) IsAggregate(scope types.Scope) bool {
 	if self.Left != nil && self.Left.IsAggregate(scope) {
 		return true
 	}
@@ -1460,7 +1454,7 @@ func (self _AdditionExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _AdditionExpression) Reduce(ctx context.Context, scope *Scope) Any {
+func (self _AdditionExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	result := self.Left.Reduce(ctx, scope)
 	for _, term := range self.Right {
 		term_value := term.Term.Reduce(ctx, scope)
@@ -1475,7 +1469,7 @@ func (self _AdditionExpression) Reduce(ctx context.Context, scope *Scope) Any {
 	return result
 }
 
-func (self _AdditionExpression) ToString(scope *Scope) string {
+func (self _AdditionExpression) ToString(scope types.Scope) string {
 	result := self.Left.ToString(scope)
 
 	for _, right := range self.Right {
@@ -1484,7 +1478,7 @@ func (self _AdditionExpression) ToString(scope *Scope) string {
 	return result
 }
 
-func (self _ConditionOperand) IsAggregate(scope *Scope) bool {
+func (self _ConditionOperand) IsAggregate(scope types.Scope) bool {
 	if self.Not != nil && self.Not.IsAggregate(scope) {
 		return true
 	}
@@ -1502,7 +1496,7 @@ func (self _ConditionOperand) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) Any {
+func (self _ConditionOperand) Reduce(ctx context.Context, scope types.Scope) Any {
 	if self.Not != nil {
 		value := self.Not.Reduce(ctx, scope)
 		return !scope.Bool(value)
@@ -1519,7 +1513,7 @@ func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) Any {
 
 	switch self.Right.Operator {
 	case "IN":
-		result = scope.membership.Membership(scope, lhs, rhs)
+		result = scope.Membership(lhs, rhs)
 	case "<":
 		result = scope.Lt(lhs, rhs)
 	case "=":
@@ -1529,15 +1523,9 @@ func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) Any {
 	case "<=":
 		result = scope.Lt(lhs, rhs) || scope.Eq(lhs, rhs)
 	case ">":
-		// This only works if there is a matching lt
-		// operation.
-		if scope.lt.Applicable(scope, lhs, rhs) && !scope.Eq(lhs, rhs) {
-			result = !scope.Lt(lhs, rhs)
-		}
+		result = scope.Gt(lhs, rhs)
 	case ">=":
-		if scope.lt.Applicable(scope, lhs, rhs) {
-			result = !scope.Lt(lhs, rhs) || scope.Eq(lhs, rhs)
-		}
+		result = scope.Gt(lhs, rhs) || scope.Eq(lhs, rhs)
 	case "=~":
 		result = scope.Match(rhs, lhs)
 	}
@@ -1547,7 +1535,7 @@ func (self _ConditionOperand) Reduce(ctx context.Context, scope *Scope) Any {
 	return result
 }
 
-func (self _ConditionOperand) ToString(scope *Scope) string {
+func (self _ConditionOperand) ToString(scope types.Scope) string {
 	if self.Not != nil {
 		return "NOT " + self.Not.ToString(scope)
 	}
@@ -1562,7 +1550,7 @@ func (self _ConditionOperand) ToString(scope *Scope) string {
 	return result
 }
 
-func (self _MultiplicationExpression) IsAggregate(scope *Scope) bool {
+func (self _MultiplicationExpression) IsAggregate(scope types.Scope) bool {
 	if self.Left != nil && self.Left.IsAggregate(scope) {
 		return true
 	}
@@ -1575,7 +1563,7 @@ func (self _MultiplicationExpression) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self _MultiplicationExpression) Reduce(ctx context.Context, scope *Scope) Any {
+func (self _MultiplicationExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	result := self.Left.Reduce(ctx, scope)
 	for _, term := range self.Right {
 		term_value := term.Factor.Reduce(ctx, scope)
@@ -1590,7 +1578,7 @@ func (self _MultiplicationExpression) Reduce(ctx context.Context, scope *Scope) 
 	return result
 }
 
-func (self _MultiplicationExpression) ToString(scope *Scope) string {
+func (self _MultiplicationExpression) ToString(scope types.Scope) string {
 	result := self.Left.ToString(scope)
 
 	for _, right := range self.Right {
@@ -1599,7 +1587,7 @@ func (self _MultiplicationExpression) ToString(scope *Scope) string {
 	return result
 }
 
-func (self _Value) IsAggregate(scope *Scope) bool {
+func (self _Value) IsAggregate(scope types.Scope) bool {
 	if self.SymbolRef != nil && self.SymbolRef.IsAggregate(scope) {
 		return true
 	}
@@ -1611,7 +1599,7 @@ func (self _Value) IsAggregate(scope *Scope) bool {
 	return false
 }
 
-func (self *_Value) maybeParseStrNumber(scope *Scope) {
+func (self *_Value) maybeParseStrNumber(scope types.Scope) {
 	if self.Int != nil || self.Float != nil {
 		return
 	}
@@ -1674,7 +1662,7 @@ func unquote_ident(s string) string {
 	return out
 }
 
-func (self *_Value) Reduce(ctx context.Context, scope *Scope) Any {
+func (self *_Value) Reduce(ctx context.Context, scope types.Scope) Any {
 	self.maybeParseStrNumber(scope)
 
 	if self.Subexpression != nil {
@@ -1714,7 +1702,7 @@ func (self *_Value) Reduce(ctx context.Context, scope *Scope) Any {
 	return self.cache
 }
 
-func (self _Value) ToString(scope *Scope) string {
+func (self _Value) ToString(scope types.Scope) string {
 	self.maybeParseStrNumber(scope)
 
 	factor := 1.0
@@ -1755,7 +1743,7 @@ func (self _Value) ToString(scope *Scope) string {
 	}
 }
 
-func (self *_SymbolRef) IsAggregate(scope *Scope) bool {
+func (self *_SymbolRef) IsAggregate(scope types.Scope) bool {
 	self.mu.Lock()
 	// If it is not a function then it can not be an aggregate.
 	if self.Parameters == nil {
@@ -1766,15 +1754,118 @@ func (self *_SymbolRef) IsAggregate(scope *Scope) bool {
 	self.mu.Unlock()
 
 	// The symbol is a function.
-	value, pres := scope.functions[symbol]
+	value, pres := scope.GetFunction(symbol)
 	if !pres {
 		return false
 	}
 
-	return value.Info(scope, NewTypeMap()).IsAggregate
+	return value.Info(scope, types.NewTypeMap()).IsAggregate
 }
 
-func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
+func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
+
+	// The symbol is a function and this is a call site, e.g. Symbol(...)
+	if self.Called {
+		func_obj, pres := scope.GetFunction(self.Symbol)
+		if pres {
+			return self.callFunction(ctx, scope, func_obj)
+		}
+	}
+
+	// The symbol is just a constant in the scope. It may be a
+	// stored expression, a function or a stored query or just a
+	// plain value.
+	value, pres := scope.Resolve(unquote_ident(self.Symbol))
+	if value != nil && pres {
+		switch t := value.(type) {
+
+		// If the symbol is a stored expression we evaluated
+		// it.
+		case *StoredExpression:
+			subscope := scope.Copy()
+			if subscope.StackDepth() >= 1000 {
+				subscope.Log("Stack Overflow")
+				return &Null{}
+			}
+
+			subscope.AppendVars(self.buildArgsFromParameters(
+				ctx, scope))
+
+			scope.GetStats().IncFunctionsCalled()
+			return t.Reduce(ctx, subscope)
+
+		case StoredQuery:
+			// If the call site specifies parameters then
+			// we materialize the plugin at this
+			// point. Otherwise pass the stored query
+			// through.
+			if self.Parameters != nil {
+				subscope := scope.Copy()
+				if subscope.StackDepth() >= 1000 {
+					subscope.Log("Stack Overflow")
+					return &Null{}
+				}
+
+				subscope.AppendVars(self.buildArgsFromParameters(
+					ctx, scope))
+				scope.GetStats().IncFunctionsCalled()
+
+				result := []Row{}
+				for item := range t.Eval(ctx, subscope) {
+					result = append(result, item)
+				}
+				return result
+			}
+		}
+
+		// Every thing else is taken literally.
+		return value
+	}
+
+	scope.Log("Symbol %v not found. %s", self.Symbol,
+		scope.PrintVars())
+	return Null{}
+}
+
+// Interpolate the parameters into a subscope to get ready to call
+// into the VQL stored query with parameters
+func (self *_SymbolRef) buildArgsFromParameters(
+	ctx context.Context, scope types.Scope) *ordereddict.Dict {
+
+	args := ordereddict.NewDict()
+
+	// Not a function call - pass the scope as it is.
+	if !self.Called {
+		return args
+	}
+
+	self.mu.Lock()
+	parameters := self.Parameters
+	self.mu.Unlock()
+
+	// When calling into a VQL stored function, we materialize all
+	// args.
+	for _, arg := range parameters {
+		if arg.Right != nil {
+			name := unquote_ident(arg.Left)
+			args.Set(name, arg.Right.Reduce(ctx, scope))
+		} else if arg.Array != nil {
+			value := arg.Array.Reduce(ctx, scope)
+			args.Set(arg.Left, value)
+
+		} else if arg.SubSelect != nil {
+			args.Set(arg.Left, arg.SubSelect)
+		}
+	}
+
+	return args
+}
+
+// Call into a built in VQL function.
+func (self *_SymbolRef) callFunction(
+	ctx context.Context, scope types.Scope,
+	func_obj FunctionInterface) Any {
+
 	self.mu.Lock()
 	parameters := self.Parameters
 	function := self.function
@@ -1786,11 +1877,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 		if arg.Right != nil {
 			// Lazily evaluate right hand side.
 			name := unquote_ident(arg.Left)
-			args.Set(name, LazyExpr{
-				Expr:  arg.Right,
-				name:  "Arg " + name,
-				ctx:   ctx,
-				scope: scope})
+			args.Set(name, NewLazyExpr(ctx, scope, arg.Right))
 
 		} else if arg.Array != nil {
 			value := arg.Array.Reduce(ctx, scope)
@@ -1804,6 +1891,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 	// If this AST node previously called a function, we use the
 	// same function copy to ensure it may store internal state.
 	if function != nil {
+		scope.GetStats().IncFunctionsCalled()
 		result := function.Call(ctx, scope, args)
 		if result == nil {
 			return &Null{}
@@ -1811,101 +1899,32 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope *Scope) Any {
 		return result
 	}
 
-	// Lookup the symbol in the scope. Functions take
-	// precedence over symbols.
+	// Make a copy of the function for next time.
+	self.mu.Lock()
+	self.function = func_obj
+	self.mu.Unlock()
 
-	// The symbol is a function and we were called.
-	if self.Called {
-		func_obj, pres := scope.functions[self.Symbol]
-		if pres {
-			// Make a copy of the function for next time.
-			self.mu.Lock()
-			self.function = func_obj
-			self.mu.Unlock()
-			result := func_obj.Call(ctx, scope, args)
+	// Call the function now.
+	scope.GetStats().IncFunctionsCalled()
 
-			// Do not allow nil in VQL since it is not compatible
-			// with reflect package.
-			if result == nil {
-				return &Null{}
-			}
-			return result
-		}
+	result := func_obj.Call(ctx, scope, args)
+
+	// Do not allow nil in VQL since it is not compatible with
+	// reflect package. The VQL plugin might accidentally pass nil
+	if utils.IsNil(result) {
+		return &Null{}
 	}
 
-	// The symbol is just a constant in the scope. It may be a
-	// lazy expression, a function or a stored query or just a
-	// plain value.
-	value, pres := scope.Resolve(unquote_ident(self.Symbol))
-	if value != nil && pres {
-		switch t := value.(type) {
-
-		// If the symbol is a lazy expression deal with that.
-		case LazyExpr:
-			// If we are calling the expression, create a
-			// new scope, pass only the args to it, and
-			// evaluate the expression in the new scope.
-			if self.Called {
-				subscope := scope.Copy()
-				subscope.AppendVars(args)
-
-				t.scope = subscope
-				value = t.Call(ctx, subscope, args)
-				if value == nil {
-					value = &Null{}
-				}
-
-				// Otherwise evaluate the expression
-				// in the current scope but increase
-				// the stack depth to detect stack
-				// overflow expressions. eg:
-				// X = 1 + X
-			} else {
-				if t.scope.getDepth() >= 1000 {
-					scope.Log("Stack Overflow")
-					return &Null{}
-				}
-
-				t.scope.incDepth()
-				value = t.Reduce()
-				t.scope.decDepth()
-			}
-
-		case StoredQuery:
-			// If the call site specifies parameters then
-			// we materialize the plugin at this
-			// point. Otherwise pass the stored query
-			// through.
-			if self.Parameters != nil {
-				subscope := scope.Copy()
-				subscope.AppendVars(args)
-
-				result := []Row{}
-				for item := range t.Eval(ctx, subscope) {
-					result = append(result, item)
-				}
-				return result
-			}
-
-		default:
-			// Every thing else is taken literally.
-		}
-
-		return value
-	}
-
-	scope.Log("Symbol %v not found. %s", self.Symbol,
-		scope.PrintVars())
-	return Null{}
+	return result
 }
 
-func (self *_SymbolRef) ToString(scope *Scope) string {
+func (self *_SymbolRef) ToString(scope types.Scope) string {
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
 	symbol := self.Symbol
 	if self.Parameters == nil {
-		_, pres := scope.functions[symbol]
+		_, pres := scope.GetFunction(symbol)
 		if pres {
 			return symbol + "()"
 		}
@@ -1919,4 +1938,13 @@ func (self *_SymbolRef) ToString(scope *Scope) string {
 	}
 
 	return symbol + "(" + strings.Join(substrings, ", ") + ")"
+}
+
+func GetIntScope(scope_int types.Scope) *scope.Scope {
+	result, ok := scope_int.(*scope.Scope)
+	if ok {
+		return result
+	}
+	// Should never happen
+	panic("Unexpected scope seen!")
 }

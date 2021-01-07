@@ -12,6 +12,9 @@ import (
 	"github.com/go-test/deep"
 	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/assert"
+	"www.velocidex.com/golang/vfilter/plugins"
+	"www.velocidex.com/golang/vfilter/types"
+	"www.velocidex.com/golang/vfilter/utils"
 )
 
 const (
@@ -195,15 +198,15 @@ type TestFunction struct {
 	return_value Any
 }
 
-func (self TestFunction) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
+func (self TestFunction) Call(ctx context.Context, scope types.Scope, args *ordereddict.Dict) Any {
 	if value, pres := args.Get("return"); pres {
-		lazy_value := value.(LazyExpr)
+		lazy_value := value.(types.LazyExpr)
 		return lazy_value.Reduce()
 	}
 	return self.return_value
 }
 
-func (self TestFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
+func (self TestFunction) Info(scope types.Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name: "func_foo",
 	}
@@ -213,12 +216,12 @@ var CounterFunctionCount = 0
 
 type CounterFunction struct{}
 
-func (self CounterFunction) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
+func (self CounterFunction) Call(ctx context.Context, scope types.Scope, args *ordereddict.Dict) Any {
 	CounterFunctionCount += 1
 	return CounterFunctionCount
 }
 
-func (self CounterFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
+func (self CounterFunction) Info(scope types.Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name: "counter",
 	}
@@ -232,7 +235,7 @@ type PanicFunctionArgs struct {
 }
 
 // Panic if we get an arg of a=2
-func (self PanicFunction) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
+func (self PanicFunction) Call(ctx context.Context, scope types.Scope, args *ordereddict.Dict) Any {
 	arg := PanicFunctionArgs{}
 
 	err := ExtractArgs(scope, args, &arg)
@@ -240,19 +243,20 @@ func (self PanicFunction) Call(ctx context.Context, scope *Scope, args *orderedd
 		panic(err)
 	}
 	if scope.Eq(arg.Value, arg.Column) {
-		panic(fmt.Sprintf("Panic because I got %v = %v!", arg.Column, arg.Value))
+		fmt.Printf("Panic because I got %v = %v! \n", arg.Column, arg.Value)
+		//panic(fmt.Sprintf("Panic because I got %v = %v!", arg.Column, arg.Value))
 	}
 
 	return arg.Value
 }
 
-func (self PanicFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
+func (self PanicFunction) Info(scope types.Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name: "panic",
 	}
 }
 
-func makeScope() *Scope {
+func makeScope() types.Scope {
 	return NewScope().AppendVars(ordereddict.NewDict().
 		Set("const_foo", 1).
 		Set("my_list_obj", ordereddict.NewDict().
@@ -268,9 +272,9 @@ func makeScope() *Scope {
 		CounterFunction{},
 		PanicFunction{},
 	).AppendPlugins(
-		GenericListPlugin{
+		plugins.GenericListPlugin{
 			PluginName: "range",
-			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
+			Function: func(scope types.Scope, args *ordereddict.Dict) []Row {
 				return []Row{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 			},
 		},
@@ -311,9 +315,9 @@ func TestEvalWhereClause(t *testing.T) {
 
 		value := vql.Query.Where.Reduce(ctx, scope)
 		if !scope.Eq(value, test.result) {
-			Debug(test.clause)
-			Debug(test.result)
-			Debug(value)
+			utils.Debug(test.clause)
+			utils.Debug(test.result)
+			utils.Debug(value)
 			t.Fatalf("%v: Expected %v, got %v", test.clause, test.result, value)
 		}
 	}
@@ -339,13 +343,13 @@ func TestSerializaition(t *testing.T) {
 		vql_string := vql.ToString(scope)
 		parsed_vql, err := Parse(vql_string)
 		if err != nil {
-			Debug(vql)
+			utils.Debug(vql)
 			t.Fatalf("Failed to parse stringified VQL %v: %v (%v)",
 				vql_string, err, test.clause)
 		}
 
 		if !reflect.DeepEqual(parsed_vql, vql) {
-			Debug(vql)
+			utils.Debug(vql)
 			t.Fatalf("Parsed generated VQL not equivalent: %v vs %v.",
 				preamble+test.clause, vql_string)
 		}
@@ -396,9 +400,8 @@ var vqlTests = []vqlTest{
 	// 2. For each of these rows, the query() function is run with
 	//    the subselect specified. Note how the subselect can use
 	//    the values returned from the first query.
-	{"Subselect functions.",
-		`select bar,
-                        query(vql={select * from dict(column=bar)}) as Query
+	{"Subselect in column.",
+		`select bar, {select * from dict(column=bar)} as Query
                  from test()`},
 
 	// The below query demonstrates that the query() function is
@@ -406,8 +409,7 @@ var vqlTests = []vqlTest{
 	// output is filtered by the the where clause. Be aware that
 	// this may be expensive if test() returns many rows.
 	{"Subselect functions in filter.",
-		`select bar,
-                        query(vql={select * from dict(column=bar)}) as Query
+		`select bar, {select * from dict(column=bar)} as Query
                  from test() where 1 in Query.column`},
 
 	{"Subselect in columns",
@@ -675,11 +677,11 @@ type _RangeArgs struct {
 	End   float64 `vfilter:"required,field=end"`
 }
 
-func makeTestScope() *Scope {
+func makeTestScope() types.Scope {
 	result := makeScope().AppendPlugins(
-		GenericListPlugin{
+		plugins.GenericListPlugin{
 			PluginName: "test",
-			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
+			Function: func(scope types.Scope, args *ordereddict.Dict) []Row {
 				var result []Row
 				for i := 0; i < 3; i++ {
 					result = append(result, ordereddict.NewDict().
@@ -688,9 +690,9 @@ func makeTestScope() *Scope {
 				}
 				return result
 			},
-		}, GenericListPlugin{
+		}, plugins.GenericListPlugin{
 			PluginName: "range",
-			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
+			Function: func(scope types.Scope, args *ordereddict.Dict) []Row {
 				arg := &_RangeArgs{}
 				ExtractArgs(scope, args, arg)
 				var result []Row
@@ -699,14 +701,14 @@ func makeTestScope() *Scope {
 				}
 				return result
 			},
-		}, GenericListPlugin{
+		}, plugins.GenericListPlugin{
 			PluginName: "dict",
 			Doc:        "Just echo back the args as a dict.",
-			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
+			Function: func(scope types.Scope, args *ordereddict.Dict) []Row {
 				result := ordereddict.NewDict()
 				for _, k := range scope.GetMembers(args) {
 					v, _ := args.Get(k)
-					lazy_arg, ok := v.(LazyExpr)
+					lazy_arg, ok := v.(types.LazyExpr)
 					if ok {
 						result.Set(k, lazy_arg.Reduce())
 					} else {
@@ -716,9 +718,9 @@ func makeTestScope() *Scope {
 
 				return []Row{result}
 			},
-		}, GenericListPlugin{
+		}, plugins.GenericListPlugin{
 			PluginName: "groupbytest",
-			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
+			Function: func(scope types.Scope, args *ordereddict.Dict) []Row {
 				return []Row{
 					ordereddict.NewDict().Set("foo", 1).Set("bar", 5).
 						Set("baz", "a"),
@@ -731,7 +733,7 @@ func makeTestScope() *Scope {
 				}
 			},
 		})
-	result.Logger = log.New(os.Stdout, "Log: ", log.Ldate|log.Ltime|log.Lshortfile)
+	result.SetLogger(log.New(os.Stdout, "Log: ", log.Ldate|log.Ltime|log.Lshortfile))
 	return result
 }
 

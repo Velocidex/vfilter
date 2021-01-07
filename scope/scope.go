@@ -1,4 +1,4 @@
-package vfilter
+package scope
 
 import (
 	"context"
@@ -6,14 +6,19 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Velocidex/ordereddict"
+	"www.velocidex.com/golang/vfilter/functions"
+	"www.velocidex.com/golang/vfilter/plugins"
+	"www.velocidex.com/golang/vfilter/protocols"
+	"www.velocidex.com/golang/vfilter/types"
+	"www.velocidex.com/golang/vfilter/utils"
 )
 
-// Destructors are stored in the root of the scope stack so they may
-// be reached from any nested scope and only destroyed when the root
-// scope is destroyed.
+// Destructors are attached to each scope in the stack - they are
+// called when scope.Close() is called.
 type _destructors struct {
 	fn           []func()
 	is_destroyed bool
@@ -39,21 +44,23 @@ type _destructors struct {
 type Scope struct {
 	sync.Mutex
 
-	vars      []Row
-	functions map[string]FunctionInterface
-	plugins   map[string]PluginGeneratorInterface
+	Stats *types.Stats
 
-	bool        _BoolDispatcher
-	eq          _EqDispatcher
-	lt          _LtDispatcher
-	add         _AddDispatcher
-	sub         _SubDispatcher
-	mul         _MulDispatcher
-	div         _DivDispatcher
-	membership  _MembershipDispatcher
-	associative _AssociativeDispatcher
-	regex       _RegexDispatcher
-	iterator    _IterateDispatcher
+	vars      []types.Row
+	functions map[string]types.FunctionInterface
+	plugins   map[string]types.PluginGeneratorInterface
+
+	bool        protocols.BoolDispatcher
+	eq          protocols.EqDispatcher
+	lt          protocols.LtDispatcher
+	add         protocols.AddDispatcher
+	sub         protocols.SubDispatcher
+	mul         protocols.MulDispatcher
+	div         protocols.DivDispatcher
+	membership  protocols.MembershipDispatcher
+	associative protocols.AssociativeDispatcher
+	regex       protocols.RegexDispatcher
+	iterator    protocols.IterateDispatcher
 
 	Logger *log.Logger
 
@@ -68,21 +75,26 @@ type Scope struct {
 	// All children of this scope.
 	children []*Scope
 
-	// Any destructors attached to this scope.
+	// types.Any destructors attached to this scope.
 	destructors _destructors
 }
 
+func (self *Scope) SetLogger(logger *log.Logger) {
+	self.Logger = logger
+}
+
 // Create a new scope from this scope.
-func (self *Scope) NewScope() *Scope {
+func (self *Scope) NewScope() types.Scope {
 	self.Lock()
 	defer self.Unlock()
 
 	// Make a copy of self
 	result := &Scope{
+		Stats:   &types.Stats{},
 		context: ordereddict.NewDict(),
-		vars: []Row{
+		vars: []types.Row{
 			ordereddict.NewDict().
-				Set("NULL", Null{}),
+				Set("NULL", types.Null{}),
 		},
 		functions:   self.functions,
 		plugins:     self.plugins,
@@ -104,16 +116,15 @@ func (self *Scope) NewScope() *Scope {
 	return result
 }
 
-func (self *Scope) GetContext(name string) Any {
+func (self *Scope) GetStats() *types.Stats {
+	return self.Stats
+}
+
+func (self *Scope) GetContext(name string) (types.Any, bool) {
 	self.Lock()
 	defer self.Unlock()
 
-	res, pres := self.context.Get(name)
-	if !pres {
-		return nil
-	}
-
-	return res
+	return self.context.Get(name)
 }
 
 func (self *Scope) ClearContext() {
@@ -122,10 +133,10 @@ func (self *Scope) ClearContext() {
 
 	self.context = ordereddict.NewDict()
 	self.vars = append(self.vars, ordereddict.NewDict().
-		Set("NULL", Null{}))
+		Set("NULL", types.Null{}))
 }
 
-func (self *Scope) SetContext(name string, value Any) {
+func (self *Scope) SetContext(name string, value types.Any) {
 	self.Lock()
 	defer self.Unlock()
 	self.context.Set(name, value)
@@ -147,6 +158,7 @@ func (self *Scope) PrintVars() string {
 	return fmt.Sprintf("Current Scope is: %s", strings.Join(my_vars, ", "))
 }
 
+/*
 func (self *Scope) Keys() []string {
 	self.Lock()
 	defer self.Unlock()
@@ -179,107 +191,120 @@ func (self *Scope) Describe(type_map *TypeMap) *ScopeInformation {
 
 	return result
 }
+*/
 
 // Tests two values for equality.
-func (self *Scope) Eq(a Any, b Any) bool {
+func (self *Scope) Eq(a types.Any, b types.Any) bool {
 	return self.eq.Eq(self, a, b)
 }
 
 // Evaluate the truth value of a value.
-func (self *Scope) Bool(a Any) bool {
+func (self *Scope) Bool(a types.Any) bool {
 	return self.bool.Bool(self, a)
 }
 
 // Is a less than b?
-func (self *Scope) Lt(a Any, b Any) bool {
+func (self *Scope) Lt(a types.Any, b types.Any) bool {
 	return self.lt.Lt(self, a, b)
 }
 
+func (self *Scope) Gt(lhs types.Any, rhs types.Any) bool {
+	if self.lt.Applicable(self, lhs, rhs) && !self.Eq(lhs, rhs) {
+		return !self.Lt(lhs, rhs)
+	}
+	return false
+}
+
 // Add a and b together.
-func (self *Scope) Add(a Any, b Any) Any {
+func (self *Scope) Add(a types.Any, b types.Any) types.Any {
 	return self.add.Add(self, a, b)
 }
 
 // Subtract b from a.
-func (self *Scope) Sub(a Any, b Any) Any {
+func (self *Scope) Sub(a types.Any, b types.Any) types.Any {
 	return self.sub.Sub(self, a, b)
 }
 
 // Multiply a and b.
-func (self *Scope) Mul(a Any, b Any) Any {
+func (self *Scope) Mul(a types.Any, b types.Any) types.Any {
 	return self.mul.Mul(self, a, b)
 }
 
 // Divide b into a.
-func (self *Scope) Div(a Any, b Any) Any {
+func (self *Scope) Div(a types.Any, b types.Any) types.Any {
 	return self.div.Div(self, a, b)
 }
 
 // Is a a member in b?
-func (self *Scope) Membership(a Any, b Any) bool {
+func (self *Scope) Membership(a types.Any, b types.Any) bool {
 	return self.membership.Membership(self, a, b)
 }
 
 // Get the field member b from a (i.e. a.b).
-func (self *Scope) Associative(a Any, b Any) (Any, bool) {
+func (self *Scope) Associative(a types.Any, b types.Any) (types.Any, bool) {
 	res, pres := self.associative.Associative(self, a, b)
 	return res, pres
 }
 
-func (self *Scope) GetMembers(a Any) []string {
+func (self *Scope) GetMembers(a types.Any) []string {
 	return self.associative.GetMembers(self, a)
 }
 
 // Does the regex a match object b.
-func (self *Scope) Match(a Any, b Any) bool {
+func (self *Scope) Match(a types.Any, b types.Any) bool {
 	return self.regex.Match(self, a, b)
 }
 
-func (self *Scope) Iterate(ctx context.Context, a Any) <-chan Row {
+func (self *Scope) Iterate(ctx context.Context, a types.Any) <-chan types.Row {
 	return self.iterator.Iterate(ctx, self, a)
 }
 
-func (self *Scope) incDepth() {
+func (self *Scope) StackDepth() int {
 	self.Lock()
 	defer self.Unlock()
-	self.stack_depth++
-}
 
-func (self *Scope) decDepth() {
-	self.Lock()
-	defer self.Unlock()
-	self.stack_depth--
-}
-
-func (self *Scope) getDepth() int {
-	self.Lock()
-	defer self.Unlock()
 	return self.stack_depth
 }
 
-func (self *Scope) Copy() *Scope {
+func (self *Scope) Copy() types.Scope {
 	self.Lock()
 	defer self.Unlock()
 
+	atomic.AddUint64(&self.Stats.ScopeCopy, 1)
 	child_scope := &Scope{
 		functions: self.functions,
 		plugins:   self.plugins,
 		Logger:    self.Logger,
 		Tracer:    self.Tracer,
-		vars:      append([]Row(nil), self.vars...),
+		vars:      append([]types.Row(nil), self.vars...),
 		context:   self.context,
+		Stats:     self.Stats,
 
-		bool:        self.bool.Copy(),
-		eq:          self.eq.Copy(),
-		lt:          self.lt.Copy(),
-		add:         self.add.Copy(),
-		sub:         self.sub.Copy(),
-		mul:         self.mul.Copy(),
-		div:         self.div.Copy(),
-		membership:  self.membership.Copy(),
-		associative: self.associative.Copy(),
-		regex:       self.regex.Copy(),
-		iterator:    self.iterator.Copy(),
+		/*
+			bool:        self.bool.Copy(),
+			eq:          self.eq.Copy(),
+			lt:          self.lt.Copy(),
+			add:         self.add.Copy(),
+			sub:         self.sub.Copy(),
+			mul:         self.mul.Copy(),
+			div:         self.div.Copy(),
+			membership:  self.membership.Copy(),
+			associative: self.associative.Copy(),
+			regex:       self.regex.Copy(),
+			iterator:    self.iterator.Copy(),
+		*/
+		bool:        self.bool,
+		eq:          self.eq,
+		lt:          self.lt,
+		add:         self.add,
+		sub:         self.sub,
+		mul:         self.mul,
+		div:         self.div,
+		membership:  self.membership,
+		associative: self.associative,
+		regex:       self.regex,
+		iterator:    self.iterator,
+
 		stack_depth: self.stack_depth + 1,
 	}
 
@@ -292,36 +317,36 @@ func (self *Scope) Copy() *Scope {
 // Add various protocol implementations into this
 // scope. Implementations must be one of the supported protocols or
 // this function will panic.
-func (self *Scope) AddProtocolImpl(implementations ...Any) *Scope {
+func (self *Scope) AddProtocolImpl(implementations ...types.Any) types.Scope {
 	self.Lock()
 	defer self.Unlock()
 
 	for _, imp := range implementations {
 		switch t := imp.(type) {
-		case BoolProtocol:
+		case protocols.BoolProtocol:
 			self.bool.AddImpl(t)
-		case EqProtocol:
+		case protocols.EqProtocol:
 			self.eq.AddImpl(t)
-		case LtProtocol:
+		case protocols.LtProtocol:
 			self.lt.AddImpl(t)
-		case AddProtocol:
+		case protocols.AddProtocol:
 			self.add.AddImpl(t)
-		case SubProtocol:
+		case protocols.SubProtocol:
 			self.sub.AddImpl(t)
-		case MulProtocol:
+		case protocols.MulProtocol:
 			self.mul.AddImpl(t)
-		case DivProtocol:
+		case protocols.DivProtocol:
 			self.div.AddImpl(t)
-		case MembershipProtocol:
+		case protocols.MembershipProtocol:
 			self.membership.AddImpl(t)
-		case AssociativeProtocol:
+		case protocols.AssociativeProtocol:
 			self.associative.AddImpl(t)
-		case RegexProtocol:
+		case protocols.RegexProtocol:
 			self.regex.AddImpl(t)
-		case IterateProtocol:
+		case protocols.IterateProtocol:
 			self.iterator.AddImpl(t)
 		default:
-			Debug(t)
+			utils.Debug(t)
 			panic("Unsupported interface")
 		}
 	}
@@ -329,8 +354,8 @@ func (self *Scope) AddProtocolImpl(implementations ...Any) *Scope {
 	return self
 }
 
-// Append the variables in Row to the scope.
-func (self *Scope) AppendVars(row Row) *Scope {
+// Append the variables in types.Row to the scope.
+func (self *Scope) AppendVars(row types.Row) types.Scope {
 	self.Lock()
 	defer self.Unlock()
 
@@ -343,7 +368,7 @@ func (self *Scope) AppendVars(row Row) *Scope {
 
 // Add client function implementations to the scope. Queries using
 // this scope can call these functions from within VQL queries.
-func (self *Scope) AppendFunctions(functions ...FunctionInterface) *Scope {
+func (self *Scope) AppendFunctions(functions ...types.FunctionInterface) types.Scope {
 	self.Lock()
 	defer self.Unlock()
 
@@ -358,7 +383,7 @@ func (self *Scope) AppendFunctions(functions ...FunctionInterface) *Scope {
 
 // Add plugins (data sources) to the scope. VQL queries may select
 // from these newly added plugins.
-func (self *Scope) AppendPlugins(plugins ...PluginGeneratorInterface) *Scope {
+func (self *Scope) AppendPlugins(plugins ...types.PluginGeneratorInterface) types.Scope {
 	self.Lock()
 	defer self.Unlock()
 
@@ -371,7 +396,17 @@ func (self *Scope) AppendPlugins(plugins ...PluginGeneratorInterface) *Scope {
 	return result
 }
 
-func (self *Scope) Info(type_map *TypeMap, name string) (*PluginInfo, bool) {
+func (self *Scope) GetFunction(name string) (types.FunctionInterface, bool) {
+	res, pres := self.functions[name]
+	return res, pres
+}
+
+func (self *Scope) GetPlugin(name string) (types.PluginGeneratorInterface, bool) {
+	res, pres := self.plugins[name]
+	return res, pres
+}
+
+func (self *Scope) Info(type_map *types.TypeMap, name string) (*types.PluginInfo, bool) {
 	self.Lock()
 	defer self.Unlock()
 
@@ -461,63 +496,20 @@ func (self *Scope) Close() {
 // their scope objects.
 func NewScope() *Scope {
 	result := Scope{}
-	result.functions = make(map[string]FunctionInterface)
-	result.plugins = make(map[string]PluginGeneratorInterface)
+	result.functions = make(map[string]types.FunctionInterface)
+	result.plugins = make(map[string]types.PluginGeneratorInterface)
 	result.context = ordereddict.NewDict()
+	result.Stats = &types.Stats{}
 	result.AppendVars(
 		ordereddict.NewDict().
-			Set("NULL", Null{}))
+			Set("NULL", types.Null{}))
 
-	// Protocol handlers.
-	result.AddProtocolImpl(
-		// Most common objects come first to optimise O(n) algorithm.
-		_ScopeAssociative{}, _LazyRowAssociative{}, _DictAssociative{},
+	// Get Builtin protocols, functions, and plugins
+	result.AddProtocolImpl(protocols.GetBuiltinTypes()...)
+	result.AppendFunctions(functions.GetBuiltinFunctions()...)
+	result.AppendPlugins(plugins.GetBuiltinPlugins()...)
 
-		_NullAssociative{}, _NullEqProtocol{}, _NullBoolProtocol{},
-		_BoolImpl{}, _BoolInt{}, _BoolString{}, _BoolSlice{}, _BoolDict{},
-		_NumericLt{}, _StringLt{},
-		_StringEq{}, _IntEq{}, _NumericEq{}, _ArrayEq{}, _DictEq{},
-		_AddStrings{}, _AddInts{}, _AddFloats{}, _AddSlices{}, _AddSliceAny{}, _AddNull{},
-		_StoredQueryAdd{},
-		_SubInts{}, _SubFloats{},
-		_SubstringMembership{},
-		_MulInt{}, _NumericMul{},
-		_NumericDiv{},
-		_SubstringRegex{}, _ArrayRegex{},
-		_StoredQueryAssociative{}, _StoredQueryBool{},
-
-		_SliceIterator{}, _LazyExprIterator{}, _StoredQueryIterator{}, _DictIterator{},
-	)
-
-	// Built in functions.
-	result.AppendFunctions(
-		_DictFunc{},
-		_Timestamp{},
-		_SubSelectFunction{},
-		_SplitFunction{},
-		_IfFunction{},
-		_GetFunction{},
-		_EncodeFunction{},
-		_CountFunction{},
-		_MinFunction{},
-		_MaxFunction{},
-		_EnumerateFunction{},
-		_GetVersion{},
-		LenFunction{},
-	)
-
-	result.AppendPlugins(
-		_IfPlugin{},
-		_FlattenPluginImpl{},
-		_ChainPlugin{},
-		_ForeachPluginImpl{},
-		&GenericListPlugin{
-			PluginName: "scope",
-			Function: func(scope *Scope, args *ordereddict.Dict) []Row {
-				return []Row{scope}
-			},
-		},
-	)
+	result.AppendFunctions(_GetVersion{})
 
 	return &result
 }
@@ -527,7 +519,7 @@ func (self *Scope) Resolve(field string) (interface{}, bool) {
 	self.Lock()
 	defer self.Unlock()
 
-	var default_value Any
+	var default_value types.Any
 
 	// Walk the scope stack in reverse so more recent vars shadow
 	// older ones.
@@ -542,11 +534,11 @@ func (self *Scope) Resolve(field string) (interface{}, bool) {
 			// Do not allow go nil to be emitted into the
 			// query - this leads to various panics and
 			// does not interact well with the reflect
-			// package. It is better to emit vfilter Null{}
+			// package. It is better to emit vfilter types.Null{}
 			// objects which do the right thing when
 			// participating in protocols.
 			if element == nil {
-				element = Null{}
+				element = types.Null{}
 			}
 			return element, true
 		}
@@ -563,14 +555,14 @@ func (self *Scope) Resolve(field string) (interface{}, bool) {
 // Scope Associative
 type _ScopeAssociative struct{}
 
-func (self _ScopeAssociative) Applicable(a Any, b Any) bool {
+func (self _ScopeAssociative) Applicable(a types.Any, b types.Any) bool {
 	_, a_ok := a.(*Scope)
-	_, b_ok := to_string(b)
+	_, b_ok := utils.ToString(b)
 	return a_ok && b_ok
 }
 
 func (self _ScopeAssociative) GetMembers(
-	scope *Scope, a Any) []string {
+	scope *Scope, a types.Any) []string {
 	seen := make(map[string]bool)
 	var result []string
 	a_scope, ok := a.(Scope)
@@ -589,8 +581,8 @@ func (self _ScopeAssociative) GetMembers(
 }
 
 func (self _ScopeAssociative) Associative(
-	scope *Scope, a Any, b Any) (Any, bool) {
-	b_str, ok := to_string(b)
+	scope *Scope, a types.Any, b types.Any) (types.Any, bool) {
+	b_str, ok := utils.ToString(b)
 	if !ok {
 		return nil, false
 	}

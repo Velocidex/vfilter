@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/Velocidex/ordereddict"
+	"www.velocidex.com/golang/vfilter/types"
+	"www.velocidex.com/golang/vfilter/utils"
 )
 
 type execPluginTest struct {
@@ -38,7 +40,7 @@ type TestGeneratorPlugin struct{}
 
 func (self TestGeneratorPlugin) Call(
 	ctx context.Context,
-	scope *Scope,
+	scope types.Scope,
 	args *ordereddict.Dict) <-chan Row {
 	output_chan := make(chan Row)
 
@@ -58,7 +60,7 @@ func (self TestGeneratorPlugin) Call(
 	return output_chan
 }
 
-func (self TestGeneratorPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
+func (self TestGeneratorPlugin) Info(scope types.Scope, type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
 		Name: "test_plugin",
 	}
@@ -86,9 +88,9 @@ func TestPlugins(t *testing.T) {
 		}
 
 		if !scope.Eq(result, test.result) {
-			Debug(scope)
-			Debug(result)
-			Debug(test.result)
+			utils.Debug(scope)
+			utils.Debug(result)
+			utils.Debug(test.result)
 			t.Fatalf("Query %v Failed.", test.query)
 		}
 	}

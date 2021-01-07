@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/Velocidex/ordereddict"
+	"www.velocidex.com/golang/vfilter/types"
 )
 
 type Throttler interface {
@@ -54,7 +55,7 @@ func NewTimeThrottler(rate float64) Throttler {
 	return result
 }
 
-func InstallThrottler(scope *Scope, throttler Throttler) {
+func InstallThrottler(scope types.Scope, throttler Throttler) {
 	// Ignore throttles faster than 100 ops per second.
 	scope.AppendVars(ordereddict.NewDict().Set("$throttle", throttler))
 	scope.AddDestructor(func() {
@@ -62,7 +63,7 @@ func InstallThrottler(scope *Scope, throttler Throttler) {
 	})
 }
 
-func ChargeOp(scope *Scope) {
+func ChargeOp(scope types.Scope) {
 	any_throttle, _ := scope.Resolve("$throttle")
 	throttle, ok := any_throttle.(Throttler)
 	if ok {
