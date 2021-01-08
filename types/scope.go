@@ -5,6 +5,8 @@ import (
 	"log"
 	"runtime"
 	"sync/atomic"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 // A scope is passed inside the evaluation context.
@@ -87,33 +89,46 @@ func RecoverVQL(scope Scope) {
 // A lightweight struct for accumulating general stats.
 type Stats struct {
 	// All rows emitted from all plugins (this includes filtered rows).
-	RowsScanned uint64
+	_RowsScanned uint64
 
 	// Total number of plugin calls.
-	PluginsCalled uint64
+	_PluginsCalled uint64
 
 	// Total number of function calls.
-	FunctionsCalled uint64
+	_FunctionsCalled uint64
 
 	// Total search for operator protocols.
-	ProtocolSearch uint64
+	_ProtocolSearch uint64
 
 	// Number of subscopes created.
-	ScopeCopy uint64
+	_ScopeCopy uint64
 }
 
 func (self *Stats) IncRowsScanned() {
-	atomic.AddUint64(&self.RowsScanned, uint64(1))
+	atomic.AddUint64(&self._RowsScanned, uint64(1))
 }
 
 func (self *Stats) IncPluginsCalled() {
-	atomic.AddUint64(&self.PluginsCalled, uint64(1))
+	atomic.AddUint64(&self._PluginsCalled, uint64(1))
 }
 
 func (self *Stats) IncFunctionsCalled() {
-	atomic.AddUint64(&self.FunctionsCalled, uint64(1))
+	atomic.AddUint64(&self._FunctionsCalled, uint64(1))
 }
 
 func (self *Stats) IncProtocolSearch(i int) {
-	atomic.AddUint64(&self.ProtocolSearch, uint64(i))
+	atomic.AddUint64(&self._ProtocolSearch, uint64(i))
+}
+
+func (self *Stats) IncScopeCopy() {
+	atomic.AddUint64(&self._ScopeCopy, uint64(1))
+}
+
+func (self *Stats) Snapshot() *ordereddict.Dict {
+	return ordereddict.NewDict().
+		Set("RowsScanned", atomic.LoadUint64(&self._RowsScanned)).
+		Set("PluginsCalled", atomic.LoadUint64(&self._PluginsCalled)).
+		Set("FunctionsCalled", atomic.LoadUint64(&self._FunctionsCalled)).
+		Set("ProtocolSearch", atomic.LoadUint64(&self._ProtocolSearch)).
+		Set("ScopeCopy", atomic.LoadUint64(&self._ScopeCopy))
 }
