@@ -72,8 +72,9 @@ type Scope struct {
 
 	stack_depth int
 
-	// All children of this scope.
-	children []*Scope
+	// All children of this scope and a link to our parent.
+	children map[*Scope]*Scope
+	parent   *Scope
 
 	// types.Any destructors attached to this scope.
 	destructors _destructors
@@ -123,6 +124,7 @@ func (self *Scope) NewScope() types.Scope {
 		iterator:    self.iterator.Copy(),
 		Logger:      self.Logger,
 		Tracer:      self.Tracer,
+		children:    make(map[*Scope]*Scope),
 	}
 
 	return result
@@ -290,10 +292,13 @@ func (self *Scope) Copy() types.Scope {
 		context:   self.context,
 		Stats:     self.Stats,
 
+		// Not sure if we have to make a full copy here? It is
+		// faster not to.
 		/*
 			bool:        self.bool.Copy(),
 			eq:          self.eq.Copy(),
 			lt:          self.lt.Copy(),
+			gt:          self.gt.Copy(),
 			add:         self.add.Copy(),
 			sub:         self.sub.Copy(),
 			mul:         self.mul.Copy(),
@@ -303,6 +308,7 @@ func (self *Scope) Copy() types.Scope {
 			regex:       self.regex.Copy(),
 			iterator:    self.iterator.Copy(),
 		*/
+
 		bool:        self.bool,
 		eq:          self.eq,
 		lt:          self.lt,
@@ -317,10 +323,12 @@ func (self *Scope) Copy() types.Scope {
 		iterator:    self.iterator,
 
 		stack_depth: self.stack_depth + 1,
+		children:    make(map[*Scope]*Scope),
+		parent:      self,
 	}
 
 	// Remember our children.
-	self.children = append(self.children, child_scope)
+	self.children[child_scope] = child_scope
 
 	return child_scope
 }
@@ -469,8 +477,20 @@ func (self *Scope) AddDestructor(fn func()) {
 // duration.
 func (self *Scope) Close() {
 	self.Lock()
+
+	// We need to call child.Close() without a lock since
+	// child.Close() will attempt to remove themselves from our
+	// own child list and will grab the lock.
+	children := make([]*Scope, 0, len(self.children))
 	for _, child := range self.children {
-		child.Close()
+		children = append(children, child)
+	}
+
+	// Remove ourselves from our parent.
+	if self.parent != nil {
+		self.parent.Lock()
+		delete(self.parent.children, self)
+		self.parent.Unlock()
 	}
 
 	// Stop new destructors from appearing.
@@ -485,6 +505,12 @@ func (self *Scope) Close() {
 	// to this scope but hopefully the parent scope will be
 	// deleted later.
 	self.Unlock()
+
+	// This has to be done without a lock since the child needs to
+	// access us.
+	for _, child := range children {
+		child.Close()
+	}
 
 	// Destructors are called in reverse order to their
 	// declerations.
@@ -508,7 +534,9 @@ func (self *Scope) Close() {
 // own specialized protocols, functions and plugins to specialize
 // their scope objects.
 func NewScope() *Scope {
-	result := Scope{}
+	result := Scope{
+		children: make(map[*Scope]*Scope),
+	}
 	result.functions = make(map[string]types.FunctionInterface)
 	result.plugins = make(map[string]types.PluginGeneratorInterface)
 	result.context = ordereddict.NewDict()
