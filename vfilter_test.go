@@ -764,6 +764,16 @@ SELECT * FROM foreach(row=[0, 1, 2],
   query={
     SELECT count() AS A, count() AS B FROM scope()
 })`},
+
+	// Test if function
+	{"If function with stored query", `
+-- Prove that stored query was evaluated
+LET Foo = SELECT 2 FROM scope() WHERE set_env(column="Eval", value=TRUE)
+
+-- Materialize an expression
+LET result <= if(condition=TRUE, then=Foo) -- should materialize
+SELECT RootEnv.Eval FROM scope()  -- should be set
+`},
 }
 
 type _RangeArgs struct {
