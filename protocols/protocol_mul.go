@@ -21,6 +21,36 @@ func (self MulDispatcher) Copy() MulDispatcher {
 }
 
 func (self MulDispatcher) Mul(scope types.Scope, a types.Any, b types.Any) types.Any {
+	switch t := a.(type) {
+	case types.Null, *types.Null, nil:
+		return &types.Null{}
+
+	case float64:
+		b_float, ok := utils.ToFloat(b)
+		if ok {
+			return t * b_float
+		}
+	}
+
+	switch t := b.(type) {
+	case types.Null, *types.Null, nil:
+		return &types.Null{}
+
+	case float64:
+		a_float, ok := utils.ToFloat(a)
+		if ok {
+			return t * a_float
+		}
+	}
+
+	a_int, ok := utils.ToInt64(a)
+	if ok {
+		b_int, ok := utils.ToInt64(b)
+		if ok {
+			return a_int * b_int
+		}
+	}
+
 	for i, impl := range self.impl {
 		if impl.Applicable(a, b) {
 			scope.GetStats().IncProtocolSearch(i)
@@ -37,30 +67,4 @@ func (self *MulDispatcher) AddImpl(elements ...MulProtocol) {
 	for _, impl := range elements {
 		self.impl = append(self.impl, impl)
 	}
-}
-
-type _MulInt struct{}
-
-func (self _MulInt) Applicable(a types.Any, b types.Any) bool {
-	return utils.IsInt(a) && utils.IsInt(b)
-}
-
-func (self _MulInt) Mul(scope types.Scope, a types.Any, b types.Any) types.Any {
-	a_val, _ := utils.ToInt64(a)
-	b_val, _ := utils.ToInt64(b)
-	return a_val * b_val
-}
-
-type _NumericMul struct{}
-
-func (self _NumericMul) Applicable(a types.Any, b types.Any) bool {
-	_, a_ok := utils.ToFloat(a)
-	_, b_ok := utils.ToFloat(b)
-	return a_ok && b_ok
-}
-
-func (self _NumericMul) Mul(scope types.Scope, a types.Any, b types.Any) types.Any {
-	a_val, _ := utils.ToFloat(a)
-	b_val, _ := utils.ToFloat(b)
-	return a_val * b_val
 }

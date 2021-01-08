@@ -56,6 +56,10 @@ func (self EqDispatcher) Eq(scope types.Scope, a types.Any, b types.Any) bool {
 		}
 	}
 
+	if is_array(a) && is_array(b) {
+		return _ArrayEq(scope, a, b)
+	}
+
 	for i, impl := range self.impl {
 		if impl.Applicable(a, b) {
 			scope.GetStats().IncProtocolSearch(i)
@@ -74,51 +78,7 @@ func (self *EqDispatcher) AddImpl(elements ...EqProtocol) {
 	}
 }
 
-type _StringEq struct{}
-
-func (self _StringEq) Eq(scope types.Scope, a types.Any, b types.Any) bool {
-	return a == b
-}
-
-func (self _StringEq) Applicable(a types.Any, b types.Any) bool {
-	_, a_ok := utils.ToString(a)
-	_, b_ok := utils.ToString(b)
-	return a_ok && b_ok
-}
-
-// Specialized equivalence for integers - it is not reliable to
-// compare floats to ints so we need to special case integers.
-type _IntEq struct{}
-
-func (self _IntEq) Applicable(a types.Any, b types.Any) bool {
-	return utils.IsInt(a) && utils.IsInt(b)
-}
-
-func (self _IntEq) Eq(scope types.Scope, a types.Any, b types.Any) bool {
-	a_val, _ := utils.ToInt64(a)
-	b_val, _ := utils.ToInt64(b)
-
-	return a_val == b_val
-}
-
-type _NumericEq struct{}
-
-func (self _NumericEq) Applicable(a types.Any, b types.Any) bool {
-	_, a_ok := utils.ToFloat(a)
-	_, b_ok := utils.ToFloat(b)
-	return a_ok && b_ok
-}
-
-func (self _NumericEq) Eq(scope types.Scope, a types.Any, b types.Any) bool {
-	a_val, _ := utils.ToFloat(a)
-	b_val, _ := utils.ToFloat(b)
-
-	return a_val == b_val
-}
-
-type _ArrayEq struct{}
-
-func (self _ArrayEq) Eq(scope types.Scope, a types.Any, b types.Any) bool {
+func _ArrayEq(scope types.Scope, a types.Any, b types.Any) bool {
 	value_a := reflect.ValueOf(a)
 	value_b := reflect.ValueOf(b)
 
@@ -142,8 +102,4 @@ func is_array(a types.Any) bool {
 		return false
 	}
 	return rt.Kind() == reflect.Slice || rt.Kind() == reflect.Array
-}
-
-func (self _ArrayEq) Applicable(a types.Any, b types.Any) bool {
-	return is_array(a) && is_array(b)
 }

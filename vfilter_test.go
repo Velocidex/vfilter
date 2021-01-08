@@ -42,8 +42,10 @@ var execTestsSerialization = []execTest{
 
 	{"1.5", 1.5},
 	{"2 - 1", 1},
-	{"1 + 2", 3},
-	{"1 + 2.0", 3},
+	{"1 + 2", 3},     // int
+	{"1 + 2.0", 3},   // float
+	{"1 + 2.5", 3.5}, // float
+	{"2.5 + 1", 3.5}, // float
 	{"1 + -2", -1},
 	{"1 + (1 + 2) * 5", 16},
 	{"1 + (2 + 2) / 2", 3},
@@ -60,7 +62,7 @@ var execTestsSerialization = []execTest{
 	{"(false and 5) or 4", true},
 
 	// Division by 0 silently trapped.
-	{"10 / 0", false},
+	{"10 / 0", Null{}},
 
 	// Arithmetic on incompatible types silently trapped.
 	{"1 + 'foo'", Null{}},
@@ -85,6 +87,12 @@ var execTestsSerialization = []execTest{
 	{"func_foo() = func_foo()", true},
 	{"1 = const_foo", true},
 	{"1 = TRUE", true},
+	{"dict(X=1, Y=2) = dict(Y=2, X=1)", true},
+
+	// Comparing int to float
+	{"1 = 1.0", true},
+	{"1.0 = 1", true},
+	{"1 = 'foo'", false},
 
 	// Floats do not compare with integers properly.
 	{"281462092005375 = 65535 * 65535 * 65535", true},
@@ -97,6 +105,15 @@ var execTestsSerialization = []execTest{
 	{"func_foo() < func_foo()", false},
 	{"1 <= const_foo", true},
 	{"1 >= TRUE", true},
+	{"2 > 1", true},
+	{"2 > 1.5", true},
+	{"2 > 2.5", false},
+	{"2 < 1", false},
+	{"2 < 1.5", false},
+
+	// Non matching types
+	{"2 > 'hello'", false},
+	{"2 < 'hello'", false},
 
 	// Callables
 	{"func_foo(return =1)", 1},
@@ -117,10 +134,26 @@ var execTestsSerialization = []execTest{
 	{"(1, 2, 3) = (1, 2, 3)", true},
 	{"(1, 2, 3) != (2, 3)", true},
 
-	// Array additions
+	// Array additions means concatenate the array
 	{"(1, 2) + (3, 4)", []int64{1, 2, 3, 4}},
+
+	// Coercing single members into the array
 	{"1 + (3, 4)", []int64{1, 3, 4}},
 	{"(1, 2) + 3", []int64{1, 2, 3}},
+
+	// Null
+	{"1 + NULL", types.Null{}},
+	{"NULL + 1", types.Null{}},
+	{"1 - NULL", types.Null{}},
+	{"NULL - 1", types.Null{}},
+	{"1 * NULL", types.Null{}},
+	{"NULL * 1", types.Null{}},
+	{"1 / NULL", types.Null{}},
+	{"NULL / 1", types.Null{}},
+	{"1 =~ NULL", false},
+	{"NULL =~ 1", false},
+	{"1 in NULL", false},
+	{"NULL in 1", false},
 
 	// Dicts
 	{"dict(foo=1) = dict(foo=1)", true},
@@ -178,6 +211,24 @@ var execTestsSerialization = []execTest{
 	{"(my_list_obj.my_list[3]).Foo", "Bar"},
 	{"dict(x=(my_list_obj.my_list[3]).Foo + 'a')",
 		ordereddict.NewDict().Set("x", "Bara")},
+
+	// Rgexp operator
+	{"'Hello' =~ '.'", true},
+
+	// . matches anything including the empty string (it is optimized away).
+	{"'' =~ '.'", true},
+	{"'Hello' =~ 'he[lo]+'", true},
+
+	// Non strings do not match
+	{"NULL =~ '.'", false},
+	{"1 =~ '.'", false},
+
+	// Arrays match any element
+	{"('Hello', 'World') =~ 'he'", true},
+	{"('Hello', 'World') =~ 'xx'", false},
+
+	// For now dicts are not regexable
+	{"dict(x='Hello', y='World') =~ 'he'", false},
 }
 
 // These tests are excluded from serialization tests.
@@ -243,7 +294,6 @@ func (self PanicFunction) Call(ctx context.Context, scope types.Scope, args *ord
 		panic(err)
 	}
 
-	utils.Debug(arg)
 	if scope.Eq(arg.Value, arg.Column) {
 		fmt.Printf("Panic because I got %v = %v! \n", arg.Column, arg.Value)
 		panic(fmt.Sprintf("Panic because I got %v = %v!", arg.Column, arg.Value))
