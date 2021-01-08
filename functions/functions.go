@@ -309,3 +309,16 @@ func (self LenFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.
 		ArgType: type_map.AddType(scope, &LenFunctionArgs{}),
 	}
 }
+
+func Materialize(ctx context.Context,
+	scope types.Scope, stored_query types.StoredQuery) []types.Row {
+	result := []types.Row{}
+
+	// Materialize both queries to an array.
+	new_scope := scope.Copy()
+	for item := range stored_query.Eval(ctx, new_scope) {
+		result = append(result, item)
+	}
+
+	return result
+}

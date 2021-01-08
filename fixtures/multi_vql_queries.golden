@@ -403,5 +403,12 @@
       "A": 5,
       "B": 6
     }
+  ],
+  "033/000 If function with stored query: LET Foo=SELECT 2 FROM scope() WHERE set_env(column=\"Eval\", value=TRUE)": null,
+  "033/001 If function with stored query: LET result\u003c=if(condition=TRUE, then=Foo)": null,
+  "033/002 If function with stored query: SELECT RootEnv.Eval FROM scope()": [
+    {
+      "RootEnv.Eval": true
+    }
   ]
 }

@@ -362,8 +362,15 @@ func (self VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 				// If we are materializing here,
 				// reduce it now.
 			case "<=":
-				scope.AppendVars(ordereddict.NewDict().
-					Set(name, expr.Reduce(ctx, scope)))
+				// It may yield a stored query - in
+				// that case we materialize it in
+				// place.
+				value := expr.Reduce(ctx, scope)
+				stored_query, ok := value.(types.StoredQuery)
+				if ok {
+					value = Materialize(ctx, scope, stored_query)
+				}
+				scope.AppendVars(ordereddict.NewDict().Set(name, value))
 			}
 			close(output_chan)
 			return output_chan
