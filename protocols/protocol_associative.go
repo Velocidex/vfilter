@@ -68,7 +68,7 @@ func (self *AssociativeDispatcher) Associative(
 			}
 			return res, pres
 
-		case types.Null, *types.Null:
+		case types.Null, *types.Null, nil:
 			return types.Null{}, true
 		}
 	}
@@ -97,7 +97,7 @@ func (self *AssociativeDispatcher) GetMembers(
 	case *ordereddict.Dict:
 		return t.Keys()
 
-	case types.Null, *types.Null:
+	case types.Null, *types.Null, nil:
 		return []string{}
 
 	case types.Memberer:

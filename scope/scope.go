@@ -6,7 +6,6 @@ import (
 	"log"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/Velocidex/ordereddict"
@@ -282,7 +281,7 @@ func (self *Scope) Copy() types.Scope {
 	self.Lock()
 	defer self.Unlock()
 
-	atomic.AddUint64(&self.Stats.ScopeCopy, 1)
+	self.GetStats().IncScopeCopy()
 	child_scope := &Scope{
 		functions: self.functions,
 		plugins:   self.plugins,
