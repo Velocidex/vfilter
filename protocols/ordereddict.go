@@ -3,7 +3,6 @@ package protocols
 import (
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/types"
-	"www.velocidex.com/golang/vfilter/utils"
 )
 
 // Implements ordereddict.Dict equality.
@@ -52,56 +51,4 @@ func (self _DictEq) Applicable(a types.Any, b types.Any) bool {
 	_, b_ok := to_dict(b)
 
 	return a_ok && b_ok
-}
-
-type _DictAssociative struct{}
-
-func (self _DictAssociative) Applicable(a types.Any, b types.Any) bool {
-	_, a_ok := to_dict(a)
-	_, b_ok := utils.ToString(b)
-
-	return a_ok && b_ok
-}
-
-// Associate object a with key b
-func (self _DictAssociative) Associative(scope types.Scope, a types.Any, b types.Any) (types.Any, bool) {
-	key, _ := utils.ToString(b)
-	value, _ := to_dict(a)
-
-	res, pres := value.Get(key)
-	if !pres {
-		// Return the default value but still indicate the
-		// value is not present.
-		default_value := value.GetDefault()
-		if default_value != nil {
-			return default_value, false
-		}
-	}
-	return res, pres
-}
-
-func (self _DictAssociative) GetMembers(scope types.Scope, a types.Any) []string {
-	value, ok := to_dict(a)
-	if !ok {
-		return nil
-	}
-
-	return value.Keys()
-}
-
-type _BoolDict struct{}
-
-func (self _BoolDict) Applicable(a types.Any) bool {
-	_, a_ok := to_dict(a)
-
-	return a_ok
-}
-
-func (self _BoolDict) Bool(scope types.Scope, a types.Any) bool {
-	value, ok := to_dict(a)
-	if !ok {
-		return false
-	}
-
-	return value.Len() > 0
 }

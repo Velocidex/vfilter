@@ -5,10 +5,9 @@ import (
 	"strings"
 
 	"www.velocidex.com/golang/vfilter/types"
-	"www.velocidex.com/golang/vfilter/utils"
 )
 
-// Membership protocol
+// Membership protocol (the "in" operator)
 type MembershipProtocol interface {
 	Applicable(a types.Any, b types.Any) bool
 	Membership(scope types.Scope, a types.Any, b types.Any) bool
@@ -24,6 +23,18 @@ func (self MembershipDispatcher) Copy() MembershipDispatcher {
 }
 
 func (self MembershipDispatcher) Membership(scope types.Scope, a types.Any, b types.Any) bool {
+	switch t := b.(type) {
+	case types.Null, *types.Null, nil:
+		return false
+
+	case string:
+		// 'he' in 'hello'
+		a_str, ok := a.(string)
+		if ok {
+			return strings.Contains(t, a_str)
+		}
+	}
+
 	for i, impl := range self.impl {
 		if impl.Applicable(a, b) {
 			scope.GetStats().IncProtocolSearch(i)
@@ -59,19 +70,4 @@ func (self *MembershipDispatcher) AddImpl(elements ...MembershipProtocol) {
 	for _, impl := range elements {
 		self.impl = append(self.impl, impl)
 	}
-}
-
-type _SubstringMembership struct{}
-
-func (self _SubstringMembership) Applicable(a types.Any, b types.Any) bool {
-	_, a_ok := utils.ToString(a)
-	_, b_ok := utils.ToString(b)
-	return a_ok && b_ok
-}
-
-func (self _SubstringMembership) Membership(scope types.Scope, a types.Any, b types.Any) bool {
-	a_str, _ := utils.ToString(a)
-	b_str, _ := utils.ToString(b)
-
-	return strings.Contains(b_str, a_str)
 }

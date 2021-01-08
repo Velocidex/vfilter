@@ -2,6 +2,7 @@ package protocols
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/types"
@@ -45,6 +46,10 @@ func (self IterateDispatcher) Iterate(
 		return output_chan
 	}
 
+	if is_array(a) {
+		return _SliceIterator(ctx, scope, a)
+	}
+
 	for i, impl := range self.impl {
 		if impl.Applicable(a) {
 			scope.GetStats().IncProtocolSearch(i)
@@ -60,7 +65,7 @@ func (self IterateDispatcher) Iterate(
 	go func() {
 		defer close(output_chan)
 
-		if !is_null(a) {
+		if !types.IsNullObject(a) {
 			output_chan <- ordereddict.NewDict().Set("_value", a)
 		}
 	}()
@@ -78,4 +83,33 @@ func (self *IterateDispatcher) AddImpl(elements ...IterateProtocol) {
 type IterateProtocol interface {
 	Applicable(a types.Any) bool
 	Iterate(ctx context.Context, scope types.Scope, a types.Any) <-chan types.Row
+}
+
+func _SliceIterator(ctx context.Context, scope types.Scope, a types.Any) <-chan types.Row {
+	output_chan := make(chan types.Row)
+
+	go func() {
+		defer close(output_chan)
+
+		a_value := reflect.Indirect(reflect.ValueOf(a))
+		if a_value.Type().Kind() == reflect.Slice {
+			for i := 0; i < a_value.Len(); i++ {
+				value := a_value.Index(i).Interface()
+				if types.IsNullObject(value) {
+					continue
+				}
+
+				_, ok := value.(*ordereddict.Dict)
+				if ok {
+					output_chan <- value
+				} else {
+					output_chan <- ordereddict.NewDict().
+						Set("_value", value)
+				}
+			}
+		}
+
+	}()
+
+	return output_chan
 }

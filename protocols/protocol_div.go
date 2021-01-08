@@ -21,6 +21,46 @@ func (self DivDispatcher) Copy() DivDispatcher {
 }
 
 func (self DivDispatcher) Div(scope types.Scope, a types.Any, b types.Any) types.Any {
+	switch t := a.(type) {
+	case types.Null, *types.Null, nil:
+		return &types.Null{}
+
+	case float64:
+		b_float, ok := utils.ToFloat(b)
+		if ok {
+			if b_float == 0 {
+				return &types.Null{}
+			}
+			return t / b_float
+		}
+	}
+
+	switch t := b.(type) {
+	case types.Null, *types.Null, nil:
+		return &types.Null{}
+
+	case float64:
+		a_float, ok := utils.ToFloat(a)
+		if ok {
+			if a_float == 0 {
+				return &types.Null{}
+			}
+			return t / a_float
+		}
+	}
+
+	// Always convert to float to not lose preceision.
+	a_int, ok := utils.ToInt64(a)
+	if ok {
+		b_int, ok := utils.ToFloat(b)
+		if ok {
+			if b_int == 0 {
+				return &types.Null{}
+			}
+			return float64(a_int) / b_int
+		}
+	}
+
 	for i, impl := range self.impl {
 		if impl.Applicable(a, b) {
 			scope.GetStats().IncProtocolSearch(i)
@@ -38,38 +78,4 @@ func (self *DivDispatcher) AddImpl(elements ...DivProtocol) {
 	for _, impl := range elements {
 		self.impl = append(self.impl, impl)
 	}
-}
-
-type _NumericDiv struct{}
-
-func (self _NumericDiv) Applicable(a types.Any, b types.Any) bool {
-	_, a_ok := utils.ToFloat(a)
-	_, b_ok := utils.ToFloat(b)
-	return a_ok && b_ok
-}
-
-func (self _NumericDiv) Div(scope types.Scope, a types.Any, b types.Any) types.Any {
-	a_val, _ := utils.ToFloat(a)
-	b_val, _ := utils.ToFloat(b)
-	if b_val == 0 {
-		return false
-	}
-
-	return a_val / b_val
-}
-
-type _DivInt struct{}
-
-func (self _DivInt) Applicable(a types.Any, b types.Any) bool {
-	return utils.IsInt(a) && utils.IsInt(b)
-}
-
-func (self _DivInt) Div(scope types.Scope, a types.Any, b types.Any) types.Any {
-	a_val, _ := utils.ToInt64(a)
-	b_val, _ := utils.ToInt64(b)
-	if b_val == 0 {
-		return false
-	}
-
-	return a_val / b_val
 }

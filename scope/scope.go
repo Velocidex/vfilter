@@ -52,6 +52,7 @@ type Scope struct {
 	bool        protocols.BoolDispatcher
 	eq          protocols.EqDispatcher
 	lt          protocols.LtDispatcher
+	gt          protocols.GtDispatcher
 	add         protocols.AddDispatcher
 	sub         protocols.SubDispatcher
 	mul         protocols.MulDispatcher
@@ -111,6 +112,7 @@ func (self *Scope) NewScope() types.Scope {
 		bool:        self.bool.Copy(),
 		eq:          self.eq.Copy(),
 		lt:          self.lt.Copy(),
+		gt:          self.gt.Copy(),
 		add:         self.add.Copy(),
 		sub:         self.sub.Copy(),
 		mul:         self.mul.Copy(),
@@ -219,11 +221,8 @@ func (self *Scope) Lt(a types.Any, b types.Any) bool {
 	return self.lt.Lt(self, a, b)
 }
 
-func (self *Scope) Gt(lhs types.Any, rhs types.Any) bool {
-	if self.lt.Applicable(self, lhs, rhs) && !self.Eq(lhs, rhs) {
-		return !self.Lt(lhs, rhs)
-	}
-	return false
+func (self *Scope) Gt(a types.Any, b types.Any) bool {
+	return self.gt.Gt(self, a, b)
 }
 
 // Add a and b together.
@@ -307,6 +306,7 @@ func (self *Scope) Copy() types.Scope {
 		bool:        self.bool,
 		eq:          self.eq,
 		lt:          self.lt,
+		gt:          self.gt,
 		add:         self.add,
 		sub:         self.sub,
 		mul:         self.mul,
@@ -340,6 +340,8 @@ func (self *Scope) AddProtocolImpl(implementations ...types.Any) types.Scope {
 			self.eq.AddImpl(t)
 		case protocols.LtProtocol:
 			self.lt.AddImpl(t)
+		case protocols.GtProtocol:
+			self.gt.AddImpl(t)
 		case protocols.AddProtocol:
 			self.add.AddImpl(t)
 		case protocols.SubProtocol:
