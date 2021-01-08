@@ -1,9 +1,11 @@
-package vfilter
+package scope
 
 import (
 	"context"
 
 	"github.com/Velocidex/ordereddict"
+	"www.velocidex.com/golang/vfilter/arg_parser"
+	"www.velocidex.com/golang/vfilter/types"
 )
 
 // A helper function to build a dict within the query.
@@ -13,20 +15,28 @@ type _GetVersion struct {
 	Plugin   string `vfilter:"optional,field=plugin"`
 }
 
-func (self _GetVersion) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
-	return &FunctionInfo{
+func (self _GetVersion) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
+	return &types.FunctionInfo{
 		Name:    "version",
 		Doc:     "Gets the version of a VQL plugin or function.",
 		ArgType: type_map.AddType(scope, &_GetVersion{}),
 	}
 }
 
-func (self _GetVersion) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
+func (self _GetVersion) Call(ctx context.Context,
+	scope_int types.Scope, args *ordereddict.Dict) types.Any {
 	arg := &_GetVersion{}
-	err := ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgs(scope_int, args, arg)
 	if err != nil {
-		scope.Log("version: %s", err.Error())
-		return Null{}
+		scope_int.Log("version: %s", err.Error())
+		return types.Null{}
+	}
+
+	// We need internal access to the scope so dereference from
+	// the interface.
+	scope, ok := scope_int.(*Scope)
+	if !ok {
+		return types.Null{}
 	}
 
 	if arg.Plugin != "" {
@@ -34,14 +44,14 @@ func (self _GetVersion) Call(ctx context.Context, scope *Scope, args *ordereddic
 		if pres {
 			return plugin.Info(scope, nil).Version
 		}
-		return Null{}
+		return types.Null{}
 
 	} else if arg.Function != "" {
 		function, pres := scope.functions[arg.Function]
 		if pres {
 			return function.Info(scope, nil).Version
 		}
-		return Null{}
+		return types.Null{}
 	}
 	scope.Log("version: One of plugin or function should be specified")
 

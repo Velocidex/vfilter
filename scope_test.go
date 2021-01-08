@@ -9,6 +9,8 @@ import (
 
 	"github.com/Velocidex/ordereddict"
 	"github.com/sebdah/goldie/v2"
+	"www.velocidex.com/golang/vfilter/arg_parser"
+	"www.velocidex.com/golang/vfilter/types"
 )
 
 var (
@@ -24,9 +26,10 @@ type DestructorFunction struct {
 	count int
 }
 
-func (self *DestructorFunction) Call(ctx context.Context, scope *Scope, args *ordereddict.Dict) Any {
+func (self *DestructorFunction) Call(
+	ctx context.Context, scope types.Scope, args *ordereddict.Dict) Any {
 	arg := DestructorFunctionArgs{}
-	err := ExtractArgs(scope, args, &arg)
+	err := arg_parser.ExtractArgs(scope, args, &arg)
 	if err != nil {
 		panic(err)
 	}
@@ -40,7 +43,7 @@ func (self *DestructorFunction) Call(ctx context.Context, scope *Scope, args *or
 	return self.count
 }
 
-func (self DestructorFunction) Info(scope *Scope, type_map *TypeMap) *FunctionInfo {
+func (self DestructorFunction) Info(scope types.Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{
 		Name: "destructor",
 	}
@@ -56,7 +59,7 @@ type DestructorPlugin struct {
 }
 
 func (self *DestructorPlugin) Call(
-	ctx context.Context, scope *Scope,
+	ctx context.Context, scope types.Scope,
 
 	args *ordereddict.Dict) <-chan Row {
 	output_chan := make(chan Row)
@@ -65,7 +68,7 @@ func (self *DestructorPlugin) Call(
 		defer close(output_chan)
 
 		arg := DestructorPluginArgs{}
-		err := ExtractArgs(scope, args, &arg)
+		err := arg_parser.ExtractArgs(scope, args, &arg)
 		if err != nil {
 			panic(err)
 		}
@@ -90,7 +93,7 @@ func (self *DestructorPlugin) Call(
 	return output_chan
 }
 
-func (self DestructorPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
+func (self DestructorPlugin) Info(scope types.Scope, type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
 		Name: "destructor",
 	}
@@ -165,7 +168,10 @@ SELECT destructor(name='one'), destructor(name='two'), destructor(name='three') 
 func TestDestructors(t *testing.T) {
 	result := ordereddict.NewDict()
 	for i, testCase := range scopeTests {
+		mu.Lock()
 		markers = []string{}
+		mu.Unlock()
+
 		scope := NewScope().
 			AppendFunctions(&DestructorFunction{}).
 			AppendPlugins(&DestructorPlugin{})

@@ -377,5 +377,31 @@
         "foo": 1
       }
     }
+  ],
+  "031/000 Foreach evals query in row scope (both queries should be same): LET row_query=SELECT 1 AS ColumnName123 FROM scope()": null,
+  "031/001 Foreach evals query in row scope (both queries should be same): LET foreach_query=SELECT ColumnName123 FROM scope()": null,
+  "031/002 Foreach evals query in row scope (both queries should be same): SELECT * FROM foreach(row=row_query, query=foreach_query)": [
+    {
+      "ColumnName123": 1
+    }
+  ],
+  "031/003 Foreach evals query in row scope (both queries should be same): SELECT * FROM foreach(row=row_query, query= { SELECT ColumnName123 FROM scope()})": [
+    {
+      "ColumnName123": 1
+    }
+  ],
+  "032/000 Aggregate functions keep state per unique instance: SELECT * FROM foreach(row= [0, 1, 2], query= { SELECT count() AS A, count() AS B FROM scope()})": [
+    {
+      "A": 1,
+      "B": 2
+    },
+    {
+      "A": 3,
+      "B": 4
+    },
+    {
+      "A": 5,
+      "B": 6
+    }
   ]
 }

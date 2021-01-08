@@ -1,28 +1,30 @@
-package vfilter
+package plugins
 
 import (
 	"context"
 	"reflect"
 
 	"github.com/Velocidex/ordereddict"
+	"www.velocidex.com/golang/vfilter/arg_parser"
+	"www.velocidex.com/golang/vfilter/types"
 )
 
 type _FlattenPluginImplArgs struct {
-	Query StoredQuery `vfilter:"required,field=query"`
+	Query types.StoredQuery `vfilter:"required,field=query"`
 }
 
 type _FlattenPluginImpl struct{}
 
 func (self _FlattenPluginImpl) Call(ctx context.Context,
-	scope *Scope,
-	args *ordereddict.Dict) <-chan Row {
-	output_chan := make(chan Row)
+	scope types.Scope,
+	args *ordereddict.Dict) <-chan types.Row {
+	output_chan := make(chan types.Row)
 
 	go func() {
 		defer close(output_chan)
 
 		arg := _FlattenPluginImplArgs{}
-		err := ExtractArgs(scope, args, &arg)
+		err := arg_parser.ExtractArgs(scope, args, &arg)
 		if err != nil {
 			scope.Log("flatten: %v", err)
 			return
@@ -48,7 +50,7 @@ func (self _FlattenPluginImpl) Call(ctx context.Context,
 	return output_chan
 }
 
-func makeDict(scope *Scope, item Any) *ordereddict.Dict {
+func makeDict(scope types.Scope, item types.Any) *ordereddict.Dict {
 	result_dict, ok := item.(*ordereddict.Dict)
 	if ok {
 		return result_dict
@@ -64,7 +66,7 @@ func makeDict(scope *Scope, item Any) *ordereddict.Dict {
 	return result
 }
 
-func flatten(scope *Scope, item Row, members []string, idx int) []*ordereddict.Dict {
+func flatten(scope types.Scope, item types.Row, members []string, idx int) []*ordereddict.Dict {
 	result := []*ordereddict.Dict{}
 	if idx >= len(members) {
 		return result
@@ -121,8 +123,8 @@ func (self _FlattenPluginImpl) Name() string {
 	return "foreach"
 }
 
-func (self _FlattenPluginImpl) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
-	return &PluginInfo{
+func (self _FlattenPluginImpl) Info(scope types.Scope, type_map *types.TypeMap) *types.PluginInfo {
+	return &types.PluginInfo{
 		Name: "flatten",
 		Doc: "Flatten the columns in query. If any column repeats " +
 			"then we repeat the entire row once for each item.",

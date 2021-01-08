@@ -2,7 +2,10 @@ package vfilter
 
 import (
 	"context"
+	"fmt"
 	"time"
+
+	"www.velocidex.com/golang/vfilter/types"
 )
 
 // A response from VQL queries.
@@ -19,7 +22,7 @@ type RowEncoder func(rows []Row) ([]byte, error)
 func GetResponseChannel(
 	vql *VQL,
 	ctx context.Context,
-	scope *Scope,
+	scope types.Scope,
 	encoder RowEncoder,
 	maxrows int,
 	// Max time to wait before returning some results.
@@ -36,8 +39,7 @@ func GetResponseChannel(
 		ship_payload := func() {
 			s, err := encoder(rows)
 			if err != nil {
-				scope.Log("Unable to serialize: %v",
-					err.Error())
+				scope.Log("Unable to serialize: %v", err)
 				return
 			}
 
@@ -106,7 +108,7 @@ func GetResponseChannel(
 func OutputJSON(
 	vql *VQL,
 	ctx context.Context,
-	scope *Scope,
+	scope types.Scope,
 	encoder RowEncoder) ([]byte, error) {
 	output_chan := vql.Eval(ctx, scope)
 	result := []Row{}
@@ -124,3 +126,12 @@ func OutputJSON(
 }
 
 type Empty struct{}
+
+func ToString(a types.Any, scope types.Scope) string {
+	stinger, ok := a.(StringProtocol)
+	if ok {
+		return stinger.ToString(scope)
+	}
+
+	return fmt.Sprintf("%v", a)
+}

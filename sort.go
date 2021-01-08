@@ -1,10 +1,12 @@
 package vfilter
 
+import "www.velocidex.com/golang/vfilter/types"
+
 type ResultSet struct {
 	Items   []Row
 	OrderBy string
 	Desc    bool
-	scope   *Scope
+	scope   types.Scope
 }
 
 func (self *ResultSet) Len() int {

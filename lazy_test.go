@@ -7,6 +7,8 @@ import (
 
 	"github.com/Velocidex/ordereddict"
 	"github.com/sebdah/goldie/v2"
+	"www.velocidex.com/golang/vfilter/arg_parser"
+	"www.velocidex.com/golang/vfilter/types"
 )
 
 type lazyTypeTest struct {
@@ -41,7 +43,7 @@ type LazyPlugin struct {
 }
 
 func (self *LazyPlugin) Call(
-	ctx context.Context, scope *Scope,
+	ctx context.Context, scope types.Scope,
 
 	args *ordereddict.Dict) <-chan Row {
 	output_chan := make(chan Row)
@@ -50,7 +52,7 @@ func (self *LazyPlugin) Call(
 		defer close(output_chan)
 
 		arg := LazyPluginArgs{}
-		err := ExtractArgs(scope, args, &arg)
+		err := arg_parser.ExtractArgs(scope, args, &arg)
 		if err != nil {
 			panic(err)
 		}
@@ -67,7 +69,7 @@ func (self *LazyPlugin) Call(
 	return output_chan
 }
 
-func (self LazyPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
+func (self LazyPlugin) Info(scope types.Scope, type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
 		Name: "lazy",
 	}
@@ -78,7 +80,7 @@ type LazyDictPlugin struct {
 }
 
 func (self *LazyDictPlugin) Call(
-	ctx context.Context, scope *Scope,
+	ctx context.Context, scope types.Scope,
 
 	args *ordereddict.Dict) <-chan Row {
 	output_chan := make(chan Row)
@@ -87,7 +89,7 @@ func (self *LazyDictPlugin) Call(
 		defer close(output_chan)
 
 		arg := LazyPluginArgs{}
-		err := ExtractArgs(scope, args, &arg)
+		err := arg_parser.ExtractArgs(scope, args, &arg)
 		if err != nil {
 			panic(err)
 		}
@@ -113,7 +115,7 @@ func (self *LazyDictPlugin) Call(
 	return output_chan
 }
 
-func (self LazyDictPlugin) Info(scope *Scope, type_map *TypeMap) *PluginInfo {
+func (self LazyDictPlugin) Info(scope types.Scope, type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{
 		Name: "lazy_dict",
 	}
@@ -133,7 +135,9 @@ var lazyTests = []vqlTest{
 func TestLazy(t *testing.T) {
 	result := ordereddict.NewDict()
 	for i, testCase := range lazyTests {
+		mu.Lock()
 		markers = []string{}
+		mu.Unlock()
 
 		scope := NewScope().AppendPlugins(&LazyPlugin{}, &LazyDictPlugin{})
 
