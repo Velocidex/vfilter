@@ -13,6 +13,11 @@ var (
 	field_regex = regexp.MustCompile("field=([a-zA-Z0-9_]+)")
 )
 
+type ScopeInformation struct {
+	Plugins   []*PluginInfo
+	Functions []*FunctionInfo
+}
+
 func NewTypeMap() *TypeMap {
 	return &TypeMap{
 		desc: ordereddict.NewDict(),

@@ -38,13 +38,13 @@ func (self _CountFunction) Call(
 	}
 
 	count := uint64(0)
-	previous_value_any, pres := scope.GetContext(GetID(self))
+	previous_value_any, pres := scope.GetContext(GetID(&self))
 	if pres {
 		count = previous_value_any.(uint64)
 	}
 
 	count += 1
-	scope.SetContext(GetID(self), count)
+	scope.SetContext(GetID(&self), count)
 
 	return count
 }

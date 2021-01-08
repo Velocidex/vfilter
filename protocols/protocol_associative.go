@@ -1,6 +1,7 @@
 package protocols
 
 import (
+	"context"
 	"reflect"
 	"strings"
 
@@ -32,6 +33,7 @@ func (self AssociativeDispatcher) Copy() AssociativeDispatcher {
 
 func (self *AssociativeDispatcher) Associative(
 	scope types.Scope, a types.Any, b types.Any) (types.Any, bool) {
+	ctx := context.Background()
 
 	b_str, ok := utils.ToString(b)
 	if ok {
@@ -41,6 +43,20 @@ func (self *AssociativeDispatcher) Associative(
 
 		case types.LazyRow:
 			return t.Get(b_str)
+
+			// Dereferencing a stroed query expands all
+			// fields and extracts a single column
+		case types.StoredQuery:
+			result := []types.Row{}
+			for row := range t.Eval(ctx, scope) {
+				field, pres := scope.Associative(row, b_str)
+				if pres {
+					result = append(result, field)
+				} else {
+					result = append(result, &types.Null{})
+				}
+			}
+			return result, true
 
 		case *ordereddict.Dict:
 			res, pres := t.Get(b_str)

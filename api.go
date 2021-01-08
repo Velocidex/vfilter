@@ -2,6 +2,7 @@ package vfilter
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"www.velocidex.com/golang/vfilter/types"
@@ -125,3 +126,12 @@ func OutputJSON(
 }
 
 type Empty struct{}
+
+func ToString(a types.Any, scope types.Scope) string {
+	stinger, ok := a.(StringProtocol)
+	if ok {
+		return stinger.ToString(scope)
+	}
+
+	return fmt.Sprintf("%v", a)
+}

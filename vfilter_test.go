@@ -242,9 +242,11 @@ func (self PanicFunction) Call(ctx context.Context, scope types.Scope, args *ord
 	if err != nil {
 		panic(err)
 	}
+
+	utils.Debug(arg)
 	if scope.Eq(arg.Value, arg.Column) {
 		fmt.Printf("Panic because I got %v = %v! \n", arg.Column, arg.Value)
-		//panic(fmt.Sprintf("Panic because I got %v = %v!", arg.Column, arg.Value))
+		panic(fmt.Sprintf("Panic because I got %v = %v!", arg.Column, arg.Value))
 	}
 
 	return arg.Value
@@ -256,8 +258,41 @@ func (self PanicFunction) Info(scope types.Scope, type_map *TypeMap) *FunctionIn
 	}
 }
 
+type SetEnvFunctionArgs struct {
+	Column string `vfilter:"required,field=column"`
+	Value  Any    `vfilter:"optional,field=value"`
+}
+
+type SetEnvFunction struct{}
+
+func (self SetEnvFunction) Call(ctx context.Context, scope types.Scope, args *ordereddict.Dict) Any {
+	arg := SetEnvFunctionArgs{}
+	err := ExtractArgs(scope, args, &arg)
+	if err != nil {
+		panic(err)
+	}
+
+	env_any, pres := scope.Resolve("RootEnv")
+	if !pres {
+		panic("Can not find env")
+	}
+
+	env, ok := env_any.(*ordereddict.Dict)
+	if !ok {
+		panic("Can not find env")
+	}
+
+	env.Set(arg.Column, arg.Value)
+	return env
+}
+func (self SetEnvFunction) Info(scope types.Scope, type_map *TypeMap) *FunctionInfo {
+	return &FunctionInfo{
+		Name: "set_env",
+	}
+}
+
 func makeScope() types.Scope {
-	return NewScope().AppendVars(ordereddict.NewDict().
+	env := ordereddict.NewDict().
 		Set("const_foo", 1).
 		Set("my_list_obj", ordereddict.NewDict().
 			Set("my_list", []interface{}{
@@ -266,10 +301,11 @@ func makeScope() types.Scope {
 		Set("env_var", "EnvironmentData").
 		Set("foo", ordereddict.NewDict().
 			Set("bar", ordereddict.NewDict().Set("baz", 5)).
-			Set("bar2", 7)),
-	).AppendFunctions(
+			Set("bar2", 7))
+
+	result := NewScope().AppendVars(env).AppendFunctions(
 		TestFunction{1},
-		CounterFunction{},
+		CounterFunction{}, SetEnvFunction{},
 		PanicFunction{},
 	).AppendPlugins(
 		plugins.GenericListPlugin{
@@ -279,6 +315,9 @@ func makeScope() types.Scope {
 			},
 		},
 	)
+
+	env.Set("RootEnv", env)
+	return result
 }
 
 func TestValue(t *testing.T) {
@@ -445,24 +484,16 @@ var vqlTests = []vqlTest{
                    select bar, foo from scope()
                 })`},
 
-	{"Foreach should be lazy wrt row will panic if row query materializes (value=5) ", `
-           SELECT * FROM foreach(row={SELECT value, panic(column=value, value=5) FROM range(start=1, end=10)},
+	{"Foreach fully materializes row before passing to query ", `
+           SELECT Evaluated FROM foreach(row={
+                SELECT value,
+                       set_env(column="Evaluated", value=TRUE)
+                FROM range(start=1, end=10)
+           },
               query={
                 SELECT value from scope()
               }) LIMIT 1
         `},
-
-	{"Foreach evals query in row scope 1/4",
-		"LET row_query = SELECT 1 AS ColumnName123 FROM scope()"},
-
-	{"Foreach evals query in row scope 2/4",
-		"LET foreach_query = SELECT ColumnName123 FROM scope()"},
-
-	{"Foreach evals query in row scope 3/4",
-		"SELECT * FROM foreach(row=row_query, query=foreach_query)"},
-
-	{"Foreach evals query in row scope 4/4",
-		"SELECT * FROM foreach(row=row_query, query={SELECT ColumnName123 FROM scope()})"},
 
 	{"Foreach with non row elements",
 		"SELECT * FROM foreach(row=1, query='hello')"},
@@ -670,6 +701,19 @@ var multiVQLTest = []vqlTest{
 
 	{"Variable can not mask a function.",
 		"LET dict(x) = 1 SELECT 1 AS dict, dict(foo=1) FROM scope() WHERE dict"},
+
+	{"Foreach evals query in row scope (both queries should be same)", `
+LET row_query = SELECT 1 AS ColumnName123 FROM scope()
+LET foreach_query = SELECT ColumnName123 FROM scope()
+SELECT * FROM foreach(row=row_query, query=foreach_query)
+SELECT * FROM foreach(row=row_query, query={SELECT ColumnName123 FROM scope()})
+`},
+
+	{"Aggregate functions keep state per unique instance", `
+SELECT * FROM foreach(row=[0, 1, 2],
+  query={
+    SELECT count() AS A, count() AS B FROM scope()
+})`},
 }
 
 type _RangeArgs struct {

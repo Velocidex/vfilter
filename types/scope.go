@@ -22,6 +22,7 @@ type Scope interface {
 	// The scope context is a global k/v store
 	GetContext(name string) (Any, bool)
 	SetContext(name string, value Any)
+	ClearContext()
 
 	// Extract debug string about the current scope state.
 	PrintVars() string
@@ -52,11 +53,15 @@ type Scope interface {
 
 	// Logging
 	SetLogger(logger *log.Logger)
+	SetTracer(logger *log.Logger)
+	GetLogger() *log.Logger
+
 	Log(format string, a ...interface{})
 	Trace(format string, a ...interface{})
 
 	// Introspection
 	GetSimilarPlugins(name string) []string
+	Describe(type_map *TypeMap) *ScopeInformation
 
 	// Destructors are called when the scope is Close()
 	AddDestructor(fn func())

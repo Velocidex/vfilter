@@ -1,0 +1,250 @@
+{
+  "000/000 Parse basic types: SELECT parse(int=1, string='hello') FROM scope()": [
+    {
+      "parse(int=1, string='hello')": {
+        "int": 1,
+        "string": "hello"
+      }
+    }
+  ],
+  "001/000 Parse basic types: LET X=5": null,
+  "001/001 Parse basic types: SELECT parse(int=X) FROM scope()": [
+    {
+      "parse(int=X)": {
+        "int": 5
+      }
+    }
+  ],
+  "002/000 Parse basic types with param: LET Foo(X)=1 + X": null,
+  "002/001 Parse basic types with param: SELECT parse(int=Foo(X=2)) FROM scope()": [
+    {
+      "parse(int=Foo(X=2))": {
+        "int": 3
+      }
+    }
+  ],
+  "003/000 Passing Stored query to int field: LET Foo=SELECT 1 FROM scope()": null,
+  "003/001 Passing Stored query to int field: SELECT parse(int=Foo) FROM scope()": [
+    {
+      "parse(int=Foo)": {
+        "ParseError": "Field Int should be an int."
+      }
+    }
+  ],
+  "004/000 Passing string to int field: LET Foo=\"Hello\"": null,
+  "004/001 Passing string to int field: SELECT parse(int=Foo) FROM scope()": [
+    {
+      "parse(int=Foo)": {
+        "ParseError": "Field Int should be an int."
+      }
+    }
+  ],
+  "005/000 String Array: SELECT parse(string_array= [\"X\", \"Y\"]) FROM scope()": [
+    {
+      "parse(string_array= [\"X\", \"Y\"])": {
+        "string_array": [
+          "X",
+          "Y"
+        ]
+      }
+    }
+  ],
+  "006/000 String Array with single field: SELECT parse(string_array=\"Hello\") FROM scope()": [
+    {
+      "parse(string_array=\"Hello\")": {
+        "string_array": [
+          "Hello"
+        ]
+      }
+    }
+  ],
+  "007/000 String Array getting int array stringifies it: SELECT parse(string_array= [1, ]) FROM scope()": [
+    {
+      "parse(string_array= [1, ])": {
+        "string_array": [
+          "1"
+        ]
+      }
+    }
+  ],
+  "008/000 String Array getting int stringifies it: SELECT parse(string_array=1) FROM scope()": [
+    {
+      "parse(string_array=1)": {
+        "string_array": [
+          "1"
+        ]
+      }
+    }
+  ],
+  "009/000 String Array with single field: LET Foo=\"Hello\"": null,
+  "009/001 String Array with single field: SELECT parse(string_array=Foo) FROM scope()": [
+    {
+      "parse(string_array=Foo)": {
+        "string_array": [
+          "Hello"
+        ]
+      }
+    }
+  ],
+  "010/000 String Array with stored query expanding a row: LET Foo=SELECT \"Hello\" AS X FROM scope()": null,
+  "010/001 String Array with stored query expanding a row: SELECT parse(string_array=Foo.X) FROM scope()": [
+    {
+      "parse(string_array=Foo.X)": {
+        "string_array": [
+          "Hello"
+        ]
+      }
+    }
+  ],
+  "011/000 String Array with stored query expanding a row of ints: LET Foo=SELECT 1 AS X FROM scope()": null,
+  "011/001 String Array with stored query expanding a row of ints: SELECT parse(string_array=Foo.X) FROM scope()": [
+    {
+      "parse(string_array=Foo.X)": {
+        "string_array": [
+          "1"
+        ]
+      }
+    }
+  ],
+  "012/000 Lazy expressions: LET lazy_expr=1": null,
+  "012/001 Lazy expressions: SELECT parse(lazy=lazy_expr) FROM scope()": [
+    {
+      "parse(lazy=lazy_expr)": {
+        "Lazy type": "*vfilter.LazyExprImpl",
+        "Lazy Reduced Type": "int64",
+        "Lazy Reduced": 1
+      }
+    }
+  ],
+  "013/000 Lazy expressions with parameters: LET lazy_expr(X)=X + 1": null,
+  "013/001 Lazy expressions with parameters: SELECT parse(lazy=lazy_expr(X=1)) FROM scope()": [
+    {
+      "parse(lazy=lazy_expr(X=1))": {
+        "Lazy type": "*vfilter.LazyExprImpl",
+        "Lazy Reduced Type": "int64",
+        "Lazy Reduced": 2
+      }
+    }
+  ],
+  "014/000 Lazy expressions of stored query: LET query=SELECT 1 FROM scope()": null,
+  "014/001 Lazy expressions of stored query: SELECT parse(lazy=query) FROM scope()": [
+    {
+      "parse(lazy=query)": {
+        "Lazy type": "*vfilter.LazyExprImpl",
+        "Lazy Reduced Type": "*vfilter._StoredQuery",
+        "Lazy Reduced": {},
+        "Lazy Reduced stored query": [
+          {
+            "1": 1
+          }
+        ]
+      }
+    }
+  ],
+  "015/000 Lazy expressions of stored query with parameters: LET X=5": null,
+  "015/001 Lazy expressions of stored query with parameters: LET query(X)=SELECT X FROM scope()": null,
+  "015/002 Lazy expressions of stored query with parameters: SELECT parse(lazy=query(X=2)) FROM scope()": [
+    {
+      "parse(lazy=query(X=2))": {
+        "Lazy type": "*vfilter.LazyExprImpl",
+        "Lazy Reduced Type": "[]types.Row",
+        "Lazy Reduced": [
+          {
+            "X": 2
+          }
+        ]
+      }
+    }
+  ],
+  "016/000 Stored query: LET query=SELECT 1 FROM scope()": null,
+  "016/001 Stored query: SELECT parse(query=query) FROM scope()": [
+    {
+      "parse(query=query)": {
+        "StoredQuery Materialized": [
+          {
+            "1": 1
+          }
+        ]
+      }
+    }
+  ],
+  "017/000 Stored query with parameters: LET X=5": null,
+  "017/001 Stored query with parameters: LET query(X)=SELECT X FROM scope()": null,
+  "017/002 Stored query with parameters: SELECT parse(query=query(X=2)) FROM scope()": [
+    {
+      "parse(query=query(X=2))": {
+        "StoredQuery Materialized": [
+          {
+            "X": 2
+          }
+        ]
+      }
+    }
+  ],
+  "018/000 Stored query given a constant: SELECT parse(query=\"hello\") FROM scope()": [
+    {
+      "parse(query=\"hello\")": {
+        "StoredQuery Materialized": [
+          {
+            "_value": "hello"
+          }
+        ]
+      }
+    }
+  ],
+  "019/000 Stored query given a dict: SELECT parse(query=dict(X=\"hello\")) FROM scope()": [
+    {
+      "parse(query=dict(X=\"hello\"))": {
+        "StoredQuery Materialized": [
+          {
+            "X": "hello"
+          }
+        ]
+      }
+    }
+  ],
+  "020/000 Stored query given an expression: LET X=1": null,
+  "020/001 Stored query given an expression: SELECT parse(query=X) FROM scope()": [
+    {
+      "parse(query=X)": {
+        "StoredQuery Materialized": [
+          {
+            "_value": 1
+          }
+        ]
+      }
+    }
+  ],
+  "021/000 Any type: LET X=1": null,
+  "021/001 Any type: SELECT parse(any=X) FROM scope()": [
+    {
+      "parse(any=X)": {
+        "any": 1,
+        "any type": "int64"
+      }
+    }
+  ],
+  "022/000 Any type: LET Foo(X)=X + 1": null,
+  "022/001 Any type: SELECT parse(any=Foo(X=1)) FROM scope()": [
+    {
+      "parse(any=Foo(X=1))": {
+        "any": 2,
+        "any type": "int64"
+      }
+    }
+  ],
+  "023/000 Any type: LET query=SELECT 1 FROM scope()": null,
+  "023/001 Any type: SELECT parse(any=query) FROM scope()": [
+    {
+      "parse(any=query)": {
+        "any": {},
+        "any type": "*vfilter._StoredQuery",
+        "Any stored query": [
+          {
+            "1": 1
+          }
+        ]
+      }
+    }
+  ]
+}

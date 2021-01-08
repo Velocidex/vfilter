@@ -83,6 +83,17 @@ func (self *Scope) SetLogger(logger *log.Logger) {
 	self.Logger = logger
 }
 
+func (self *Scope) SetTracer(logger *log.Logger) {
+	self.Tracer = logger
+}
+
+func (self *Scope) GetLogger() *log.Logger {
+	self.Lock()
+	defer self.Unlock()
+
+	return self.Logger
+}
+
 // Create a new scope from this scope.
 func (self *Scope) NewScope() types.Scope {
 	self.Lock()
@@ -176,11 +187,13 @@ func (self *Scope) Keys() []string {
 	return result
 }
 
-func (self *Scope) Describe(type_map *TypeMap) *ScopeInformation {
+*/
+
+func (self *Scope) Describe(type_map *types.TypeMap) *types.ScopeInformation {
 	self.Lock()
 	defer self.Unlock()
 
-	result := &ScopeInformation{}
+	result := &types.ScopeInformation{}
 	for _, item := range self.plugins {
 		result.Plugins = append(result.Plugins, item.Info(self, type_map))
 	}
@@ -191,7 +204,6 @@ func (self *Scope) Describe(type_map *TypeMap) *ScopeInformation {
 
 	return result
 }
-*/
 
 // Tests two values for equality.
 func (self *Scope) Eq(a types.Any, b types.Any) bool {

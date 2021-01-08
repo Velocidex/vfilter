@@ -132,26 +132,35 @@ func (self *LazyExprImpl) ToString() string {
 	return self.Expr.ToString(self.scope)
 }
 
-func (self *LazyExprImpl) Reduce() types.Any {
-	if self.Value == nil {
-		if self.Expr == nil {
-			self.Value = &Null{}
-		} else {
-			self.Value = self.Expr.Reduce(self.ctx, self.scope)
-		}
+func (self *LazyExprImpl) ReduceWithScope(scope types.Scope) types.Any {
+	var result types.Any
+	if self.Expr == nil {
+		result = &Null{}
+	} else {
+		result = self.Expr.Reduce(self.ctx, self.scope)
 	}
 
-	switch t := self.Value.(type) {
+	switch t := result.(type) {
+	// StoredQuery objects are first class objects that can be
+	// passed around into function args.
 	case StoredQuery:
-		self.Value = Materialize(self.ctx, self.scope, t)
+		result = t
 
 	case func() types.Any:
-		self.Value = t()
+		result = t()
 
 	case types.LazyExpr:
-		self.Value = t.Reduce()
+		result = t.Reduce()
 	}
 
+	return result
+}
+
+func (self *LazyExprImpl) Reduce() types.Any {
+	if self.Value != nil {
+		return self.Value
+	}
+	self.Value = self.ReduceWithScope(self.scope)
 	return self.Value
 }
 

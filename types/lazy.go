@@ -1,6 +1,8 @@
 package types
 
-import "context"
+import (
+	"context"
+)
 
 // A Lazy row holds column values without evaluating them. We call the
 // act of evaluating a column, we materialize the column into a proper
@@ -26,7 +28,11 @@ type Memberer interface {
 
 // A LazyExpr has a reduce method that allows it to be materialized.
 type LazyExpr interface {
+	// Reduce with the scope captured at point of definition.
 	Reduce() Any
+
+	// Reduce with a new scope.
+	ReduceWithScope(scope Scope) Any
 }
 
 type LazyExprWrapper struct {

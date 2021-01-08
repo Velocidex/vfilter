@@ -370,7 +370,6 @@ func (self VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 		}
 
 		// LET is for stored query: LET X = SELECT ...
-		fmt.Printf("StoredQuery %v\n", self.StoredQuery.ToString(scope))
 		switch self.LetOperator {
 		case "=":
 			stored_query := NewStoredQuery(self.StoredQuery, name)
@@ -594,7 +593,8 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 					break
 				}
 
-				// Remove the group by column.
+				// Remove the group by column prior to
+				// sending the row.
 				emitted_row := MaterializedLazyRow(ctx, row, new_scope)
 				emitted_row.Delete("$groupby")
 				select {

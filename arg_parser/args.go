@@ -252,6 +252,7 @@ func _ExtractStringArray(scope types.Scope, arg types.Any) ([]string, bool) {
 	}
 
 	slice := reflect.ValueOf(arg)
+
 	// A slice of strings.
 	if slice.Type().Kind() == reflect.Slice {
 		for i := 0; i < slice.Len(); i++ {
@@ -283,12 +284,13 @@ func _ExtractStringArray(scope types.Scope, arg types.Any) ([]string, bool) {
 
 	// A single string just expands into a list of length 1.
 	item, ok := utils.ToString(slice.Interface())
-	if ok {
-		result = append(result, item)
-		return result, true
+	if !ok {
+		// If it has no StringProtocol fall back to golang
+		// default.
+		item = fmt.Sprintf("%v", slice.Interface())
 	}
-
-	return nil, false
+	result = append(result, item)
+	return result, true
 }
 
 // Convert a type to a stored query
@@ -375,6 +377,16 @@ type storedQueryWrapperLazyExpression struct {
 	query types.StoredQuery
 }
 
+func (self *storedQueryWrapperLazyExpression) ReduceWithScope(scope types.Scope) types.Any {
+	result := []types.Row{}
+
+	for row := range self.query.Eval(self.ctx, scope) {
+		result = append(result, row)
+	}
+
+	return result
+}
+
 func (self *storedQueryWrapperLazyExpression) Reduce() types.Any {
 	result := []types.Row{}
 
@@ -387,6 +399,10 @@ func (self *storedQueryWrapperLazyExpression) Reduce() types.Any {
 
 type lazyExpressionWrapper struct {
 	value types.Any
+}
+
+func (self *lazyExpressionWrapper) ReduceWithScope(scope types.Scope) types.Any {
+	return self.value
 }
 
 func (self *lazyExpressionWrapper) Reduce() types.Any {
