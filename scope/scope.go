@@ -486,12 +486,7 @@ func (self *Scope) Close() {
 		children = append(children, child)
 	}
 
-	// Remove ourselves from our parent.
-	if self.parent != nil {
-		self.parent.Lock()
-		delete(self.parent.children, self)
-		self.parent.Unlock()
-	}
+	parent := self.parent
 
 	// Stop new destructors from appearing.
 	self.destructors.is_destroyed = true
@@ -510,6 +505,13 @@ func (self *Scope) Close() {
 	// access us.
 	for _, child := range children {
 		child.Close()
+	}
+
+	// Remove ourselves from our parent.
+	if parent != nil {
+		parent.Lock()
+		delete(parent.children, self)
+		parent.Unlock()
 	}
 
 	// Destructors are called in reverse order to their
