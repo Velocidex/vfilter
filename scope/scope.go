@@ -2,6 +2,7 @@ package scope
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -460,15 +461,16 @@ func (self *Scope) Trace(format string, a ...interface{}) {
 
 // Adding a destructor to the current scope will call it when any
 // parent scopes are closed.
-func (self *Scope) AddDestructor(fn func()) {
+func (self *Scope) AddDestructor(fn func()) error {
 	self.Lock()
-	defer self.Unlock()
+	self.Unlock()
 
 	// Scope is already destroyed - call the destructor now.
 	if self.destructors.is_destroyed {
-		fn()
+		return errors.New("Scope already closed")
 	} else {
 		self.destructors.fn = append(self.destructors.fn, fn)
+		return nil
 	}
 }
 
