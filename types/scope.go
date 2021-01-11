@@ -65,8 +65,9 @@ type Scope interface {
 	GetSimilarPlugins(name string) []string
 	Describe(type_map *TypeMap) *ScopeInformation
 
-	// Destructors are called when the scope is Close()
-	AddDestructor(fn func())
+	// Destructors are called when the scope is Close(). If the
+	// scope is already closed adding the destructor may fail.
+	AddDestructor(fn func()) error
 	Close()
 
 	// Resolve a variable
