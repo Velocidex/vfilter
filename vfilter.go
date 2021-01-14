@@ -169,6 +169,7 @@ var (
 			`|(?ims)(?P<BOOL>\bTRUE\b|\bFALSE\b)` +
 			`|(?ims)(?P<LET>\bLET\b)` +
 			"|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*|`[^`]+`)" +
+			`|''(?P<MultilineString>'.*?')''` +
 			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")` +
 			`|(?P<Number>[-+]?(0x)?\d*\.?\d+([eE][-+]?\d+)?)` +
 			`|(?P<Operators><>|!=|<=|>=|=>|=~|[-+*/%,.()=<>{}\[\]])`,
@@ -983,7 +984,7 @@ type _Value struct {
 	SymbolRef     *_SymbolRef       `( @@ `
 	Subexpression *_CommaExpression `| "(" @@ ")"`
 
-	String *string ` | @String`
+	String *string ` | @( MultilineString | String ) `
 
 	// Figure out if this is an int or float.
 	StrNumber *string ` | @Number`
@@ -1632,6 +1633,13 @@ func (self *_Value) maybeParseStrNumber(scope types.Scope) {
 
 // unquote either a " or ' delimited string.
 func unquote(s string) (string, error) {
+	if strings.HasPrefix(s, "'''") {
+		result := strings.TrimPrefix(s, "'''")
+		if strings.HasSuffix(s, "'''") {
+			return strings.TrimRight(result, "'''"), nil
+		}
+	}
+
 	quote := s[0]
 	if quote != '"' && quote != '\'' {
 		return s, nil
