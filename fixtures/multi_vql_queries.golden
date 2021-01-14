@@ -410,5 +410,11 @@
     {
       "RootEnv.Eval": true
     }
+  ],
+  "034/000 Multiline string constants: LET X='''This\nis\na\nmultiline with 'quotes' and \"double quotes\" and \\ backslashes\n''' + \"A string\"": null,
+  "034/001 Multiline string constants: SELECT X FROM scope()": [
+    {
+      "X": "This\nis\na\nmultiline with 'quotes' and \"double quotes\" and \\ backslashes\nA string"
+    }
   ]
 }

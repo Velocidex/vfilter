@@ -774,6 +774,16 @@ LET Foo = SELECT 2 FROM scope() WHERE set_env(column="Eval", value=TRUE)
 LET result <= if(condition=TRUE, then=Foo) -- should materialize
 SELECT RootEnv.Eval FROM scope()  -- should be set
 `},
+
+	// Multiline string constants
+	{"Multiline string constants", `LET X = '''This
+is
+a
+multiline with 'quotes' and "double quotes" and \ backslashes
+''' + "A string"
+
+SELECT X FROM scope()
+`},
 }
 
 type _RangeArgs struct {
