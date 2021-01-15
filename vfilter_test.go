@@ -784,6 +784,16 @@ multiline with 'quotes' and "double quotes" and \ backslashes
 
 SELECT X FROM scope()
 `},
+
+	{"Early breakout of foreach with infinite row query", `
+SELECT * FROM foreach(row={
+  SELECT count() AS Count FROM range(start=1, end=20)
+  WHERE panic(column=Count, value=5)    -- Should trigger panic if we reach 5
+},
+query={
+  SELECT Count FROM scope()
+})
+LIMIT 1`},
 }
 
 type _RangeArgs struct {

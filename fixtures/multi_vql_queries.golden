@@ -416,5 +416,10 @@
     {
       "X": "This\nis\na\nmultiline with 'quotes' and \"double quotes\" and \\ backslashes\nA string"
     }
+  ],
+  "035/000 Early breakout of foreach with infinite row query: SELECT * FROM foreach(row= { SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)}, query= { SELECT Count FROM scope()}) LIMIT 1 ": [
+    {
+      "Count": 1
+    }
   ]
 }
