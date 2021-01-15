@@ -120,7 +120,13 @@ func ExtractArgs(scope types.Scope, args *ordereddict.Dict, value interface{}) e
 
 		// The plugin may specify the arg as being a LazyExpr,
 		// in which case it is completely up to it to evaluate
-		// the expression (if at all).
+		// the expression (if at all).  Note: Reducing the
+		// lazy expression may yield a StoredQuery - it is up
+		// to the plugin to handle this case! Generally every
+		// LazyExpr.Reduce() must be followed by a StoredQuery
+		// check. The plugin may then choose to either iterate
+		// over each StoredQuery row, or materialize the
+		// StoredQuery into memory (not recommended).
 		if field_types_value.Type == lazyExprType {
 			// It is not a types.LazyExpr, we wrap it in one.
 			field_value.Set(reflect.ValueOf(ToLazyExpr(scope, arg)))
@@ -355,46 +361,32 @@ func (self *storedQueryWrapper) toRow(scope types.Scope, value types.Any) types.
 	return ordereddict.NewDict().Set("_value", value)
 }
 
+// Wrap an arg in a LazyExpr for plugins that want to receive a
+// LazyExpr.
 func ToLazyExpr(scope types.Scope, arg types.Any) types.LazyExpr {
-	// Fixme...
-	ctx := context.Background()
-
 	switch t := arg.(type) {
 	case types.LazyExpr:
 		return t
 
 	case types.StoredQuery:
-		return &storedQueryWrapperLazyExpression{
-			ctx: ctx, scope: scope, query: t}
+		return &storedQueryWrapperLazyExpression{query: t}
 	default:
 		return &lazyExpressionWrapper{arg}
 	}
 }
 
+// Wrap a Stored Query with a LazyExpr interface. Callers will receive
+// the Stored Query when reducing us.
 type storedQueryWrapperLazyExpression struct {
-	ctx   context.Context
-	scope types.Scope
 	query types.StoredQuery
 }
 
 func (self *storedQueryWrapperLazyExpression) ReduceWithScope(scope types.Scope) types.Any {
-	result := []types.Row{}
-
-	for row := range self.query.Eval(self.ctx, scope) {
-		result = append(result, row)
-	}
-
-	return result
+	return self.query
 }
 
 func (self *storedQueryWrapperLazyExpression) Reduce() types.Any {
-	result := []types.Row{}
-
-	for row := range self.query.Eval(self.ctx, self.scope) {
-		result = append(result, row)
-	}
-
-	return result
+	return self.query
 }
 
 type lazyExpressionWrapper struct {
