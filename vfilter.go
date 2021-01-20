@@ -1825,11 +1825,11 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 					ctx, scope))
 				scope.GetStats().IncFunctionsCalled()
 
-				result := []Row{}
-				for item := range t.Eval(ctx, subscope) {
-					result = append(result, item)
+				// Wrap the query with the captured scope.
+				return &StoredQueryCallSite{
+					query: t,
+					scope: subscope,
 				}
-				return result
 			}
 		}
 

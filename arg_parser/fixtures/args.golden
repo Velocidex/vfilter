@@ -147,8 +147,9 @@
     {
       "parse(lazy=query(X=2))": {
         "Lazy type": "*vfilter.LazyExprImpl",
-        "Lazy Reduced Type": "[]types.Row",
-        "Lazy Reduced": [
+        "Lazy Reduced Type": "*vfilter.StoredQueryCallSite",
+        "Lazy Reduced": {},
+        "Lazy Reduced stored query": [
           {
             "X": 2
           }

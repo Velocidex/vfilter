@@ -794,6 +794,26 @@ query={
   SELECT Count FROM scope()
 })
 LIMIT 1`},
+
+	{"Early breakout of foreach with stored query", `
+LET X =   SELECT count() AS Count FROM range(start=1, end=20)
+  WHERE panic(column=Count, value=5)    -- Should trigger panic if we reach 5
+
+SELECT * FROM foreach(row=X,
+query={
+  SELECT Count FROM scope()
+})
+LIMIT 1`},
+
+	{"Early breakout of foreach with stored query with parameters", `
+LET X(Y) =   SELECT Y, count() AS Count FROM range(start=1, end=20)
+  WHERE panic(column=Count, value=5)    -- Should trigger panic if we reach 5
+
+SELECT * FROM foreach(row=X(Y=23),
+query={
+  SELECT Y, Count FROM scope()
+})
+LIMIT 1`},
 }
 
 type _RangeArgs struct {
