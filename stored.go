@@ -55,7 +55,7 @@ func (self *_StoredQuery) ToString(scope types.Scope) string {
 }
 
 // Stored queries can also behave like plugins. This just means we
-// evaluate yet with a subscope built on top of the args.
+// evaluate it with a subscope built on top of the args.
 func (self *_StoredQuery) Info(scope types.Scope, type_map *TypeMap) *PluginInfo {
 	return &PluginInfo{}
 }
@@ -193,4 +193,17 @@ func (self *StoredExpression) checkCallingArgs(scope types.Scope, args *orderedd
 			}
 		}
 	}
+}
+
+// A wrapper around a stored query which captures its call site's
+// parameters in a new scope. When the wrapper is evaluated, the call
+// site's scope will be used.
+type StoredQueryCallSite struct {
+	query StoredQuery
+	scope Scope
+}
+
+func (self *StoredQueryCallSite) Eval(ctx context.Context, scope Scope) <-chan Row {
+	// Use our embedded scope instead.
+	return self.query.Eval(ctx, self.scope)
 }
