@@ -109,14 +109,6 @@ var scopeTests = []vqlTest{
 	// only at start and end.
 	{"Both", "SELECT destructor() AS X FROM destructor(rows=2)"},
 
-	// Rows evaluate first then query
-	{"Nested foreach - destructors in row clause", `
-SELECT * FROM foreach(
- row={SELECT destructor(name='row_func') FROM scope()},
- query={
-      SELECT * FROM destructor(name='inner_query')
-})`},
-
 	// Rows plugins evaluate first then query
 	{"Nested foreach - destructor in query clause", `
 SELECT * FROM foreach(
