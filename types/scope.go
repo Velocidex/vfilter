@@ -4,12 +4,11 @@ import (
 	"context"
 	"log"
 	"runtime"
-	"sync/atomic"
-
-	"github.com/Velocidex/ordereddict"
 )
 
-// A scope is passed inside the evaluation context.
+// A scope is passed inside the evaluation context.  Although this is
+// an interface, there is currently only a single implementation
+// (scope.Scope). The interface exposes the public methods.
 type Scope interface {
 
 	// Duplicate the scope to a completely new scope - this is a
@@ -18,8 +17,6 @@ type Scope interface {
 
 	// Copy the scope and create a subscope child.
 	Copy() Scope
-
-	GetStats() *Stats
 
 	// The scope context is a global k/v store
 	GetContext(name string) (Any, bool)
@@ -44,24 +41,31 @@ type Scope interface {
 	Match(a Any, b Any) bool
 	Iterate(ctx context.Context, a Any) <-chan Row
 
+	// The scope's top level variable. Scopes search backward
+	// through their parents to resolve names from these vars.
+	AppendVars(row Row) Scope
+	Resolve(field string) (interface{}, bool)
+
+	// Program a custom sorter
+	SetSorter(sorter Sorter)
+
 	// We can program the scope's protocols
 	AddProtocolImpl(implementations ...Any) Scope
-	AppendVars(row Row) Scope
 	AppendFunctions(functions ...FunctionInterface) Scope
 	AppendPlugins(plugins ...PluginGeneratorInterface) Scope
 
-	GetFunction(name string) (FunctionInterface, bool)
-	GetPlugin(name string) (PluginGeneratorInterface, bool)
-
-	// Logging
+	// Logging and performance monitoring.
 	SetLogger(logger *log.Logger)
 	SetTracer(logger *log.Logger)
 	GetLogger() *log.Logger
+	GetStats() *Stats
 
 	Log(format string, a ...interface{})
 	Trace(format string, a ...interface{})
 
 	// Introspection
+	GetFunction(name string) (FunctionInterface, bool)
+	GetPlugin(name string) (PluginGeneratorInterface, bool)
 	GetSimilarPlugins(name string) []string
 	Describe(type_map *TypeMap) *ScopeInformation
 
@@ -69,11 +73,6 @@ type Scope interface {
 	// scope is already closed adding the destructor may fail.
 	AddDestructor(fn func()) error
 	Close()
-
-	// Resolve a variable
-	Resolve(field string) (interface{}, bool)
-
-	StackDepth() int
 }
 
 // Utilities to do with scope.
@@ -85,51 +84,4 @@ func RecoverVQL(scope Scope) {
 		n := runtime.Stack(buffer, false /* all */)
 		scope.Log("%s", buffer[:n])
 	}
-}
-
-// A lightweight struct for accumulating general stats.
-type Stats struct {
-	// All rows emitted from all plugins (this includes filtered rows).
-	_RowsScanned uint64
-
-	// Total number of plugin calls.
-	_PluginsCalled uint64
-
-	// Total number of function calls.
-	_FunctionsCalled uint64
-
-	// Total search for operator protocols.
-	_ProtocolSearch uint64
-
-	// Number of subscopes created.
-	_ScopeCopy uint64
-}
-
-func (self *Stats) IncRowsScanned() {
-	atomic.AddUint64(&self._RowsScanned, uint64(1))
-}
-
-func (self *Stats) IncPluginsCalled() {
-	atomic.AddUint64(&self._PluginsCalled, uint64(1))
-}
-
-func (self *Stats) IncFunctionsCalled() {
-	atomic.AddUint64(&self._FunctionsCalled, uint64(1))
-}
-
-func (self *Stats) IncProtocolSearch(i int) {
-	atomic.AddUint64(&self._ProtocolSearch, uint64(i))
-}
-
-func (self *Stats) IncScopeCopy() {
-	atomic.AddUint64(&self._ScopeCopy, uint64(1))
-}
-
-func (self *Stats) Snapshot() *ordereddict.Dict {
-	return ordereddict.NewDict().
-		Set("RowsScanned", atomic.LoadUint64(&self._RowsScanned)).
-		Set("PluginsCalled", atomic.LoadUint64(&self._PluginsCalled)).
-		Set("FunctionsCalled", atomic.LoadUint64(&self._FunctionsCalled)).
-		Set("ProtocolSearch", atomic.LoadUint64(&self._ProtocolSearch)).
-		Set("ScopeCopy", atomic.LoadUint64(&self._ScopeCopy))
 }

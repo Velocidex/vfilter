@@ -17,8 +17,8 @@
   ],
   "003 Nested foreach - destructors in row clause: SELECT * FROM foreach(row= { SELECT destructor(name='row_func') FROM scope()}, query= { SELECT * FROM destructor(name='inner_query')}) - markers": [
     "Func Open row_func 1",
-    "Func Close row_func 1",
     "Plugin Open inner_query 1",
+    "Func Close row_func 1",
     "Plugin Close inner_query 1"
   ],
   "004 Nested foreach - destructor in query clause: SELECT * FROM foreach(row= { SELECT * FROM destructor(name='rows_query', rows=2)}, query= { SELECT destructor(name='iterator_func') FROM scope()}) - markers": [

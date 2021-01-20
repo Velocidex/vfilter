@@ -572,6 +572,7 @@ var vqlTests = []vqlTest{
 
 	{"Query plugin with dots", "Select * from Artifact.Linux.Sys()"},
 	{"Order by", "select * from test() order by foo"},
+
 	{"Order by desc", "select * from test() order by foo DESC"},
 	{"Limit", "select * from test() limit 1"},
 	{"Limit and order", "select * from test() order by foo desc limit 1"},
@@ -814,6 +815,24 @@ query={
   SELECT Y, Count FROM scope()
 })
 LIMIT 1`},
+
+	{"Expand stored query with parameters on associative", `
+LET X(Y) = SELECT Y + 5 + value AS Foo FROM range(start=1, end=2)
+
+SELECT X(Y=2).Foo FROM scope()`},
+
+	// ORDER BY
+	{"Order by", `
+SELECT * FROM foreach(row=(1,8,3,2),
+   query={SELECT _value AS X FROM scope()}) ORDER BY X`},
+	{"Group by also orders", `
+SELECT * FROM foreach(row=(1,1,1,1,8,3,3,3,2),
+   query={SELECT _value AS X FROM scope()}) GROUP BY X`},
+	{"Group by with explicit order by", `
+SELECT * FROM foreach(row=(1,1,1,1,8,3,3,3,2),
+   query={
+       SELECT _value AS X, 10 - _value AS Y FROM scope()
+   }) GROUP BY X ORDER BY Y`},
 }
 
 type _RangeArgs struct {

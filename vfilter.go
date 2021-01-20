@@ -132,7 +132,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -142,6 +141,7 @@ import (
 	"github.com/alecthomas/participle/lexer"
 	errors "github.com/pkg/errors"
 	"www.velocidex.com/golang/vfilter/scope"
+	scope_module "www.velocidex.com/golang/vfilter/scope"
 	"www.velocidex.com/golang/vfilter/types"
 	"www.velocidex.com/golang/vfilter/utils"
 )
@@ -575,34 +575,48 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 				aggregate_ctx.row = new_row
 			}
 
-			result_set := &ResultSet{
-				OrderBy: "$groupby",
-				scope:   scope,
-			}
-
-			if self.OrderBy != nil {
-				result_set.OrderBy = *self.OrderBy
-			}
-
+			// Now sort the output according to the
+			// aggregate rows. NOTE: We always sort to
+			// maintain a stable output (since bins are a
+			// map)
+			desc := false
 			if self.OrderByDesc != nil {
-				result_set.Desc = *self.OrderByDesc
+				desc = *self.OrderByDesc
 			}
 
-			// Emit the binned set as a new result set.
-			for _, aggregate_ctx := range bins {
-				result_set.Items = append(result_set.Items, aggregate_ctx.row)
+			// By default order by the group by column
+			// unless the query specified a different
+			// order by.
+			order_by := "$groupby"
+			if self.OrderBy != nil {
+				order_by = *self.OrderBy
 			}
 
-			// Sort the results based on the OrderBy
-			sort.Sort(result_set)
+			// Sort the output groups
+			sorter_input_chan := make(chan Row)
+			sorted_chan := scope.(*scope_module.Scope).Sorter.Sort(
+				ctx, scope, sorter_input_chan, order_by, desc)
 
-			for idx, row := range result_set.Items {
+			// Feed all the aggregate rows into the sorter.
+			go func() {
+				defer close(sorter_input_chan)
+
+				// Emit the binned set as a new result set.
+				for _, aggregate_ctx := range bins {
+					sorter_input_chan <- aggregate_ctx.row
+				}
+
+			}()
+
+			// Remove the group by column prior to sending
+			// the row.
+			idx := 0
+			for row := range sorted_chan {
 				if self.Limit != nil && idx >= int(*self.Limit) {
 					break
 				}
+				idx++
 
-				// Remove the group by column prior to
-				// sending the row.
 				emitted_row := MaterializedLazyRow(ctx, row, new_scope)
 				emitted_row.Delete("$groupby")
 				select {
@@ -610,6 +624,7 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 					return
 				case output_chan <- emitted_row:
 				}
+
 			}
 		}()
 
@@ -647,39 +662,32 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	}
 
 	if self.OrderBy != nil {
-		result_set := &ResultSet{
-			OrderBy: *self.OrderBy,
-			scope:   scope,
-		}
-
+		desc := false
 		if self.OrderByDesc != nil {
-			result_set.Desc = *self.OrderByDesc
+			desc = *self.OrderByDesc
 		}
 
-		// Re-run the same query with no order by clause then
-		// we sort the results.
-		self_copy := *self
-		self_copy.OrderBy = nil
+		// Sort the output groups
+		sorter_input_chan := make(chan Row)
+		sorted_chan := scope.(*scope_module.Scope).Sorter.Sort(
+			ctx, scope, sorter_input_chan,
+			unquote_ident(*self.OrderBy), desc)
 
-		for row := range self_copy.Eval(ctx, scope) {
-			result_set.Items = append(result_set.Items, row)
-		}
-
-		// Sort the results based on the
-		sort.Sort(result_set)
-
+		// Feed all the aggregate rows into the sorter.
 		go func() {
-			defer close(output_chan)
+			defer close(sorter_input_chan)
 
-			for _, row := range result_set.Items {
-				select {
-				case <-ctx.Done():
-					return
-				case output_chan <- row:
-				}
+			// Re-run the same query with no order by clause then
+			// we sort the results.
+			self_copy := *self
+			self_copy.OrderBy = nil
+
+			for row := range self_copy.Eval(ctx, scope) {
+				sorter_input_chan <- row
 			}
 		}()
-		return output_chan
+
+		return sorted_chan
 	}
 
 	// Gets a row from the FROM clause, then transforms it
@@ -1798,7 +1806,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 		// it.
 		case *StoredExpression:
 			subscope := scope.Copy()
-			if subscope.StackDepth() >= 1000 {
+			if subscope.(*scope_module.Scope).StackDepth() >= 1000 {
 				subscope.Log("Stack Overflow")
 				return &Null{}
 			}
@@ -1816,7 +1824,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 			// through.
 			if self.Parameters != nil {
 				subscope := scope.Copy()
-				if subscope.StackDepth() >= 1000 {
+				if subscope.(*scope_module.Scope).StackDepth() >= 1000 {
 					subscope.Log("Stack Overflow")
 					return &Null{}
 				}
