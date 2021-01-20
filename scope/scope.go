@@ -13,6 +13,7 @@ import (
 	"www.velocidex.com/golang/vfilter/functions"
 	"www.velocidex.com/golang/vfilter/plugins"
 	"www.velocidex.com/golang/vfilter/protocols"
+	"www.velocidex.com/golang/vfilter/sort"
 	"www.velocidex.com/golang/vfilter/types"
 	"www.velocidex.com/golang/vfilter/utils"
 )
@@ -50,6 +51,7 @@ type Scope struct {
 	functions map[string]types.FunctionInterface
 	plugins   map[string]types.PluginGeneratorInterface
 
+	// Protocol dispatchers control operators.
 	bool        protocols.BoolDispatcher
 	eq          protocols.EqDispatcher
 	lt          protocols.LtDispatcher
@@ -62,6 +64,9 @@ type Scope struct {
 	associative protocols.AssociativeDispatcher
 	regex       protocols.RegexDispatcher
 	iterator    protocols.IterateDispatcher
+
+	// Sorters allow VQL to sort result sets.
+	Sorter types.Sorter
 
 	Logger *log.Logger
 
@@ -123,6 +128,7 @@ func (self *Scope) NewScope() types.Scope {
 		associative: self.associative.Copy(),
 		regex:       self.regex.Copy(),
 		iterator:    self.iterator.Copy(),
+		Sorter:      self.Sorter,
 		Logger:      self.Logger,
 		Tracer:      self.Tracer,
 		children:    make(map[*Scope]*Scope),
@@ -293,23 +299,6 @@ func (self *Scope) Copy() types.Scope {
 		context:   self.context,
 		Stats:     self.Stats,
 
-		// Not sure if we have to make a full copy here? It is
-		// faster not to.
-		/*
-			bool:        self.bool.Copy(),
-			eq:          self.eq.Copy(),
-			lt:          self.lt.Copy(),
-			gt:          self.gt.Copy(),
-			add:         self.add.Copy(),
-			sub:         self.sub.Copy(),
-			mul:         self.mul.Copy(),
-			div:         self.div.Copy(),
-			membership:  self.membership.Copy(),
-			associative: self.associative.Copy(),
-			regex:       self.regex.Copy(),
-			iterator:    self.iterator.Copy(),
-		*/
-
 		bool:        self.bool,
 		eq:          self.eq,
 		lt:          self.lt,
@@ -322,6 +311,7 @@ func (self *Scope) Copy() types.Scope {
 		associative: self.associative,
 		regex:       self.regex,
 		iterator:    self.iterator,
+		Sorter:      self.Sorter,
 
 		stack_depth: self.stack_depth + 1,
 		children:    make(map[*Scope]*Scope),
@@ -540,6 +530,7 @@ func (self *Scope) Close() {
 func NewScope() *Scope {
 	result := Scope{
 		children: make(map[*Scope]*Scope),
+		Sorter:   &sort.DefaultSorter{},
 	}
 	result.functions = make(map[string]types.FunctionInterface)
 	result.plugins = make(map[string]types.PluginGeneratorInterface)
@@ -557,6 +548,13 @@ func NewScope() *Scope {
 	result.AppendFunctions(_GetVersion{})
 
 	return &result
+}
+
+func (self *Scope) SetSorter(sorter types.Sorter) {
+	self.Lock()
+	defer self.Unlock()
+
+	self.Sorter = sorter
 }
 
 // Fetch the field from the scope variables.

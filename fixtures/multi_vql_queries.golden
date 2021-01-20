@@ -434,5 +434,60 @@
       "Y": 23,
       "Count": 1
     }
+  ],
+  "038/000 Expand stored query with parameters on associative: LET X(Y)=SELECT Y + 5 + value AS Foo FROM range(start=1, end=2)": null,
+  "038/001 Expand stored query with parameters on associative: SELECT X(Y=2).Foo FROM scope()": [
+    {
+      "X(Y=2).Foo": [
+        8,
+        9
+      ]
+    }
+  ],
+  "039/000 Order by: SELECT * FROM foreach(row=(1, 8, 3, 2), query= { SELECT _value AS X FROM scope()}) ORDER BY X": [
+    {
+      "X": 1
+    },
+    {
+      "X": 2
+    },
+    {
+      "X": 3
+    },
+    {
+      "X": 8
+    }
+  ],
+  "040/000 Group by also orders: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X FROM scope()}) GROUP BY X": [
+    {
+      "X": 1
+    },
+    {
+      "X": 2
+    },
+    {
+      "X": 3
+    },
+    {
+      "X": 8
+    }
+  ],
+  "041/000 Group by with explicit order by: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X, 10 - _value AS Y FROM scope()}) GROUP BY X ORDER BY Y": [
+    {
+      "X": 8,
+      "Y": 2
+    },
+    {
+      "X": 3,
+      "Y": 7
+    },
+    {
+      "X": 2,
+      "Y": 8
+    },
+    {
+      "X": 1,
+      "Y": 9
+    }
   ]
 }
