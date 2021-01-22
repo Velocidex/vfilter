@@ -14,6 +14,7 @@ func GetBuiltinFunctions() []types.FunctionInterface {
 		_MinFunction{},
 		_MaxFunction{},
 		_EnumerateFunction{},
+		FormatFunction{},
 		LenFunction{},
 	}
 }
