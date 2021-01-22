@@ -128,6 +128,7 @@ func (self *workerPool) Close() {
 func (self *workerPool) runQuery(ctx context.Context, scope types.Scope) {
 	child_ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	defer scope.Close()
 
 	query_chan := self.query.Eval(child_ctx, scope)
 	for {
