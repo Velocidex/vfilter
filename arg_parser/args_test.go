@@ -23,65 +23,65 @@ type vqlTest struct {
 
 var multiVQLTest = []vqlTest{
 	// Basic types are just passed as args.
-	{"Parse basic types", `SELECT parse(int=1, string='hello') FROM scope()`},
+	{"Parse basic types", `SELECT parse(r=1, int=1, string='hello') FROM scope()`},
 
 	// Lazy expressions are expanded for basic types.
 	{"Parse basic types", `
 LET X = 5
-SELECT parse(int=X) FROM scope()`},
+SELECT parse(r=1, int=X) FROM scope()`},
 
 	{"Parse basic types with param", `
 LET Foo(X) = 1+X
-SELECT parse(int=Foo(X=2)) FROM scope()`},
+SELECT parse(r=1, int=Foo(X=2)) FROM scope()`},
 
 	// Error handling
 	{"Passing Stored query to int field", `
 LET Foo = SELECT 1 FROM scope()
-SELECT parse(int=Foo) FROM scope()`},
+SELECT parse(r=1, int=Foo) FROM scope()`},
 
 	{"Passing string to int field", `
 LET Foo = "Hello"
-SELECT parse(int=Foo) FROM scope()`},
+SELECT parse(r=1, int=Foo) FROM scope()`},
 
 	// String Array
 	{"String Array", `
-SELECT parse(string_array=["X", "Y"]) FROM scope()`},
+SELECT parse(r=1, string_array=["X", "Y"]) FROM scope()`},
 
 	// Passing a string into a plugin that expects a string array
 	// creates an array on the fly.
 	{"String Array with single field", `
-SELECT parse(string_array="Hello") FROM scope()`},
+SELECT parse(r=1, string_array="Hello") FROM scope()`},
 
 	// String array stringifies if possible
 	{"String Array getting int array stringifies it", `
-SELECT parse(string_array=[1,]) FROM scope()`},
+SELECT parse(r=1, string_array=[1,]) FROM scope()`},
 	{"String Array getting int stringifies it", `
-SELECT parse(string_array=1) FROM scope()`},
+SELECT parse(r=1, string_array=1) FROM scope()`},
 
 	{"String Array with single field", `
 LET Foo = "Hello"
-SELECT parse(string_array=Foo) FROM scope()`},
+SELECT parse(r=1, string_array=Foo) FROM scope()`},
 
 	// Foo.X will expand into a list by virtue of the Associative
 	// protocol.
 	{"String Array with stored query expanding a row", `
 LET Foo = SELECT "Hello" AS X FROM scope()
-SELECT parse(string_array=Foo.X) FROM scope()`},
+SELECT parse(r=1,string_array=Foo.X) FROM scope()`},
 
 	// String array stringifies if possible
 	{"String Array with stored query expanding a row of ints", `
 LET Foo = SELECT 1 AS X FROM scope()
-SELECT parse(string_array=Foo.X) FROM scope()`},
+SELECT parse(r=1,string_array=Foo.X) FROM scope()`},
 
 	// When accepting a lazy expression it is up to the plugin to
 	// decide if to reduce it.
 	{"Lazy expressions", `
 LET lazy_expr = 1
-SELECT parse(lazy=lazy_expr) FROM scope()`},
+SELECT parse(r=1,lazy=lazy_expr) FROM scope()`},
 
 	{"Lazy expressions with parameters", `
 LET lazy_expr(X) = X + 1
-SELECT parse(lazy=lazy_expr(X=1)) FROM scope()`},
+SELECT parse(r=1,lazy=lazy_expr(X=1)) FROM scope()`},
 
 	// A plugin that accepts a LazyExpr may receive a StoredQuery
 	// after reducing it. The StoredQuery will not be
@@ -91,48 +91,55 @@ SELECT parse(lazy=lazy_expr(X=1)) FROM scope()`},
 	// it should be expanded in memory.
 	{"Lazy expressions of stored query", `
 LET query = SELECT 1 FROM scope()
-SELECT parse(lazy=query) FROM scope()`},
+SELECT parse(r=1,lazy=query) FROM scope()`},
 
 	{"Lazy expressions of stored query with parameters", `
 LET X = 5    -- Verify this is masked
 LET query(X) = SELECT X FROM scope()
-SELECT parse(lazy=query(X=2)) FROM scope()`},
+SELECT parse(r=1,lazy=query(X=2)) FROM scope()`},
 
 	{"Stored query", `
 LET query = SELECT 1 FROM scope()
-SELECT parse(query=query) FROM scope()`},
+SELECT parse(r=1,query=query) FROM scope()`},
 
 	{"Stored query with parameters", `
 LET X = 5    -- Verify this is masked
 LET query(X) = SELECT X FROM scope()
-SELECT parse(query=query(X=2)) FROM scope()`},
+SELECT parse(r=1,query=query(X=2)) FROM scope()`},
 
 	// A plugin that expects a stored query will received a
 	// wrapper if the user passed a regular object.
 	{"Stored query given a constant", `
-SELECT parse(query="hello") FROM scope()`},
+SELECT parse(r=1,query="hello") FROM scope()`},
 
 	{"Stored query given a dict", `
-SELECT parse(query=dict(X="hello")) FROM scope()`},
+SELECT parse(r=1,query=dict(X="hello")) FROM scope()`},
 
 	{"Stored query given an expression", `
 LET X = 1
-SELECT parse(query=X) FROM scope()`},
+SELECT parse(r=1,query=X) FROM scope()`},
 
 	// Plugins that accept Any have lazy expressions materialized
 	// on function call.
 	{"Any type", `
 LET X = 1
-SELECT parse(any=X) FROM scope()`},
+SELECT parse(r=1,any=X) FROM scope()`},
 
 	{"Any type", `
 LET Foo(X) = X + 1
-SELECT parse(any=Foo(X=1)) FROM scope()`},
+SELECT parse(r=1,any=Foo(X=1)) FROM scope()`},
 
 	// Any fields receive stored queries unexpanded.
 	{"Any type", `
 LET query = SELECT 1 FROM scope()
-SELECT parse(any=query) FROM scope()`},
+SELECT parse(r=1,any=query) FROM scope()`},
+
+	// Unexpected args
+	{"Unexpected args", `
+SELECT parse(r=1,int=1, foobar=2) FROM scope()`},
+
+	{"Required args", `
+SELECT parse() FROM scope()`},
 }
 
 type argFuncArgs struct {
@@ -142,6 +149,7 @@ type argFuncArgs struct {
 	String      string            `vfilter:"optional,field=string"`
 	StringArray []string          `vfilter:"optional,field=string_array"`
 	StoredQuery types.StoredQuery `vfilter:"optional,field=query"`
+	R           int               `vfilter:"required,field=r"`
 }
 
 type argFunc struct{}

@@ -124,9 +124,9 @@
       "X": "Hello world"
     }
   ],
-  "011/000 Serialization: SELECT panic(value=1, colume='X'), func_foo() FROM scope()": [
+  "011/000 Serialization (Unexpected arg aborts parsing): SELECT panic(value=1, column=1, colume='X'), func_foo() FROM scope()": [
     {
-      "panic(value=1, colume='X')": 1,
+      "panic(value=1, column=1, colume='X')": null,
       "func_foo()": 1
     }
   ],

@@ -291,7 +291,8 @@ func (self PanicFunction) Call(ctx context.Context, scope types.Scope, args *ord
 
 	err := ExtractArgs(scope, args, &arg)
 	if err != nil {
-		panic(err)
+		scope.Log("Panic: %v", err)
+		return types.Null{}
 	}
 
 	if scope.Eq(arg.Value, arg.Column) {
@@ -683,8 +684,8 @@ var multiVQLTest = []vqlTest{
 		"LET X = panic() SELECT 1 + 1 FROM scope()"},
 	{"LET materialize with expression",
 		"LET X <= 'Hello world' SELECT X FROM scope()"},
-	{"Serialization",
-		"SELECT panic(value=1, colume='X'), func_foo() FROM scope()"},
+	{"Serialization (Unexpected arg aborts parsing)",
+		"SELECT panic(value=1, column=1, colume='X'), func_foo() FROM scope()"},
 	{"LET with expression lazy - string concat",
 		"LET X = 'hello' SELECT X + 'world', 'world' + X, 'hello world' =~ X FROM scope()"},
 
