@@ -13,7 +13,6 @@ import (
 	"www.velocidex.com/golang/vfilter/functions"
 	"www.velocidex.com/golang/vfilter/plugins"
 	"www.velocidex.com/golang/vfilter/protocols"
-	"www.velocidex.com/golang/vfilter/sort"
 	"www.velocidex.com/golang/vfilter/types"
 	"www.velocidex.com/golang/vfilter/utils"
 )
@@ -45,36 +44,12 @@ type _destructors struct {
 type Scope struct {
 	sync.Mutex
 
-	Stats *types.Stats
+	vars []types.Row
 
-	vars      []types.Row
-	functions map[string]types.FunctionInterface
-	plugins   map[string]types.PluginGeneratorInterface
-
-	// Protocol dispatchers control operators.
-	bool        protocols.BoolDispatcher
-	eq          protocols.EqDispatcher
-	lt          protocols.LtDispatcher
-	gt          protocols.GtDispatcher
-	add         protocols.AddDispatcher
-	sub         protocols.SubDispatcher
-	mul         protocols.MulDispatcher
-	div         protocols.DivDispatcher
-	membership  protocols.MembershipDispatcher
-	associative protocols.AssociativeDispatcher
-	regex       protocols.RegexDispatcher
-	iterator    protocols.IterateDispatcher
-
-	// Sorters allow VQL to sort result sets.
-	Sorter types.Sorter
-
-	Logger *log.Logger
-
-	// Very verbose debugging goes here - not generally useful
-	// unless users try to debug VQL expressions.
-	Tracer *log.Logger
-
-	context *ordereddict.Dict
+	// The dispatcher contains all items that are constant for the
+	// entire query evaluation. Pulling it into its own object
+	// make scope copy very cheap.
+	dispatcher *protocolDispatcher
 
 	stack_depth int
 
@@ -87,18 +62,15 @@ type Scope struct {
 }
 
 func (self *Scope) SetLogger(logger *log.Logger) {
-	self.Logger = logger
+	self.dispatcher.Logger = logger
 }
 
 func (self *Scope) SetTracer(logger *log.Logger) {
-	self.Tracer = logger
+	self.dispatcher.Tracer = logger
 }
 
 func (self *Scope) GetLogger() *log.Logger {
-	self.Lock()
-	defer self.Unlock()
-
-	return self.Logger
+	return self.dispatcher.GetLogger()
 }
 
 // Create a new scope from this scope.
@@ -108,59 +80,36 @@ func (self *Scope) NewScope() types.Scope {
 
 	// Make a copy of self
 	result := &Scope{
-		Stats:   &types.Stats{},
-		context: ordereddict.NewDict(),
 		vars: []types.Row{
 			ordereddict.NewDict().
 				Set("NULL", types.Null{}),
 		},
-		functions:   self.functions,
-		plugins:     self.plugins,
-		bool:        self.bool.Copy(),
-		eq:          self.eq.Copy(),
-		lt:          self.lt.Copy(),
-		gt:          self.gt.Copy(),
-		add:         self.add.Copy(),
-		sub:         self.sub.Copy(),
-		mul:         self.mul.Copy(),
-		div:         self.div.Copy(),
-		membership:  self.membership.Copy(),
-		associative: self.associative.Copy(),
-		regex:       self.regex.Copy(),
-		iterator:    self.iterator.Copy(),
-		Sorter:      self.Sorter,
-		Logger:      self.Logger,
-		Tracer:      self.Tracer,
-		children:    make(map[*Scope]*Scope),
+		children:   make(map[*Scope]*Scope),
+		dispatcher: self.dispatcher.Copy(),
 	}
 
 	return result
 }
 
 func (self *Scope) GetStats() *types.Stats {
-	return self.Stats
+	return self.dispatcher.GetStats()
 }
 
 func (self *Scope) GetContext(name string) (types.Any, bool) {
-	self.Lock()
-	defer self.Unlock()
-
-	return self.context.Get(name)
+	return self.dispatcher.GetContext(name)
 }
 
 func (self *Scope) ClearContext() {
 	self.Lock()
 	defer self.Unlock()
 
-	self.context = ordereddict.NewDict()
+	self.dispatcher.SetContext(ordereddict.NewDict())
 	self.vars = append(self.vars, ordereddict.NewDict().
 		Set("NULL", types.Null{}))
 }
 
 func (self *Scope) SetContext(name string, value types.Any) {
-	self.Lock()
-	defer self.Unlock()
-	self.context.Set(name, value)
+	self.dispatcher.SetContextValue(name, value)
 }
 
 func (self *Scope) PrintVars() string {
@@ -200,82 +149,70 @@ func (self *Scope) Keys() []string {
 */
 
 func (self *Scope) Describe(type_map *types.TypeMap) *types.ScopeInformation {
-	self.Lock()
-	defer self.Unlock()
-
-	result := &types.ScopeInformation{}
-	for _, item := range self.plugins {
-		result.Plugins = append(result.Plugins, item.Info(self, type_map))
-	}
-
-	for _, func_item := range self.functions {
-		result.Functions = append(result.Functions, func_item.Info(self, type_map))
-	}
-
-	return result
+	return self.dispatcher.Describe(self, type_map)
 }
 
 // Tests two values for equality.
 func (self *Scope) Eq(a types.Any, b types.Any) bool {
-	return self.eq.Eq(self, a, b)
+	return self.dispatcher.eq.Eq(self, a, b)
 }
 
 // Evaluate the truth value of a value.
 func (self *Scope) Bool(a types.Any) bool {
-	return self.bool.Bool(self, a)
+	return self.dispatcher.bool.Bool(self, a)
 }
 
 // Is a less than b?
 func (self *Scope) Lt(a types.Any, b types.Any) bool {
-	return self.lt.Lt(self, a, b)
+	return self.dispatcher.lt.Lt(self, a, b)
 }
 
 func (self *Scope) Gt(a types.Any, b types.Any) bool {
-	return self.gt.Gt(self, a, b)
+	return self.dispatcher.gt.Gt(self, a, b)
 }
 
 // Add a and b together.
 func (self *Scope) Add(a types.Any, b types.Any) types.Any {
-	return self.add.Add(self, a, b)
+	return self.dispatcher.add.Add(self, a, b)
 }
 
 // Subtract b from a.
 func (self *Scope) Sub(a types.Any, b types.Any) types.Any {
-	return self.sub.Sub(self, a, b)
+	return self.dispatcher.sub.Sub(self, a, b)
 }
 
 // Multiply a and b.
 func (self *Scope) Mul(a types.Any, b types.Any) types.Any {
-	return self.mul.Mul(self, a, b)
+	return self.dispatcher.mul.Mul(self, a, b)
 }
 
 // Divide b into a.
 func (self *Scope) Div(a types.Any, b types.Any) types.Any {
-	return self.div.Div(self, a, b)
+	return self.dispatcher.div.Div(self, a, b)
 }
 
 // Is a a member in b?
 func (self *Scope) Membership(a types.Any, b types.Any) bool {
-	return self.membership.Membership(self, a, b)
+	return self.dispatcher.membership.Membership(self, a, b)
 }
 
 // Get the field member b from a (i.e. a.b).
 func (self *Scope) Associative(a types.Any, b types.Any) (types.Any, bool) {
-	res, pres := self.associative.Associative(self, a, b)
+	res, pres := self.dispatcher.associative.Associative(self, a, b)
 	return res, pres
 }
 
 func (self *Scope) GetMembers(a types.Any) []string {
-	return self.associative.GetMembers(self, a)
+	return self.dispatcher.associative.GetMembers(self, a)
 }
 
 // Does the regex a match object b.
 func (self *Scope) Match(a types.Any, b types.Any) bool {
-	return self.regex.Match(self, a, b)
+	return self.dispatcher.regex.Match(self, a, b)
 }
 
 func (self *Scope) Iterate(ctx context.Context, a types.Any) <-chan types.Row {
-	return self.iterator.Iterate(ctx, self, a)
+	return self.dispatcher.iterator.Iterate(ctx, self, a)
 }
 
 func (self *Scope) StackDepth() int {
@@ -291,28 +228,8 @@ func (self *Scope) Copy() types.Scope {
 
 	self.GetStats().IncScopeCopy()
 	child_scope := &Scope{
-		functions: self.functions,
-		plugins:   self.plugins,
-		Logger:    self.Logger,
-		Tracer:    self.Tracer,
-		vars:      append([]types.Row(nil), self.vars...),
-		context:   self.context,
-		Stats:     self.Stats,
-
-		bool:        self.bool,
-		eq:          self.eq,
-		lt:          self.lt,
-		gt:          self.gt,
-		add:         self.add,
-		sub:         self.sub,
-		mul:         self.mul,
-		div:         self.div,
-		membership:  self.membership,
-		associative: self.associative,
-		regex:       self.regex,
-		iterator:    self.iterator,
-		Sorter:      self.Sorter,
-
+		dispatcher:  self.dispatcher,
+		vars:        append([]types.Row(nil), self.vars...),
 		stack_depth: self.stack_depth + 1,
 		children:    make(map[*Scope]*Scope),
 		parent:      self,
@@ -328,41 +245,7 @@ func (self *Scope) Copy() types.Scope {
 // scope. Implementations must be one of the supported protocols or
 // this function will panic.
 func (self *Scope) AddProtocolImpl(implementations ...types.Any) types.Scope {
-	self.Lock()
-	defer self.Unlock()
-
-	for _, imp := range implementations {
-		switch t := imp.(type) {
-		case protocols.BoolProtocol:
-			self.bool.AddImpl(t)
-		case protocols.EqProtocol:
-			self.eq.AddImpl(t)
-		case protocols.LtProtocol:
-			self.lt.AddImpl(t)
-		case protocols.GtProtocol:
-			self.gt.AddImpl(t)
-		case protocols.AddProtocol:
-			self.add.AddImpl(t)
-		case protocols.SubProtocol:
-			self.sub.AddImpl(t)
-		case protocols.MulProtocol:
-			self.mul.AddImpl(t)
-		case protocols.DivProtocol:
-			self.div.AddImpl(t)
-		case protocols.MembershipProtocol:
-			self.membership.AddImpl(t)
-		case protocols.AssociativeProtocol:
-			self.associative.AddImpl(t)
-		case protocols.RegexProtocol:
-			self.regex.AddImpl(t)
-		case protocols.IterateProtocol:
-			self.iterator.AddImpl(t)
-		default:
-			utils.Debug(t)
-			panic("Unsupported interface")
-		}
-	}
-
+	self.dispatcher.AddProtocolImpl(implementations...)
 	return self
 }
 
@@ -381,72 +264,41 @@ func (self *Scope) AppendVars(row types.Row) types.Scope {
 // Add client function implementations to the scope. Queries using
 // this scope can call these functions from within VQL queries.
 func (self *Scope) AppendFunctions(functions ...types.FunctionInterface) types.Scope {
-	self.Lock()
-	defer self.Unlock()
-
-	result := self
-	for _, function := range functions {
-		info := function.Info(self, nil)
-		result.functions[info.Name] = function
-	}
-
-	return result
+	self.dispatcher.AppendFunctions(self, functions...)
+	return self
 }
 
 // Add plugins (data sources) to the scope. VQL queries may select
 // from these newly added plugins.
 func (self *Scope) AppendPlugins(plugins ...types.PluginGeneratorInterface) types.Scope {
-	self.Lock()
-	defer self.Unlock()
-
-	result := self
-	for _, plugin := range plugins {
-		info := plugin.Info(self, nil)
-		result.plugins[info.Name] = plugin
-	}
-
-	return result
+	self.dispatcher.AppendPlugins(self, plugins...)
+	return self
 }
 
 func (self *Scope) GetFunction(name string) (types.FunctionInterface, bool) {
-	res, pres := self.functions[name]
-	return res, pres
+	return self.dispatcher.GetFunction(name)
 }
 
 func (self *Scope) GetPlugin(name string) (types.PluginGeneratorInterface, bool) {
-	res, pres := self.plugins[name]
-	return res, pres
+	return self.dispatcher.GetPlugin(name)
 }
 
 func (self *Scope) Info(type_map *types.TypeMap, name string) (*types.PluginInfo, bool) {
-	self.Lock()
-	defer self.Unlock()
-
-	if plugin, pres := self.plugins[name]; pres {
-		return plugin.Info(self, type_map), true
-	}
-
-	return nil, false
+	return self.dispatcher.Info(self, type_map, name)
 }
 
 func (self *Scope) Log(format string, a ...interface{}) {
-	self.Lock()
-	defer self.Unlock()
-
-	if self.Logger != nil {
-		msg := fmt.Sprintf(format, a...)
-		self.Logger.Print(msg)
-	}
+	self.dispatcher.Log(format, a...)
 }
 
 func (self *Scope) Trace(format string, a ...interface{}) {
-	self.Lock()
-	defer self.Unlock()
+	self.dispatcher.Trace(format, a...)
+}
 
-	if self.Tracer != nil {
-		msg := fmt.Sprintf(format, a...)
-		self.Tracer.Print(msg)
-	}
+func (self *Scope) Sort(
+	ctx context.Context, scope types.Scope, input <-chan types.Row,
+	key string, desc bool) <-chan types.Row {
+	return self.dispatcher.Sorter.Sort(ctx, scope, input, key, desc)
 }
 
 // Adding a destructor to the current scope will call it when any
@@ -528,33 +380,28 @@ func (self *Scope) Close() {
 // own specialized protocols, functions and plugins to specialize
 // their scope objects.
 func NewScope() *Scope {
-	result := Scope{
-		children: make(map[*Scope]*Scope),
-		Sorter:   &sort.DefaultSorter{},
+	dispatcher := newprotocolDispatcher()
+
+	result := &Scope{
+		children:   make(map[*Scope]*Scope),
+		dispatcher: dispatcher,
 	}
-	result.functions = make(map[string]types.FunctionInterface)
-	result.plugins = make(map[string]types.PluginGeneratorInterface)
-	result.context = ordereddict.NewDict()
-	result.Stats = &types.Stats{}
+
+	// Add Builtin protocols, functions, and plugins
+	dispatcher.AddProtocolImpl(protocols.GetBuiltinTypes()...)
+	dispatcher.AppendFunctions(result, functions.GetBuiltinFunctions()...)
+	dispatcher.AppendPlugins(result, plugins.GetBuiltinPlugins()...)
+	dispatcher.AppendFunctions(result, _GetVersion{})
+
 	result.AppendVars(
 		ordereddict.NewDict().
 			Set("NULL", types.Null{}))
 
-	// Get Builtin protocols, functions, and plugins
-	result.AddProtocolImpl(protocols.GetBuiltinTypes()...)
-	result.AppendFunctions(functions.GetBuiltinFunctions()...)
-	result.AppendPlugins(plugins.GetBuiltinPlugins()...)
-
-	result.AppendFunctions(_GetVersion{})
-
-	return &result
+	return result
 }
 
 func (self *Scope) SetSorter(sorter types.Sorter) {
-	self.Lock()
-	defer self.Unlock()
-
-	self.Sorter = sorter
+	self.dispatcher.SetSorter(sorter)
 }
 
 // Fetch the field from the scope variables.

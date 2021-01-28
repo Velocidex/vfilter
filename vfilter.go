@@ -596,7 +596,7 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 
 			// Sort the output groups
 			sorter_input_chan := make(chan Row)
-			sorted_chan := scope.(*scope_module.Scope).Sorter.Sort(
+			sorted_chan := scope.(*scope_module.Scope).Sort(
 				ctx, scope, sorter_input_chan, order_by, desc)
 
 			// Feed all the aggregate rows into the sorter.
@@ -671,7 +671,7 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 
 		// Sort the output groups
 		sorter_input_chan := make(chan Row)
-		sorted_chan := scope.(*scope_module.Scope).Sorter.Sort(
+		sorted_chan := scope.(*scope_module.Scope).Sort(
 			ctx, scope, sorter_input_chan,
 			unquote_ident(*self.OrderBy), desc)
 
