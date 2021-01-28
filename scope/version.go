@@ -40,14 +40,19 @@ func (self _GetVersion) Call(ctx context.Context,
 	}
 
 	if arg.Plugin != "" {
-		plugin, pres := scope.plugins[arg.Plugin]
+		scope.dispatcher.Lock()
+		plugin, pres := scope.dispatcher.plugins[arg.Plugin]
+		scope.dispatcher.Unlock()
+
 		if pres {
 			return plugin.Info(scope, nil).Version
 		}
 		return types.Null{}
 
 	} else if arg.Function != "" {
-		function, pres := scope.functions[arg.Function]
+		scope.dispatcher.Lock()
+		function, pres := scope.dispatcher.functions[arg.Function]
+		scope.dispatcher.Unlock()
 		if pres {
 			return function.Info(scope, nil).Version
 		}

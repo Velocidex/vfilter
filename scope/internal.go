@@ -24,7 +24,5 @@ func (self *Scope) GetDepth() int {
 }
 
 func (self *Scope) SetContextDict(context *ordereddict.Dict) {
-	self.Lock()
-	defer self.Unlock()
-	self.context = context
+	self.dispatcher.SetContext(context)
 }
