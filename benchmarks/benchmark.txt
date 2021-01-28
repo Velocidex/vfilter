@@ -1,0 +1,11 @@
+goos: linux
+goarch: amd64
+pkg: www.velocidex.com/golang/vfilter/benchmarks
+BenchmarkRange10k
+BenchmarkRange10k-16                 	      10	 503181561 ns/op
+BenchmarkForeach10k
+BenchmarkForeach10k-16               	       4	1262300560 ns/op
+BenchmarkForeachWithWorkers10k
+BenchmarkForeachWithWorkers10k-16    	      18	 345637391 ns/op
+PASS
+ok  	www.velocidex.com/golang/vfilter/benchmarks	22.308s
