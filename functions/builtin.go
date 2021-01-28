@@ -8,6 +8,7 @@ func GetBuiltinFunctions() []types.FunctionInterface {
 		_Timestamp{},
 		_SplitFunction{},
 		_IfFunction{},
+		FormatFunction{},
 		_GetFunction{},
 		_EncodeFunction{},
 		_CountFunction{},

@@ -395,7 +395,9 @@ func (self VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 		return output_chan
 
 	} else {
-		return self.Query.Eval(ctx, scope)
+		subscope := scope.Copy()
+		subscope.AppendVars(ordereddict.NewDict().Set("$Query", self.ToString(scope)))
+		return self.Query.Eval(ctx, subscope)
 	}
 }
 
@@ -1807,7 +1809,8 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 		case *StoredExpression:
 			subscope := scope.Copy()
 			if subscope.(*scope_module.Scope).StackDepth() >= 1000 {
-				subscope.Log("Stack Overflow")
+				query, _ := scope.Resolve("$Query")
+				subscope.Log("Stack Overflow: %v", query)
 				return &Null{}
 			}
 

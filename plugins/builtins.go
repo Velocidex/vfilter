@@ -11,6 +11,7 @@ func GetBuiltinPlugins() []types.PluginGeneratorInterface {
 		_FlattenPluginImpl{},
 		_ChainPlugin{},
 		_ForeachPluginImpl{},
+		RangePlugin{},
 		&GenericListPlugin{
 			PluginName: "scope",
 			Function: func(scope types.Scope, args *ordereddict.Dict) []types.Row {
