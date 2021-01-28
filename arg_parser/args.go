@@ -14,23 +14,6 @@ import (
 	"www.velocidex.com/golang/vfilter/utils"
 )
 
-type tmpTypes struct {
-	any    types.Any
-	stored types.StoredQuery
-	lazy   types.LazyExpr
-}
-
-var (
-	// A bit of a hack to get the type of interface fields
-	testType        = tmpTypes{}
-	anyType         = reflect.ValueOf(testType).Type().Field(0).Type
-	storedQueryType = reflect.ValueOf(testType).Type().Field(1).Type
-	lazyExprType    = reflect.ValueOf(testType).Type().Field(2).Type
-)
-
-// Structs may tag fields with this name to control parsing.
-const tagName = "vfilter"
-
 // Extract the content of args into the struct value. Value's members
 // should be tagged with the "vfilter" tag.
 
@@ -53,7 +36,21 @@ const tagName = "vfilter"
 // vfilter tags.
 
 // FIXME - this code can be better optimized.
-func ExtractArgs(scope types.Scope, args *ordereddict.Dict, value interface{}) error {
+func ExtractArgs(scope types.Scope, args *ordereddict.Dict, target interface{}) error {
+	v := reflect.ValueOf(target)
+	if v.Type().Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	parser, err := GetParser(v)
+	if err != nil {
+		return err
+	}
+
+	return parser.Parse(scope, args, v)
+}
+
+func XXXExtractArgs(scope types.Scope, args *ordereddict.Dict, value interface{}) error {
 
 	// Make a copy of the args that we can modify so we can ensure
 	// they are all provided properly.
