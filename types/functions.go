@@ -11,6 +11,10 @@ type FunctionInterface interface {
 	Info(scope Scope, type_map *TypeMap) *FunctionInfo
 }
 
+type FunctionCopier interface {
+	Copy() FunctionInterface
+}
+
 type PluginGeneratorInterface interface {
 	Call(ctx context.Context, scope Scope, args *ordereddict.Dict) <-chan Row
 	Info(scope Scope, type_map *TypeMap) *PluginInfo

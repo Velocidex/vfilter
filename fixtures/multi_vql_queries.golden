@@ -390,53 +390,88 @@
       "ColumnName123": 1
     }
   ],
-  "032/000 Aggregate functions keep state per unique instance: SELECT * FROM foreach(row= [0, 1, 2], query= { SELECT count() AS A, count() AS B FROM scope()})": [
+  "032/000 Aggregate functions with multiple evaluations: SELECT count() AS Count FROM foreach(row= [0, 1, 2]) WHERE Count \u003c= 2 AND Count AND Count AND Count AND count() AND count()": [
+    {
+      "Count": 1
+    },
+    {
+      "Count": 2
+    }
+  ],
+  "033/000 Aggregate functions: min max: SELECT min(item=_value) AS Min, max(item=_value) AS Max, count() AS Count FROM foreach(row= [0, 1, 2]) GROUP BY 1": [
+    {
+      "Min": 0,
+      "Max": 2,
+      "Count": 3
+    }
+  ],
+  "034/000 Aggregate functions keep state per unique instance: SELECT * FROM foreach(row= [0, 1, 2], query= { SELECT count() AS A, count() AS B FROM scope()})": [
+    {
+      "A": 1,
+      "B": 1
+    },
+    {
+      "A": 2,
+      "B": 2
+    },
+    {
+      "A": 3,
+      "B": 3
+    }
+  ],
+  "035/000 Aggregate functions: Sum and Count together: SELECT * FROM foreach(row= [2, 3, 4], query= { SELECT count() AS A, sum(item=_value) AS B FROM scope()})": [
     {
       "A": 1,
       "B": 2
     },
     {
-      "A": 3,
-      "B": 4
+      "A": 2,
+      "B": 5
     },
     {
-      "A": 5,
-      "B": 6
+      "A": 3,
+      "B": 9
     }
   ],
-  "033/000 If function with stored query: LET Foo=SELECT 2 FROM scope() WHERE set_env(column=\"Eval\", value=TRUE)": null,
-  "033/001 If function with stored query: LET result\u003c=if(condition=TRUE, then=Foo)": null,
-  "033/002 If function with stored query: SELECT RootEnv.Eval FROM scope()": [
+  "036/000 Aggregate functions: Sum all rows: SELECT sum(item=_value) AS Total, sum(item=_value * 2) AS TotalDouble FROM foreach(row= [2, 3, 4]) GROUP BY 1": [
+    {
+      "Total": 9,
+      "TotalDouble": 18
+    }
+  ],
+  "037/000 If function with stored query: LET Foo=SELECT 2 FROM scope() WHERE set_env(column=\"Eval\", value=TRUE)": null,
+  "037/001 If function with stored query: LET result\u003c=if(condition=TRUE, then=Foo)": null,
+  "037/002 If function with stored query: SELECT RootEnv.Eval FROM scope()": [
     {
       "RootEnv.Eval": true
     }
   ],
-  "034/000 Multiline string constants: LET X='''This\nis\na\nmultiline with 'quotes' and \"double quotes\" and \\ backslashes\n''' + \"A string\"": null,
-  "034/001 Multiline string constants: SELECT X FROM scope()": [
+  "038/000 Multiline string constants: LET X='''This\nis\na\nmultiline with 'quotes' and \"double quotes\" and \\ backslashes\n''' + \"A string\"": null,
+  "038/001 Multiline string constants: SELECT X FROM scope()": [
     {
       "X": "This\nis\na\nmultiline with 'quotes' and \"double quotes\" and \\ backslashes\nA string"
     }
   ],
-  "035/000 Early breakout of foreach with infinite row query: SELECT * FROM foreach(row= { SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)}, query= { SELECT Count FROM scope()}) LIMIT 1 ": [
+  "039/000 Early breakout of foreach with infinite row query: SELECT * FROM foreach(row= { SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)}, query= { SELECT Count FROM scope()}) LIMIT 1 ": [
     {
       "Count": 1
     }
   ],
-  "036/000 Early breakout of foreach with stored query: LET X=SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)": null,
-  "036/001 Early breakout of foreach with stored query: SELECT * FROM foreach(row=X, query= { SELECT Count FROM scope()}) LIMIT 1 ": [
+  "040/000 Early breakout of foreach with stored query: LET X=SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)": null,
+  "040/001 Early breakout of foreach with stored query: SELECT * FROM foreach(row=X, query= { SELECT Count FROM scope()}) LIMIT 1 ": [
     {
       "Count": 1
     }
   ],
-  "037/000 Early breakout of foreach with stored query with parameters: LET X(Y)=SELECT Y, count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)": null,
-  "037/001 Early breakout of foreach with stored query with parameters: SELECT * FROM foreach(row=X(Y=23), query= { SELECT Y, Count FROM scope()}) LIMIT 1 ": [
+  "041/000 Early breakout of foreach with stored query with parameters: LET X(Y)=SELECT Y, count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)": null,
+  "041/001 Early breakout of foreach with stored query with parameters: SELECT * FROM foreach(row=X(Y=23), query= { SELECT Y, Count FROM scope()}) LIMIT 1 ": [
     {
       "Y": 23,
       "Count": 1
     }
   ],
-  "038/000 Expand stored query with parameters on associative: LET X(Y)=SELECT Y + 5 + value AS Foo FROM range(start=1, end=2)": null,
-  "038/001 Expand stored query with parameters on associative: SELECT X(Y=2).Foo FROM scope()": [
+  "042/000 Expand stored query with parameters on associative: LET X(Y)=SELECT Y + 5 + value AS Foo FROM range(start=1, end=2)": null,
+  "042/001 Expand stored query with parameters on associative: SELECT X(Y=2).Foo FROM scope()": [
     {
       "X(Y=2).Foo": [
         8,
@@ -444,7 +479,7 @@
       ]
     }
   ],
-  "039/000 Order by: SELECT * FROM foreach(row=(1, 8, 3, 2), query= { SELECT _value AS X FROM scope()}) ORDER BY X": [
+  "043/000 Order by: SELECT * FROM foreach(row=(1, 8, 3, 2), query= { SELECT _value AS X FROM scope()}) ORDER BY X": [
     {
       "X": 1
     },
@@ -458,7 +493,7 @@
       "X": 8
     }
   ],
-  "040/000 Group by also orders: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X FROM scope()}) GROUP BY X": [
+  "044/000 Group by also orders: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X FROM scope()}) GROUP BY X": [
     {
       "X": 1
     },
@@ -472,7 +507,7 @@
       "X": 8
     }
   ],
-  "041/000 Group by with explicit order by: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X, 10 - _value AS Y FROM scope()}) GROUP BY X ORDER BY Y": [
+  "045/000 Group by with explicit order by: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X, 10 - _value AS Y FROM scope()}) GROUP BY X ORDER BY Y": [
     {
       "X": 8,
       "Y": 2
