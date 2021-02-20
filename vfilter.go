@@ -140,6 +140,7 @@ import (
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
 	errors "github.com/pkg/errors"
+	"www.velocidex.com/golang/vfilter/functions"
 	"www.velocidex.com/golang/vfilter/scope"
 	scope_module "www.velocidex.com/golang/vfilter/scope"
 	"www.velocidex.com/golang/vfilter/types"
@@ -1847,9 +1848,9 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 		// Every thing else is taken literally.
 		return value
 	}
-
 	scope.Log("Symbol %v not found. %s", self.Symbol,
 		scope.PrintVars())
+
 	return Null{}
 }
 
@@ -1925,7 +1926,11 @@ func (self *_SymbolRef) callFunction(
 		return result
 	}
 
-	// Make a copy of the function for next time.
+	// Make a copy of the function and cache it for next time -
+	// this allows the function to store state since each
+	// reference in the AST is unique.
+	func_obj = CopyFunction(func_obj)
+
 	self.mu.Lock()
 	self.function = func_obj
 	self.mu.Unlock()
@@ -1973,4 +1978,22 @@ func GetIntScope(scope_int types.Scope) *scope.Scope {
 	}
 	// Should never happen
 	panic("Unexpected scope seen!")
+}
+
+func CopyFunction(in types.Any) types.FunctionInterface {
+	copier, ok := in.(types.FunctionCopier)
+	if ok {
+		return copier.Copy()
+	}
+
+	in_value := reflect.Indirect(reflect.ValueOf(in))
+	result := reflect.New(in_value.Type()).Interface()
+
+	// Handle aggregate functions specifically.
+	aggregate_func, ok := result.(functions.AggrefatorInterface)
+	if ok {
+		aggregate_func.SetNewAggregator()
+	}
+
+	return result.(types.FunctionInterface)
 }

@@ -249,6 +249,10 @@ type TestFunction struct {
 	return_value Any
 }
 
+func (self TestFunction) Copy() types.FunctionInterface {
+	return &TestFunction{self.return_value}
+}
+
 func (self TestFunction) Call(ctx context.Context, scope types.Scope, args *ordereddict.Dict) Any {
 	if value, pres := args.Get("return"); pres {
 		lazy_value := value.(types.LazyExpr)
@@ -602,13 +606,9 @@ select * from test() limit 1`},
 	{"Group by count with where",
 		"select foo, bar, count(items=bar) from groupbytest() WHERE foo < 4 GROUP BY bar"},
 	{"Group by min",
-		"select foo, bar, min(items=foo) from groupbytest() GROUP BY bar"},
+		"select foo, bar, min(item=foo) from groupbytest() GROUP BY bar"},
 	{"Group by max",
-		"select foo, bar, max(items=foo) from groupbytest() GROUP BY bar"},
-	{"Group by max of string",
-		"select baz, bar, max(items=baz) from groupbytest() GROUP BY bar"},
-	{"Group by min of string",
-		"select baz, bar, min(items=baz) from groupbytest() GROUP BY bar"},
+		"select foo, bar, max(item=foo) from groupbytest() GROUP BY bar"},
 
 	{"Group by enumrate of string",
 		"select baz, bar, enumerate(items=baz) from groupbytest() GROUP BY bar"},
@@ -761,11 +761,38 @@ SELECT * FROM foreach(row=row_query, query=foreach_query)
 SELECT * FROM foreach(row=row_query, query={SELECT ColumnName123 FROM scope()})
 `},
 
+	{"Aggregate functions with multiple evaluations", `
+SELECT count() AS Count FROM foreach(row=[0, 1, 2])
+WHERE Count <= 2  AND Count AND Count AND Count
+   AND count() and count()  -- Each count() instance is unique and has unique state
+`},
+
+	{"Aggregate functions: min max", `
+SELECT min(item=_value) AS Min,
+       max(item=_value) AS Max,
+       count() AS Count
+FROM foreach(row=[0, 1, 2])
+GROUP BY 1
+`},
+
 	{"Aggregate functions keep state per unique instance", `
 SELECT * FROM foreach(row=[0, 1, 2],
   query={
     SELECT count() AS A, count() AS B FROM scope()
 })`},
+
+	{"Aggregate functions: Sum and Count together", `
+SELECT * FROM foreach(row=[2, 3, 4],
+  query={
+    SELECT count() AS A, sum(item=_value) AS B FROM scope()
+})`},
+
+	{"Aggregate functions: Sum all rows", `
+SELECT sum(item=_value) AS Total,
+       sum(item=_value * 2) AS TotalDouble
+FROM foreach(row=[2, 3, 4])
+GROUP BY 1
+`},
 
 	// Test if function
 	{"If function with stored query", `

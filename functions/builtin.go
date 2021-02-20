@@ -12,6 +12,7 @@ func GetBuiltinFunctions() []types.FunctionInterface {
 		_GetFunction{},
 		_EncodeFunction{},
 		_CountFunction{},
+		_SumFunction{},
 		_MinFunction{},
 		_MaxFunction{},
 		_EnumerateFunction{},

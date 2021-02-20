@@ -10,6 +10,7 @@ import (
 	"github.com/Velocidex/ordereddict"
 	"github.com/sebdah/goldie/v2"
 	"www.velocidex.com/golang/vfilter/arg_parser"
+	"www.velocidex.com/golang/vfilter/functions"
 	"www.velocidex.com/golang/vfilter/types"
 )
 
@@ -23,10 +24,10 @@ type DestructorFunctionArgs struct {
 }
 
 type DestructorFunction struct {
-	count int
+	functions.Aggregator
 }
 
-func (self *DestructorFunction) Call(
+func (self DestructorFunction) Call(
 	ctx context.Context, scope types.Scope, args *ordereddict.Dict) Any {
 	arg := DestructorFunctionArgs{}
 	err := arg_parser.ExtractArgs(scope, args, &arg)
@@ -34,13 +35,21 @@ func (self *DestructorFunction) Call(
 		panic(err)
 	}
 
-	self.count++
-	markers = append(markers, fmt.Sprintf("Func Open %s %x", arg.Name, self.count))
+	count := 0
+	count_any, ok := self.GetContext(scope)
+	if ok {
+		count = count_any.(int)
+	}
+
+	count++
+	markers = append(markers, fmt.Sprintf("Func Open %s %x", arg.Name, count))
 	scope.AddDestructor(func() {
-		logMarkers("Func Close %s %x", arg.Name, self.count)
+		logMarkers("Func Close %s %x", arg.Name, count)
 	})
 
-	return self.count
+	self.SetContext(scope, count)
+
+	return count
 }
 
 func (self DestructorFunction) Info(scope types.Scope, type_map *TypeMap) *FunctionInfo {
@@ -165,7 +174,7 @@ func TestDestructors(t *testing.T) {
 		mu.Unlock()
 
 		scope := NewScope().
-			AppendFunctions(&DestructorFunction{}).
+			AppendFunctions(DestructorFunction{}).
 			AppendPlugins(&DestructorPlugin{})
 
 		multi_vql, err := MultiParse(testCase.vql)
