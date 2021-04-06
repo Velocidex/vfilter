@@ -68,6 +68,7 @@ type Scope interface {
 	GetPlugin(name string) (PluginGeneratorInterface, bool)
 	GetSimilarPlugins(name string) []string
 	Describe(type_map *TypeMap) *ScopeInformation
+	CheckForOverflow() bool
 
 	// Destructors are called when the scope is Close(). If the
 	// scope is already closed adding the destructor may fail.

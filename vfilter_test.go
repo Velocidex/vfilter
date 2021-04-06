@@ -739,6 +739,9 @@ var multiVQLTest = []vqlTest{
 	{"Overflow condition materialized - should not get stuck",
 		"LET X <= 1 + X  LET Y = 1 + Y SELECT X, Y FROM scope()"},
 
+	{"Overflow with plugins",
+		"LET foo_plugin(X) = SELECT * FROM chain(a={SELECT * FROM foo_plugin(X=1)}) SELECT * FROM foo_plugin(X=1)"},
+
 	{"Escaped identifiers for arg parameters",
 		"SELECT dict(`arg-with-special chars`=TRUE) FROM scope()"},
 
