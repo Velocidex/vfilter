@@ -1157,6 +1157,10 @@ func (self *_Plugin) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	go func() {
 		defer close(output_chan)
 
+		if scope.CheckForOverflow() {
+			return
+		}
+
 		// The FROM clause refers to a var and not a
 		// plugin. Just read the var from the scope.
 		if !self.Call {
@@ -1809,9 +1813,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 		// it.
 		case *StoredExpression:
 			subscope := scope.Copy()
-			if subscope.(*scope_module.Scope).StackDepth() >= 1000 {
-				query, _ := scope.Resolve("$Query")
-				subscope.Log("Stack Overflow: %v", query)
+			if subscope.CheckForOverflow() {
 				return &Null{}
 			}
 
@@ -1828,8 +1830,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 			// through.
 			if self.Parameters != nil {
 				subscope := scope.Copy()
-				if subscope.(*scope_module.Scope).StackDepth() >= 1000 {
-					subscope.Log("Stack Overflow")
+				if subscope.CheckForOverflow() {
 					return &Null{}
 				}
 

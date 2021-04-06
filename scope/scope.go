@@ -152,6 +152,18 @@ func (self *Scope) Describe(type_map *types.TypeMap) *types.ScopeInformation {
 	return self.dispatcher.Describe(self, type_map)
 }
 
+func (self *Scope) CheckForOverflow() bool {
+	if self.StackDepth() < 1000 {
+		return false
+	}
+
+	// Log the query for overflow
+	query, _ := self.Resolve("$Query")
+	self.Log("Stack Overflow: %v", query)
+
+	return true
+}
+
 // Tests two values for equality.
 func (self *Scope) Eq(a types.Any, b types.Any) bool {
 	return self.dispatcher.eq.Eq(self, a, b)
