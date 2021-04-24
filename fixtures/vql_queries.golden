@@ -129,7 +129,7 @@
   ],
   "013 empty subselects should produce null: SELECT { SELECT * FROM range(start=3, end=5) WHERE 0 } AS Value FROM scope()": [
     {
-      "Value": []
+      "Value": null
     }
   ],
   "014 subselects addition: SELECT q1.value + q2.value AS Sum FROM dict(q1= { SELECT * FROM range(start=3, end=5)}, q2= { SELECT * FROM range(start=10, end=14)})": [

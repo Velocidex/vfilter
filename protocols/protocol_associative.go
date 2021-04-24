@@ -65,11 +65,12 @@ func (self *AssociativeDispatcher) Associative(
 				if default_value != nil {
 					return default_value, false
 				}
+				return nil, false
 			}
 
 			// Do not let naked nils to be retrieved from
 			// a dict, instead return Null{}
-			if utils.IsNil(res) {
+			if res == nil || utils.IsNil(res) {
 				res = types.Null{}
 			}
 
