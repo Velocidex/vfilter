@@ -327,11 +327,11 @@ func (self *VQL) Type() string {
 // Evaluate the expression. Returns a channel which emits a series of
 // rows.
 func (self VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
+	output_chan := make(chan Row)
+
 	// If this is a Let expression we need to create a stored
 	// query and assign to the scope.
 	if len(self.Let) > 0 {
-		output_chan := make(chan Row)
-
 		if self.Parameters != nil && self.LetOperator == "<=" {
 			scope.Log("Expression %v takes parameters but is "+
 				"materialized! Did you mean to use '='? ", self.Let)
@@ -398,7 +398,27 @@ func (self VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	} else {
 		subscope := scope.Copy()
 		subscope.AppendVars(ordereddict.NewDict().Set("$Query", self.ToString(scope)))
-		return self.Query.Eval(ctx, subscope)
+
+		go func() {
+			defer close(output_chan)
+			defer subscope.Close()
+
+			row_chan := self.Query.Eval(ctx, subscope)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+
+				case row, ok := <-row_chan:
+					if !ok {
+						return
+					}
+					output_chan <- row
+				}
+			}
+		}()
+
+		return output_chan
 	}
 }
 
@@ -519,63 +539,71 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 			sub_ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			new_scope := scope.Copy()
-
 			// Append this row to a bin based on a unique
 			// value of the group by column.
 			for row := range self.From.Eval(sub_ctx, scope) {
-				transformed_row := self.SelectExpression.Transform(
-					ctx, scope, row)
+				func(row types.Row) {
+					transformed_row, closer := self.SelectExpression.Transform(
+						ctx, scope, row)
+					defer closer()
 
-				new_scope := scope.Copy()
+					// Create a new scope over
+					// which we can evaluate the
+					// filter clause.
+					new_scope := scope.Copy()
+					defer new_scope.Close()
 
-				// Order matters - transformed
-				// row may mask original row.
-				new_scope.AppendVars(row)
-				new_scope.AppendVars(transformed_row)
+					// Order matters - transformed
+					// row (from column
+					// specifiers) may mask
+					// original row (from plugin).
+					new_scope.AppendVars(row)
+					new_scope.AppendVars(transformed_row)
 
-				if self.Where != nil {
-					expression := self.Where.Reduce(ctx, new_scope)
-					// If the filtered expression returns
-					// a bool false, then skip the row.
-					if expression == nil || !scope.Bool(expression) {
-						scope.Trace("During Groupby: Row rejected")
-						continue
+					if self.Where != nil {
+						expression := self.Where.Reduce(ctx, new_scope)
+						// If the filtered expression returns
+						// a bool false, then skip the row.
+						if expression == nil || !scope.Bool(expression) {
+							scope.Trace("During Groupby: Row rejected")
+							return
+						}
 					}
-				}
 
-				// Evaluate the group by expression on the transformed row.
-				gb_element := self.GroupBy.Reduce(ctx, new_scope)
+					// Evaluate the group by expression on the transformed row.
+					gb_element := self.GroupBy.Reduce(ctx, new_scope)
 
-				// Stringify the result to index into the bins.
-				bin_idx := fmt.Sprintf("%v", gb_element)
+					// Stringify the result to index into the bins.
+					bin_idx := fmt.Sprintf("%v", gb_element)
 
-				aggregate_ctx, pres := bins[bin_idx]
-				// No previous aggregate_row - initialize with a new context.
-				if !pres {
-					aggregate_ctx = &AggregateContext{
-						context: ordereddict.NewDict(),
+					aggregate_ctx, pres := bins[bin_idx]
+					// No previous aggregate_row - initialize with a new context.
+					if !pres {
+						aggregate_ctx = &AggregateContext{
+							context: ordereddict.NewDict(),
+						}
+						bins[bin_idx] = aggregate_ctx
 					}
-					bins[bin_idx] = aggregate_ctx
-				}
 
-				// The transform function receives
-				// its own unique context for the
-				// specific aggregate group.
-				GetIntScope(new_scope).SetContextDict(aggregate_ctx.context)
+					// The transform function receives
+					// its own unique context for the
+					// specific aggregate group.
+					GetIntScope(new_scope).SetContextDict(aggregate_ctx.context)
 
-				// Update the row with the transformed
-				// columns. Note we must materialize
-				// these rows because evaluating the
-				// row may have side effects (e.g. for
-				// aggregate functions).
-				new_transformed_row := self.SelectExpression.Transform(
-					ctx, new_scope, row)
+					// Update the row with the transformed
+					// columns. Note we must materialize
+					// these rows because evaluating the
+					// row may have side effects (e.g. for
+					// aggregate functions).
+					new_transformed_row, closer := self.SelectExpression.Transform(
+						ctx, new_scope, row)
+					defer closer()
 
-				new_row := MaterializedLazyRow(ctx, new_transformed_row, scope)
-				new_row.Set("$groupby", bin_idx)
+					new_row := MaterializedLazyRow(ctx, new_transformed_row, scope)
+					new_row.Set("$groupby", bin_idx)
 
-				aggregate_ctx.row = new_row
+					aggregate_ctx.row = new_row
+				}(row)
 			}
 
 			// Now sort the output according to the
@@ -620,7 +648,7 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 				}
 				idx++
 
-				emitted_row := MaterializedLazyRow(ctx, row, new_scope)
+				emitted_row := MaterializedLazyRow(ctx, row, scope)
 				emitted_row.Delete("$groupby")
 				select {
 				case <-ctx.Done():
@@ -726,8 +754,9 @@ func (self *_Select) processSingleRow(
 	subscope := scope.Copy()
 	defer subscope.Close()
 
-	transformed_row := self.SelectExpression.Transform(
+	transformed_row, closer := self.SelectExpression.Transform(
 		ctx, subscope, row)
+	defer closer()
 
 	if self.Where == nil {
 		select {
@@ -737,26 +766,22 @@ func (self *_Select) processSingleRow(
 			ctx, transformed_row, subscope):
 		}
 	} else {
-		// If there is a filter clause, we
-		// need to filter the row using a new
-		// scope.
+		// If there is a filter clause, we need to filter the
+		// row using a new scope.
 		new_scope := subscope.Copy()
+		defer new_scope.Close()
 
-		// Filters can access both the
-		// untransformed row and the
-		// transformed row. This
-		// allows WHERE clause to
-		// refer to both the raw
-		// plugin output as well as
-		// aliases of transformations
-		// on the row.
+		// Filters can access both the untransformed row and
+		// the transformed row. This allows WHERE clause to
+		// refer to both the raw plugin output as well as
+		// aliases of transformations on the row.
 		new_scope.AppendVars(row)
 		new_scope.AppendVars(transformed_row)
 
 		expression := self.Where.Reduce(ctx, new_scope)
-		// If the filtered expression returns
-		// a bool true, then pass the row to
-		// the output.
+
+		// If the filtered expression returns a bool true,
+		// then pass the row to the output.
 		if expression != nil && scope.Bool(expression) {
 			select {
 			case <-ctx.Done():
@@ -798,15 +823,33 @@ type _AliasedExpression struct {
 
 	As string `[ AS @Ident ]`
 
-	mu    sync.Mutex
-	cache *string
+	mu                 sync.Mutex
+	cache, column_name *string
 }
 
+// Cache the column name since each row needs it
 func (self *_AliasedExpression) GetName(scope types.Scope) string {
-	if self.As != "" {
-		return self.As
+	self.mu.Lock()
+	column_name := self.column_name
+	self.mu.Unlock()
+
+	if column_name != nil {
+		return *column_name
 	}
-	return self.ToString(scope)
+
+	if self.As != "" {
+		name := unquote_ident(self.As)
+		column_name = &name
+	} else {
+		name := unquote_ident(self.ToString(scope))
+		column_name = &name
+	}
+
+	self.mu.Lock()
+	self.column_name = column_name
+	self.mu.Unlock()
+
+	return *column_name
 }
 
 func (self *_AliasedExpression) IsAggregate(scope types.Scope) bool {
@@ -1009,10 +1052,17 @@ type _Value struct {
 	cache Any
 }
 
-// Receives a row from the FROM clause and transforms it according to
-// the select expression to produce a new row.
+// Receives a row from the FROM clause (i.e. the plugin) and
+// transforms it according to the select expression to produce a new
+// row. The transformation results in a lazy row - The column
+// expressions are not evaluated, instead they are wrapped in an
+// evaluator which will reduce when any column is accessed. The scope
+// in which the lazy columns are evaluated is created by extending the
+// existing scope with the row scope that came from the plugin.  NOTE:
+// Returns a closer which should be called when the LazyRow is
+// resolved and not needed any more.
 func (self *_SelectExpression) Transform(
-	ctx context.Context, scope types.Scope, row Row) types.LazyRow {
+	ctx context.Context, scope types.Scope, row Row) (types.LazyRow, func()) {
 	// The select uses a * to relay all the rows without
 	// filtering
 
@@ -1028,8 +1078,6 @@ func (self *_SelectExpression) Transform(
 	// expression to a string using its ToString()
 	// method.
 	new_row := NewLazyRow(ctx, scope)
-	new_scope := scope.Copy()
-	new_scope.AppendVars(row)
 
 	// If there is a * expression in addition to the
 	// column expressions, this is equivalent to adding
@@ -1047,32 +1095,28 @@ func (self *_SelectExpression) Transform(
 		}
 	}
 
+	// Scope will be closed with the parent - need to keep alive
+	// until the row is materialized.
+	new_scope := scope.Copy()
+	new_scope.AppendVars(row)
+
 	for _, expr_ := range self.Expressions {
 		// A copy of the expression for the lambda capture.
 		expr := expr_
 
-		// Figure out the column name.
-		var column_name string
-		if expr.As != "" {
-			column_name = unquote_ident(expr.As)
-		} else {
-			column_name = unquote_ident(expr.ToString(scope))
-		}
-
 		new_row.AddColumn(
-			column_name,
+			expr.GetName(scope),
 
-			// Use the new scope rather than the
-			// callers scope since the lazy row
-			// may be accessed in any scope but
-			// needs to resolve members in the
-			// scope it was created from.
+			// Use the new scope rather than the callers
+			// scope since the lazy row may be accessed in
+			// any scope but needs to resolve members in
+			// the scope it was created from.
 			func(ctx context.Context, scope types.Scope) Any {
 				return expr.Reduce(ctx, new_scope)
 			})
 	}
 
-	return new_row
+	return new_row, new_scope.Close
 }
 
 func (self *_SelectExpression) ToString(scope types.Scope) string {
@@ -1813,6 +1857,8 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 		// it.
 		case *StoredExpression:
 			subscope := scope.Copy()
+			defer subscope.Close()
+
 			if subscope.CheckForOverflow() {
 				return &Null{}
 			}
@@ -1830,6 +1876,8 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 			// through.
 			if self.Parameters != nil {
 				subscope := scope.Copy()
+				defer subscope.Close()
+
 				if subscope.CheckForOverflow() {
 					return &Null{}
 				}

@@ -116,6 +116,8 @@ func Materialize(ctx context.Context, scope types.Scope, stored_query StoredQuer
 
 	// Materialize both queries to an array.
 	new_scope := scope.Copy()
+	defer new_scope.Close()
+
 	for item := range stored_query.Eval(ctx, new_scope) {
 		result = append(result, item)
 	}
@@ -149,6 +151,7 @@ func (self *StoredExpression) Call(ctx context.Context,
 	self.checkCallingArgs(scope, args)
 
 	sub_scope := scope.Copy()
+	defer sub_scope.Close()
 
 	vars := ordereddict.NewDict()
 	for _, k := range args.Keys() {

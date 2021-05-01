@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -248,6 +249,10 @@ func (self *Scope) Copy() types.Scope {
 	}
 
 	// Remember our children.
+	if len(self.children) > 1000 {
+		fmt.Printf("Scopying scope of %v children - this is probably a bug!!!\n%v\n",
+			len(self.children), string(debug.Stack()))
+	}
 	self.children[child_scope] = child_scope
 
 	return child_scope

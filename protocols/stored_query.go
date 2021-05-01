@@ -20,8 +20,12 @@ func (self _StoredQueryAssociative) Associative(
 	var result []types.Any
 	stored_query, ok := a.(types.StoredQuery)
 	if ok {
-		ctx := context.Background()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		new_scope := scope.Copy()
+		defer new_scope.Close()
+
 		from_chan := stored_query.Eval(ctx, new_scope)
 		i := int64(0)
 		int_b, b_is_int := utils.ToInt64(b)
@@ -55,7 +59,10 @@ func (self _StoredQueryBool) Bool(scope types.Scope, a types.Any) bool {
 	if ok {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+
 		new_scope := scope.Copy()
+		defer new_scope.Close()
+
 		from_chan := stored_query.Eval(ctx, new_scope)
 		for {
 			// As soon as a single result is returned we
@@ -98,6 +105,8 @@ func MaterializeToArray(ctx context.Context, scope types.Scope,
 
 	// Materialize both queries to an array.
 	new_scope := scope.Copy()
+	defer new_scope.Close()
+
 	for item := range stored_query.Eval(ctx, new_scope) {
 		result = append(result, item)
 	}
