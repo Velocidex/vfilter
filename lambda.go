@@ -48,7 +48,10 @@ func (self *Lambda) Reduce(ctx context.Context, scope types.Scope, parameters []
 	for idx, name := range my_parameters {
 		vars.Set(name, parameters[idx])
 	}
+
 	subscope := scope.Copy().AppendVars(vars)
+	defer subscope.Close()
+
 	return self.Expression.Reduce(ctx, subscope)
 }
 

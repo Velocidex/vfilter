@@ -316,6 +316,8 @@ func Materialize(ctx context.Context,
 
 	// Materialize both queries to an array.
 	new_scope := scope.Copy()
+	defer new_scope.Close()
+
 	for item := range stored_query.Eval(ctx, new_scope) {
 		result = append(result, item)
 	}

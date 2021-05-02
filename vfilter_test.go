@@ -338,7 +338,7 @@ func (self SetEnvFunction) Call(ctx context.Context, scope types.Scope, args *or
 	}
 
 	env.Set(arg.Column, arg.Value)
-	return env
+	return true
 }
 func (self SetEnvFunction) Info(scope types.Scope, type_map *TypeMap) *FunctionInfo {
 	return &FunctionInfo{

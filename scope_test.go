@@ -42,7 +42,11 @@ func (self DestructorFunction) Call(
 	}
 
 	count++
+
+	mu.Lock()
 	markers = append(markers, fmt.Sprintf("Func Open %s %x", arg.Name, count))
+	mu.Unlock()
+
 	scope.AddDestructor(func() {
 		logMarkers("Func Close %s %x", arg.Name, count)
 	})
@@ -194,9 +198,11 @@ func TestDestructors(t *testing.T) {
 		// Close the scope to force destructors to be called.
 		scope.Close()
 
+		mu.Lock()
 		result.Set(fmt.Sprintf(
 			"%03d %s: %s - markers", i, testCase.name, query),
 			markers)
+		mu.Unlock()
 	}
 
 	g := goldie.New(
