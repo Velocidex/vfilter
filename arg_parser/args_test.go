@@ -182,7 +182,12 @@ func (self argFunc) Call(ctx context.Context, scope types.Scope, args *ordereddi
 		stored_query, ok := arg.Any.(types.StoredQuery)
 		if ok {
 			result.Set("Any stored query",
-				vfilter.Materialize(ctx, scope, stored_query))
+				types.Materialize(ctx, scope, stored_query))
+		}
+
+		lazy_expr, ok := arg.Any.(types.LazyExpr)
+		if ok {
+			result.Set("Any lazy expression", lazy_expr.Reduce())
 		}
 	}
 
@@ -195,13 +200,13 @@ func (self argFunc) Call(ctx context.Context, scope types.Scope, args *ordereddi
 		stored_query, ok := reduced.(types.StoredQuery)
 		if ok {
 			result.Set("Lazy Reduced stored query",
-				vfilter.Materialize(ctx, scope, stored_query))
+				types.Materialize(ctx, scope, stored_query))
 		}
 	}
 
 	if arg.StoredQuery != nil {
 		result.Set("StoredQuery Materialized",
-			vfilter.Materialize(ctx, scope, arg.StoredQuery))
+			types.Materialize(ctx, scope, arg.StoredQuery))
 	}
 
 	return result
