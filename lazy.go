@@ -216,8 +216,8 @@ func normalize_value(ctx context.Context, scope Scope, value types.Any, depth in
 		return normalize_value(ctx, scope, t.Reduce(), depth+1)
 
 		// Materialize stored queries into an array.
-	case StoredQuery:
-		result := Materialize(ctx, scope, t)
+	case types.StoredQuery:
+		result := types.Materialize(ctx, scope, t)
 		return result
 
 		// A dict may expose a callable as a member - we just

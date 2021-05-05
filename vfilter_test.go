@@ -804,7 +804,56 @@ LET Foo = SELECT 2 FROM scope() WHERE set_env(column="Eval", value=TRUE)
 
 -- Materialize an expression
 LET result <= if(condition=TRUE, then=Foo) -- should materialize
-SELECT RootEnv.Eval FROM scope()  -- should be set
+SELECT RootEnv.Eval AS Pass FROM scope()  -- should be set
+`},
+
+	{"If function with subqueries", `
+LET abc(a) = if(
+  condition=a,
+  then={SELECT a AS Pass FROM scope()},
+  else={SELECT false AS Pass from scope()})
+
+SELECT abc(a=TRUE) AS Pass FROM scope()
+`},
+
+	{"If function with functions", `
+LET abc(a) = if(
+  condition=a,
+  then=set_env(column="EvalFunc", value=TRUE))
+
+LET _ <= SELECT abc(a=TRUE) FROM scope()
+SELECT RootEnv.EvalFunc AS Pass FROM scope()
+`},
+
+	{"If function with conditions as subqueries", `
+LET abc(a) = if(
+  condition={SELECT * FROM scope()},  -- returns TRUE
+  then={SELECT a AS Pass FROM scope()},
+  else={SELECT false AS Pass from scope()})
+
+SELECT abc(a=TRUE) AS Pass FROM scope()
+`},
+
+	{"If function with conditions as stored query", `
+LET stored_query = SELECT * FROM scope()
+
+LET abc(a) = if(
+  condition=stored_query,
+  then={SELECT a AS Pass FROM scope()},
+  else={SELECT false AS Pass from scope()})
+
+SELECT abc(a=TRUE) AS Pass FROM scope()
+`},
+
+	{"If function with conditions as vql functions", `
+LET adder(a) = a =~ "Foo"
+
+LET abc(a) = if(
+  condition=adder(a="Foobar"),
+  then={SELECT a AS Pass FROM scope()},
+  else={SELECT false AS Pass from scope()})
+
+SELECT abc(a=TRUE) AS Pass FROM scope()
 `},
 
 	// Multiline string constants
@@ -1002,7 +1051,6 @@ func TestVQLQueries(t *testing.T) {
 }
 
 func TestMultiVQLQueries(t *testing.T) {
-
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range multiVQLTest {

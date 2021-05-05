@@ -370,7 +370,7 @@ func (self VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 				value := expr.Reduce(ctx, scope)
 				stored_query, ok := value.(types.StoredQuery)
 				if ok {
-					value = Materialize(ctx, scope, stored_query)
+					value = types.Materialize(ctx, scope, stored_query)
 				}
 				scope.AppendVars(ordereddict.NewDict().Set(name, value))
 			}
@@ -389,7 +389,7 @@ func (self VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 			scope.AppendVars(ordereddict.NewDict().Set(name, stored_query))
 		case "<=":
 			scope.AppendVars(ordereddict.NewDict().Set(
-				name, Materialize(ctx, scope, self.StoredQuery)))
+				name, types.Materialize(ctx, scope, self.StoredQuery)))
 		}
 
 		close(output_chan)

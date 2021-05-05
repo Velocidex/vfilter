@@ -52,6 +52,9 @@ func (self BoolDispatcher) Bool(scope types.Scope, a types.Any) bool {
 
 	case *ordereddict.Dict:
 		return t.Len() > 0
+
+	case types.LazyExpr:
+		return self.Bool(scope, t.Reduce())
 	}
 
 	if is_array(a) {

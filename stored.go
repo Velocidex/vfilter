@@ -72,8 +72,8 @@ func (self *_StoredQuery) Call(ctx context.Context,
 		switch t := v.(type) {
 		case types.LazyExpr:
 			v = t.Reduce()
-		case StoredQuery:
-			v = Materialize(ctx, scope, t)
+		case types.StoredQuery:
+			v = types.Materialize(ctx, scope, t)
 		}
 		vars.Set(k, v)
 	}
@@ -111,20 +111,6 @@ func (self *_StoredQuery) checkCallingArgs(scope types.Scope, args *ordereddict.
 	}
 }
 
-func Materialize(ctx context.Context, scope types.Scope, stored_query StoredQuery) []Row {
-	result := []Row{}
-
-	// Materialize both queries to an array.
-	new_scope := scope.Copy()
-	defer new_scope.Close()
-
-	for item := range stored_query.Eval(ctx, new_scope) {
-		result = append(result, item)
-	}
-
-	return result
-}
-
 // A stored expression is stored in a LET clause either with or
 // without parameters. e.g.:
 // LET Y = count()
@@ -159,8 +145,8 @@ func (self *StoredExpression) Call(ctx context.Context,
 		switch t := v.(type) {
 		case types.LazyExpr:
 			v = t.Reduce()
-		case StoredQuery:
-			v = Materialize(ctx, scope, t)
+		case types.StoredQuery:
+			v = types.Materialize(ctx, scope, t)
 		}
 		vars.Set(k, v)
 	}

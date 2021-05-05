@@ -87,12 +87,8 @@ func storedQueryParser(scope types.Scope, arg interface{}) (interface{}, error) 
 	return ToStoredQuery(arg), nil
 }
 
+// Any fields mean the caller is responsible for parsing them.
 func anyParser(scope types.Scope, arg interface{}) (interface{}, error) {
-	lazy_arg, ok := arg.(types.LazyExpr)
-	if ok {
-		arg = lazy_arg.Reduce()
-	}
-
 	return arg, nil
 }
 
