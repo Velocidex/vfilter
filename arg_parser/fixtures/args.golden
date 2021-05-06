@@ -220,8 +220,45 @@
   "021/001 Any type: SELECT parse(r=1, any=X) FROM scope()": [
     {
       "parse(r=1, any=X)": {
-        "any": 1,
-        "any type": "int64"
+        "any": {
+          "Value": 1,
+          "Expr": {
+            "Left": {
+              "Left": {
+                "Not": null,
+                "Left": {
+                  "Left": {
+                    "Left": {
+                      "Left": {
+                        "Negated": false,
+                        "SymbolRef": {
+                          "Symbol": "X",
+                          "Called": false,
+                          "Parameters": null
+                        },
+                        "Subexpression": null,
+                        "String": null,
+                        "StrNumber": null,
+                        "Float": null,
+                        "Int": null,
+                        "Boolean": null,
+                        "Null": false
+                      },
+                      "Right": null
+                    },
+                    "Right": null
+                  },
+                  "Right": null
+                },
+                "Right": null
+              },
+              "Right": null
+            },
+            "Right": null
+          }
+        },
+        "any type": "*vfilter.LazyExprImpl",
+        "Any lazy expression": 1
       }
     }
   ],
@@ -229,8 +266,81 @@
   "022/001 Any type: SELECT parse(r=1, any=Foo(X=1)) FROM scope()": [
     {
       "parse(r=1, any=Foo(X=1))": {
-        "any": 2,
-        "any type": "int64"
+        "any": {
+          "Value": 2,
+          "Expr": {
+            "Left": {
+              "Left": {
+                "Not": null,
+                "Left": {
+                  "Left": {
+                    "Left": {
+                      "Left": {
+                        "Negated": false,
+                        "SymbolRef": {
+                          "Symbol": "Foo",
+                          "Called": true,
+                          "Parameters": [
+                            {
+                              "Left": "X",
+                              "SubSelect": null,
+                              "Array": null,
+                              "Right": {
+                                "Left": {
+                                  "Left": {
+                                    "Not": null,
+                                    "Left": {
+                                      "Left": {
+                                        "Left": {
+                                          "Left": {
+                                            "Negated": false,
+                                            "SymbolRef": null,
+                                            "Subexpression": null,
+                                            "String": null,
+                                            "StrNumber": "1",
+                                            "Float": null,
+                                            "Int": 1,
+                                            "Boolean": null,
+                                            "Null": false
+                                          },
+                                          "Right": null
+                                        },
+                                        "Right": null
+                                      },
+                                      "Right": null
+                                    },
+                                    "Right": null
+                                  },
+                                  "Right": null
+                                },
+                                "Right": null
+                              }
+                            }
+                          ]
+                        },
+                        "Subexpression": null,
+                        "String": null,
+                        "StrNumber": null,
+                        "Float": null,
+                        "Int": null,
+                        "Boolean": null,
+                        "Null": false
+                      },
+                      "Right": null
+                    },
+                    "Right": null
+                  },
+                  "Right": null
+                },
+                "Right": null
+              },
+              "Right": null
+            },
+            "Right": null
+          }
+        },
+        "any type": "*vfilter.LazyExprImpl",
+        "Any lazy expression": 2
       }
     }
   ],
@@ -238,13 +348,45 @@
   "023/001 Any type: SELECT parse(r=1, any=query) FROM scope()": [
     {
       "parse(r=1, any=query)": {
-        "any": {},
-        "any type": "*vfilter._StoredQuery",
-        "Any stored query": [
-          {
-            "1": 1
+        "any": {
+          "Value": {},
+          "Expr": {
+            "Left": {
+              "Left": {
+                "Not": null,
+                "Left": {
+                  "Left": {
+                    "Left": {
+                      "Left": {
+                        "Negated": false,
+                        "SymbolRef": {
+                          "Symbol": "query",
+                          "Called": false,
+                          "Parameters": null
+                        },
+                        "Subexpression": null,
+                        "String": null,
+                        "StrNumber": null,
+                        "Float": null,
+                        "Int": null,
+                        "Boolean": null,
+                        "Null": false
+                      },
+                      "Right": null
+                    },
+                    "Right": null
+                  },
+                  "Right": null
+                },
+                "Right": null
+              },
+              "Right": null
+            },
+            "Right": null
           }
-        ]
+        },
+        "any type": "*vfilter.LazyExprImpl",
+        "Any lazy expression": {}
       }
     }
   ],

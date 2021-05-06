@@ -443,37 +443,86 @@
   ],
   "038/000 If function with stored query: LET Foo=SELECT 2 FROM scope() WHERE set_env(column=\"Eval\", value=TRUE)": null,
   "038/001 If function with stored query: LET result\u003c=if(condition=TRUE, then=Foo)": null,
-  "038/002 If function with stored query: SELECT RootEnv.Eval FROM scope()": [
+  "038/002 If function with stored query: SELECT RootEnv.Eval AS Pass FROM scope()": [
     {
-      "RootEnv.Eval": true
+      "Pass": true
     }
   ],
-  "039/000 Multiline string constants: LET X='''This\nis\na\nmultiline with 'quotes' and \"double quotes\" and \\ backslashes\n''' + \"A string\"": null,
-  "039/001 Multiline string constants: SELECT X FROM scope()": [
+  "039/000 If function with subqueries: LET abc(a)=if(condition=a, then= { SELECT a AS Pass FROM scope()}, else= { SELECT false AS Pass FROM scope()})": null,
+  "039/001 If function with subqueries: SELECT abc(a=TRUE) AS Pass FROM scope()": [
+    {
+      "Pass": [
+        {
+          "Pass": true
+        }
+      ]
+    }
+  ],
+  "040/000 If function with functions: LET abc(a)=if(condition=a, then=set_env(column=\"EvalFunc\", value=TRUE))": null,
+  "040/001 If function with functions: LET _\u003c=SELECT abc(a=TRUE) FROM scope()": null,
+  "040/002 If function with functions: SELECT RootEnv.EvalFunc AS Pass FROM scope()": [
+    {
+      "Pass": true
+    }
+  ],
+  "041/000 If function with conditions as subqueries: LET abc(a)=if(condition= { SELECT * FROM scope()}, then= { SELECT a AS Pass FROM scope()}, else= { SELECT false AS Pass FROM scope()})": null,
+  "041/001 If function with conditions as subqueries: SELECT abc(a=TRUE) AS Pass FROM scope()": [
+    {
+      "Pass": [
+        {
+          "Pass": true
+        }
+      ]
+    }
+  ],
+  "042/000 If function with conditions as stored query: LET stored_query=SELECT * FROM scope()": null,
+  "042/001 If function with conditions as stored query: LET abc(a)=if(condition=stored_query, then= { SELECT a AS Pass FROM scope()}, else= { SELECT false AS Pass FROM scope()})": null,
+  "042/002 If function with conditions as stored query: SELECT abc(a=TRUE) AS Pass FROM scope()": [
+    {
+      "Pass": [
+        {
+          "Pass": true
+        }
+      ]
+    }
+  ],
+  "043/000 If function with conditions as vql functions: LET adder(a)=a =~ \"Foo\"": null,
+  "043/001 If function with conditions as vql functions: LET abc(a)=if(condition=adder(a=\"Foobar\"), then= { SELECT a AS Pass FROM scope()}, else= { SELECT false AS Pass FROM scope()})": null,
+  "043/002 If function with conditions as vql functions: SELECT abc(a=TRUE) AS Pass FROM scope()": [
+    {
+      "Pass": [
+        {
+          "Pass": true
+        }
+      ]
+    }
+  ],
+  "044/000 Multiline string constants: LET X='''This\nis\na\nmultiline with 'quotes' and \"double quotes\" and \\ backslashes\n''' + \"A string\"": null,
+  "044/001 Multiline string constants: SELECT X FROM scope()": [
     {
       "X": "This\nis\na\nmultiline with 'quotes' and \"double quotes\" and \\ backslashes\nA string"
     }
   ],
-  "040/000 Early breakout of foreach with infinite row query: SELECT * FROM foreach(row= { SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)}, query= { SELECT Count FROM scope()}) LIMIT 1 ": [
+  "045/000 Early breakout of foreach with infinite row query: SELECT * FROM foreach(row= { SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)}, query= { SELECT Count FROM scope()}) LIMIT 1 ": [
     {
       "Count": 1
     }
   ],
-  "041/000 Early breakout of foreach with stored query: LET X=SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)": null,
-  "041/001 Early breakout of foreach with stored query: SELECT * FROM foreach(row=X, query= { SELECT Count FROM scope()}) LIMIT 1 ": [
+  "046/000 Early breakout of foreach with stored query: LET X=SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)": null,
+  "046/001 Early breakout of foreach with stored query: SELECT * FROM foreach(row=X, query= { SELECT Count FROM scope()}) LIMIT 1 ": [
     {
       "Count": 1
     }
   ],
-  "042/000 Early breakout of foreach with stored query with parameters: LET X(Y)=SELECT Y, count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)": null,
-  "042/001 Early breakout of foreach with stored query with parameters: SELECT * FROM foreach(row=X(Y=23), query= { SELECT Y, Count FROM scope()}) LIMIT 1 ": [
+  "047/000 Early breakout of foreach with stored query with parameters: LET X(Y)=SELECT Y, count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)": null,
+  "047/001 Early breakout of foreach with stored query with parameters: SELECT * FROM foreach(row=X(Y=23), query= { SELECT Y, Count FROM scope()}) LIMIT 1 ": [
     {
       "Y": 23,
       "Count": 1
     }
   ],
-  "043/000 Expand stored query with parameters on associative: LET X(Y)=SELECT Y + 5 + value AS Foo FROM range(start=1, end=2)": null,
-  "043/001 Expand stored query with parameters on associative: SELECT X(Y=2).Foo FROM scope()": [
+  "048/000 Expand stored query with parameters on associative: LET X(Y)=SELECT Y + 5 + value AS Foo FROM range(start=1, end=2)": null,
+  "048/001 Expand stored query with parameters on associative: SELECT X(Y=2).Foo FROM scope()": [
     {
       "X(Y=2).Foo": [
         8,
@@ -481,7 +530,7 @@
       ]
     }
   ],
-  "044/000 Order by: SELECT * FROM foreach(row=(1, 8, 3, 2), query= { SELECT _value AS X FROM scope()}) ORDER BY X": [
+  "049/000 Order by: SELECT * FROM foreach(row=(1, 8, 3, 2), query= { SELECT _value AS X FROM scope()}) ORDER BY X": [
     {
       "X": 1
     },
@@ -495,7 +544,7 @@
       "X": 8
     }
   ],
-  "045/000 Group by also orders: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X FROM scope()}) GROUP BY X": [
+  "050/000 Group by also orders: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X FROM scope()}) GROUP BY X": [
     {
       "X": 1
     },
@@ -509,7 +558,7 @@
       "X": 8
     }
   ],
-  "046/000 Group by with explicit order by: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X, 10 - _value AS Y FROM scope()}) GROUP BY X ORDER BY Y": [
+  "051/000 Group by with explicit order by: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X, 10 - _value AS Y FROM scope()}) GROUP BY X ORDER BY Y": [
     {
       "X": 8,
       "Y": 2
