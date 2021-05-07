@@ -10,9 +10,9 @@ import (
 )
 
 type _IfFunctionArgs struct {
-	Condition types.Any `vfilter:"required,field=condition"`
-	Then      types.Any `vfilter:"optional,field=then"`
-	Else      types.Any `vfilter:"optional,field=else"`
+	Condition types.Any      `vfilter:"required,field=condition"`
+	Then      types.LazyExpr `vfilter:"optional,field=then"`
+	Else      types.LazyExpr `vfilter:"optional,field=else"`
 }
 
 type _IfFunction struct{}
@@ -42,25 +42,11 @@ func (self _IfFunction) Call(
 			return &types.Null{}
 		}
 
-		switch t := arg.Then.(type) {
-		case types.StoredQuery:
-			return types.Materialize(ctx, scope, t)
-
-		default:
-			expr := arg_parser.ToLazyExpr(scope, arg.Then)
-			return expr.Reduce()
-		}
+		return arg.Then.ReduceWithScope(ctx, scope)
 	}
-
 	if utils.IsNil(arg.Else) {
 		return &types.Null{}
 	}
 
-	switch t := arg.Else.(type) {
-	case types.StoredQuery:
-		return types.Materialize(ctx, scope, t)
-	default:
-		expr := arg_parser.ToLazyExpr(scope, arg.Else)
-		return expr.Reduce()
-	}
+	return arg.Else.ReduceWithScope(ctx, scope)
 }

@@ -1,6 +1,7 @@
 package arg_parser
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -32,14 +33,15 @@ type FieldParser struct {
 	Field    string
 	FieldIdx int
 	Required bool
-	Parser   func(scope types.Scope, value interface{}) (interface{}, error)
+	Parser   func(ctx context.Context, scope types.Scope, value interface{}) (interface{}, error)
 }
 
 type Parser struct {
 	Fields []*FieldParser
 }
 
-func (self *Parser) Parse(scope types.Scope, args *ordereddict.Dict, target reflect.Value) error {
+func (self *Parser) Parse(
+	ctx context.Context, scope types.Scope, args *ordereddict.Dict, target reflect.Value) error {
 	parsed := make([]string, 0, args.Len())
 
 	for _, parser := range self.Fields {
@@ -55,7 +57,7 @@ func (self *Parser) Parse(scope types.Scope, args *ordereddict.Dict, target refl
 		parsed = append(parsed, parser.Field)
 
 		// Convert the value using the parser
-		new_value, err := parser.Parser(scope, value)
+		new_value, err := parser.Parser(ctx, scope, value)
 		if err != nil {
 			return fmt.Errorf("Field %s %w", parser.Field, err)
 		}
@@ -79,36 +81,42 @@ func (self *Parser) Parse(scope types.Scope, args *ordereddict.Dict, target refl
 	return nil
 }
 
-func lazyExprParser(scope types.Scope, arg interface{}) (interface{}, error) {
+func lazyExprParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
 	return ToLazyExpr(scope, arg), nil
 }
 
-func storedQueryParser(scope types.Scope, arg interface{}) (interface{}, error) {
-	return ToStoredQuery(arg), nil
+func storedQueryParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+	return ToStoredQuery(ctx, arg), nil
 }
 
-// Any fields mean the caller is responsible for parsing them.
-func anyParser(scope types.Scope, arg interface{}) (interface{}, error) {
+// Any fields can accept both storedQuery and LazyExpr but will
+// materialize both.
+func anyParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+	lazy_arg, ok := arg.(types.LazyExpr)
+	if ok {
+		arg = lazy_arg.ReduceWithScope(ctx, scope)
+	}
+
 	return arg, nil
 }
 
-func sliceParser(scope types.Scope, arg interface{}) (interface{}, error) {
+func sliceParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
-		arg = lazy_arg.Reduce()
+		arg = lazy_arg.Reduce(ctx)
 	}
 
-	new_value, pres := _ExtractStringArray(scope, arg)
+	new_value, pres := _ExtractStringArray(ctx, scope, arg)
 	if pres {
 		return new_value, nil
 	}
 	return []interface{}{}, nil
 }
 
-func stringParser(scope types.Scope, arg interface{}) (interface{}, error) {
+func stringParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
-		arg = lazy_arg.Reduce()
+		arg = lazy_arg.Reduce(ctx)
 	}
 
 	// If we expect a string and we get an array
@@ -117,7 +125,7 @@ func stringParser(scope types.Scope, arg interface{}) (interface{}, error) {
 	// coerce a query into a variable without
 	// using get.
 	if utils.IsArray(arg) {
-		new_value, pres := _ExtractStringArray(scope, arg)
+		new_value, pres := _ExtractStringArray(ctx, scope, arg)
 		if pres && len(new_value) == 1 {
 			return new_value[0], nil
 		}
@@ -134,19 +142,19 @@ func stringParser(scope types.Scope, arg interface{}) (interface{}, error) {
 	}
 }
 
-func boolParser(scope types.Scope, arg interface{}) (interface{}, error) {
+func boolParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
-		arg = lazy_arg.Reduce()
+		arg = lazy_arg.Reduce(ctx)
 	}
 
 	return scope.Bool(arg), nil
 }
 
-func floatParser(scope types.Scope, arg interface{}) (interface{}, error) {
+func floatParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
-		arg = lazy_arg.Reduce()
+		arg = lazy_arg.Reduce(ctx)
 	}
 
 	a, ok := utils.ToFloat(arg)
@@ -156,10 +164,10 @@ func floatParser(scope types.Scope, arg interface{}) (interface{}, error) {
 	return nil, errors.New(fmt.Sprintf("Should be a float not %t.", arg))
 }
 
-func int64Parser(scope types.Scope, arg interface{}) (interface{}, error) {
+func int64Parser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
-		arg = lazy_arg.Reduce()
+		arg = lazy_arg.Reduce(ctx)
 	}
 
 	a, ok := utils.ToInt64(arg)
@@ -169,10 +177,10 @@ func int64Parser(scope types.Scope, arg interface{}) (interface{}, error) {
 	return nil, errors.New("Should be an int.")
 }
 
-func uInt64Parser(scope types.Scope, arg interface{}) (interface{}, error) {
+func uInt64Parser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
-		arg = lazy_arg.Reduce()
+		arg = lazy_arg.Reduce(ctx)
 	}
 
 	a, ok := utils.ToInt64(arg)
@@ -182,10 +190,10 @@ func uInt64Parser(scope types.Scope, arg interface{}) (interface{}, error) {
 	return nil, errors.New("Should be an int.")
 }
 
-func intParser(scope types.Scope, arg interface{}) (interface{}, error) {
+func intParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
-		arg = lazy_arg.Reduce()
+		arg = lazy_arg.Reduce(ctx)
 	}
 
 	a, ok := utils.ToInt64(arg)

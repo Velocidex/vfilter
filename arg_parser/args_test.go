@@ -187,13 +187,13 @@ func (self argFunc) Call(ctx context.Context, scope types.Scope, args *ordereddi
 
 		lazy_expr, ok := arg.Any.(types.LazyExpr)
 		if ok {
-			result.Set("Any lazy expression", lazy_expr.Reduce())
+			result.Set("Any lazy expression", lazy_expr.Reduce(ctx))
 		}
 	}
 
 	if arg.LazyExpr != nil {
 		result.Set("Lazy type", fmt.Sprintf("%T", arg.LazyExpr))
-		reduced := arg.LazyExpr.Reduce()
+		reduced := arg.LazyExpr.Reduce(ctx)
 		result.Set("Lazy Reduced Type", fmt.Sprintf("%T", reduced))
 		result.Set("Lazy Reduced", reduced)
 

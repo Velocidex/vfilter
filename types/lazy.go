@@ -29,16 +29,8 @@ type Memberer interface {
 // A LazyExpr has a reduce method that allows it to be materialized.
 type LazyExpr interface {
 	// Reduce with the scope captured at point of definition.
-	Reduce() Any
+	Reduce(ctx context.Context) Any
 
 	// Reduce with a new scope.
-	ReduceWithScope(scope Scope) Any
-}
-
-type LazyExprWrapper struct {
-	Value Any
-}
-
-func (self *LazyExprWrapper) Reduce() Any {
-	return self.Value
+	ReduceWithScope(ctx context.Context, scope Scope) Any
 }

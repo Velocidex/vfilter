@@ -35,7 +35,7 @@ func (self _ChainPlugin) Call(
 		for _, member := range members {
 			member_obj, pres := args.Get(member)
 			if pres {
-				queries = append(queries, arg_parser.ToStoredQuery(member_obj))
+				queries = append(queries, arg_parser.ToStoredQuery(ctx, member_obj))
 			}
 		}
 

@@ -256,7 +256,7 @@ func (self TestFunction) Copy() types.FunctionInterface {
 func (self TestFunction) Call(ctx context.Context, scope types.Scope, args *ordereddict.Dict) Any {
 	if value, pres := args.Get("return"); pres {
 		lazy_value := value.(types.LazyExpr)
-		return lazy_value.Reduce()
+		return lazy_value.Reduce(ctx)
 	}
 	return self.return_value
 }
@@ -365,7 +365,7 @@ func makeScope() types.Scope {
 	).AppendPlugins(
 		plugins.GenericListPlugin{
 			PluginName: "range",
-			Function: func(scope types.Scope, args *ordereddict.Dict) []Row {
+			Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
 				return []Row{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 			},
 		},
@@ -638,16 +638,16 @@ select * from test() limit 1`},
 	{"If function and subselects",
 		"SELECT if(condition=1, then={ SELECT * FROM test() }) FROM scope()"},
 	{"If function should be lazy",
-		"SELECT if(condition=FALSE, then=panic(column=1, value=1)) from scope()"},
+		"SELECT if(condition=FALSE, then=panic(column=2, value=2)) from scope()"},
 	{"If function should be lazy",
-		"SELECT if(condition=TRUE, else=panic(column=1, value=1)) from scope()"},
+		"SELECT if(condition=TRUE, else=panic(column=7, value=7)) from scope()"},
 
 	{"If function should be lazy with sub query",
 		"SELECT if(condition=TRUE, then={ SELECT * FROM test() LIMIT 1}) from scope()"},
 	{"If function should be lazy with sub query",
-		"SELECT if(condition=FALSE, then={ SELECT panic(column=1, value=1) FROM test()}) from scope()"},
+		"SELECT if(condition=FALSE, then={ SELECT panic(column=8, value=8) FROM test()}) from scope()"},
 	{"If function should be lazy",
-		"SELECT if(condition=TRUE, else={ SELECT panic(column=1, value=1) FROM test()}) from scope()"},
+		"SELECT if(condition=TRUE, else={ SELECT panic(column=9, value=9) FROM test()}) from scope()"},
 
 	{"If function should be lazy WRT stored query 1/2",
 		"LET bomb = SELECT panic(column=1, value=1) FROM scope()"},
@@ -924,7 +924,7 @@ func makeTestScope() types.Scope {
 	result := makeScope().AppendPlugins(
 		plugins.GenericListPlugin{
 			PluginName: "test",
-			Function: func(scope types.Scope, args *ordereddict.Dict) []Row {
+			Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
 				var result []Row
 				for i := 0; i < 3; i++ {
 					result = append(result, ordereddict.NewDict().
@@ -935,7 +935,7 @@ func makeTestScope() types.Scope {
 			},
 		}, plugins.GenericListPlugin{
 			PluginName: "range",
-			Function: func(scope types.Scope, args *ordereddict.Dict) []Row {
+			Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
 				arg := &_RangeArgs{}
 				ExtractArgs(scope, args, arg)
 				var result []Row
@@ -947,13 +947,13 @@ func makeTestScope() types.Scope {
 		}, plugins.GenericListPlugin{
 			PluginName: "dict",
 			Doc:        "Just echo back the args as a dict.",
-			Function: func(scope types.Scope, args *ordereddict.Dict) []Row {
+			Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
 				result := ordereddict.NewDict()
 				for _, k := range scope.GetMembers(args) {
 					v, _ := args.Get(k)
 					lazy_arg, ok := v.(types.LazyExpr)
 					if ok {
-						result.Set(k, lazy_arg.Reduce())
+						result.Set(k, lazy_arg.Reduce(ctx))
 					} else {
 						result.Set(k, v)
 					}
@@ -963,7 +963,7 @@ func makeTestScope() types.Scope {
 			},
 		}, plugins.GenericListPlugin{
 			PluginName: "groupbytest",
-			Function: func(scope types.Scope, args *ordereddict.Dict) []Row {
+			Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
 				return []Row{
 					ordereddict.NewDict().Set("foo", 1).Set("bar", 5).
 						Set("baz", "a"),

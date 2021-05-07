@@ -33,7 +33,7 @@ import (
 // field must be exported (i.e. name begins with cap) and it must have
 // vfilter tags.
 
-// FIXME - this code can be better optimized.
+// Deprecate this in favor of ExtractArgsWithContext
 func ExtractArgs(scope types.Scope, args *ordereddict.Dict, target interface{}) error {
 	v := reflect.ValueOf(target)
 	if v.Type().Kind() == reflect.Ptr {
@@ -45,18 +45,34 @@ func ExtractArgs(scope types.Scope, args *ordereddict.Dict, target interface{}) 
 		return err
 	}
 
-	return parser.Parse(scope, args, v)
+	return parser.Parse(context.Background(), scope, args, v)
+}
+
+func ExtractArgsWithContext(
+	ctx context.Context, scope types.Scope, args *ordereddict.Dict, target interface{}) error {
+	v := reflect.ValueOf(target)
+	if v.Type().Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	parser, err := GetParser(v)
+	if err != nil {
+		return err
+	}
+
+	return parser.Parse(ctx, scope, args, v)
 }
 
 // Try to retrieve an arg name from the Dict of args. Coerce the arg
 // into something resembling a list of strings.
-func _ExtractStringArray(scope types.Scope, arg types.Any) ([]string, bool) {
+func _ExtractStringArray(
+	ctx context.Context, scope types.Scope, arg types.Any) ([]string, bool) {
 	var result []string
 
 	// Handle potentially lazy args.
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
-		arg = lazy_arg.Reduce()
+		arg = lazy_arg.Reduce(ctx)
 	}
 
 	slice := reflect.ValueOf(arg)
@@ -102,10 +118,10 @@ func _ExtractStringArray(scope types.Scope, arg types.Any) ([]string, bool) {
 }
 
 // Convert a type to a stored query
-func ToStoredQuery(arg types.Any) types.StoredQuery {
+func ToStoredQuery(ctx context.Context, arg types.Any) types.StoredQuery {
 	switch t := arg.(type) {
 	case types.LazyExpr:
-		return ToStoredQuery(t.Reduce())
+		return ToStoredQuery(ctx, t.Reduce(ctx))
 
 	case types.StoredQuery:
 		return t
@@ -183,11 +199,12 @@ type storedQueryWrapperLazyExpression struct {
 	query types.StoredQuery
 }
 
-func (self *storedQueryWrapperLazyExpression) ReduceWithScope(scope types.Scope) types.Any {
-	return self.query
+func (self *storedQueryWrapperLazyExpression) ReduceWithScope(
+	ctx context.Context, scope types.Scope) types.Any {
+	return types.Materialize(ctx, scope, self.query)
 }
 
-func (self *storedQueryWrapperLazyExpression) Reduce() types.Any {
+func (self *storedQueryWrapperLazyExpression) Reduce(ctx context.Context) types.Any {
 	return self.query
 }
 
@@ -195,11 +212,11 @@ type lazyExpressionWrapper struct {
 	value types.Any
 }
 
-func (self *lazyExpressionWrapper) ReduceWithScope(scope types.Scope) types.Any {
+func (self *lazyExpressionWrapper) ReduceWithScope(ctx context.Context, scope types.Scope) types.Any {
 	return self.value
 }
 
-func (self *lazyExpressionWrapper) Reduce() types.Any {
+func (self *lazyExpressionWrapper) Reduce(ctx context.Context) types.Any {
 	return self.value
 }
 
