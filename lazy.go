@@ -132,7 +132,8 @@ func (self *LazyExprImpl) ToString() string {
 	return self.Expr.ToString(self.scope)
 }
 
-func (self *LazyExprImpl) ReduceWithScope(scope types.Scope) types.Any {
+func (self *LazyExprImpl) ReduceWithScope(
+	ctx context.Context, scope types.Scope) types.Any {
 	var result types.Any
 	if self.Expr == nil {
 		result = &Null{}
@@ -150,17 +151,17 @@ func (self *LazyExprImpl) ReduceWithScope(scope types.Scope) types.Any {
 		result = t()
 
 	case types.LazyExpr:
-		result = t.Reduce()
+		result = t.Reduce(ctx)
 	}
 
 	return result
 }
 
-func (self *LazyExprImpl) Reduce() types.Any {
+func (self *LazyExprImpl) Reduce(ctx context.Context) types.Any {
 	if self.Value != nil {
 		return self.Value
 	}
-	self.Value = self.ReduceWithScope(self.scope)
+	self.Value = self.ReduceWithScope(ctx, self.scope)
 	return self.Value
 }
 
@@ -213,7 +214,7 @@ func normalize_value(ctx context.Context, scope Scope, value types.Any, depth in
 
 		// Reduce any LazyExpr to materialized types
 	case types.LazyExpr:
-		return normalize_value(ctx, scope, t.Reduce(), depth+1)
+		return normalize_value(ctx, scope, t.Reduce(ctx), depth+1)
 
 		// Materialize stored queries into an array.
 	case types.StoredQuery:

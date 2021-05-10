@@ -54,12 +54,9 @@ func (self _StoredQueryAssociative) GetMembers(scope types.Scope, a types.Any) [
 
 type _StoredQueryBool struct{}
 
-func (self _StoredQueryBool) Bool(scope types.Scope, a types.Any) bool {
+func (self _StoredQueryBool) Bool(ctx context.Context, scope types.Scope, a types.Any) bool {
 	stored_query, ok := a.(types.StoredQuery)
 	if ok {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
 		new_scope := scope.Copy()
 		defer new_scope.Close()
 

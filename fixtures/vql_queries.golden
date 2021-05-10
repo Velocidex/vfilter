@@ -597,14 +597,14 @@
       ]
     }
   ],
-  "067 If function should be lazy: SELECT if(condition=FALSE, then=panic(column=1, value=1)) FROM scope()": [
+  "067 If function should be lazy: SELECT if(condition=FALSE, then=panic(column=2, value=2)) FROM scope()": [
     {
-      "if(condition=FALSE, then=panic(column=1, value=1))": null
+      "if(condition=FALSE, then=panic(column=2, value=2))": null
     }
   ],
-  "068 If function should be lazy: SELECT if(condition=TRUE, else=panic(column=1, value=1)) FROM scope()": [
+  "068 If function should be lazy: SELECT if(condition=TRUE, else=panic(column=7, value=7)) FROM scope()": [
     {
-      "if(condition=TRUE, else=panic(column=1, value=1))": null
+      "if(condition=TRUE, else=panic(column=7, value=7))": null
     }
   ],
   "069 If function should be lazy with sub query: SELECT if(condition=TRUE, then= { SELECT * FROM test() LIMIT 1 }) FROM scope()": [
@@ -617,14 +617,14 @@
       ]
     }
   ],
-  "070 If function should be lazy with sub query: SELECT if(condition=FALSE, then= { SELECT panic(column=1, value=1) FROM test()}) FROM scope()": [
+  "070 If function should be lazy with sub query: SELECT if(condition=FALSE, then= { SELECT panic(column=8, value=8) FROM test()}) FROM scope()": [
     {
-      "if(condition=FALSE, then= { SELECT panic(column=1, value=1) FROM test()})": null
+      "if(condition=FALSE, then= { SELECT panic(column=8, value=8) FROM test()})": null
     }
   ],
-  "071 If function should be lazy: SELECT if(condition=TRUE, else= { SELECT panic(column=1, value=1) FROM test()}) FROM scope()": [
+  "071 If function should be lazy: SELECT if(condition=TRUE, else= { SELECT panic(column=9, value=9) FROM test()}) FROM scope()": [
     {
-      "if(condition=TRUE, else= { SELECT panic(column=1, value=1) FROM test()})": null
+      "if(condition=TRUE, else= { SELECT panic(column=9, value=9) FROM test()})": null
     }
   ],
   "072 If function should be lazy WRT stored query 1/2: LET bomb=SELECT panic(column=1, value=1) FROM scope()": null,

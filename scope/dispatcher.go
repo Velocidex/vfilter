@@ -230,7 +230,7 @@ func (self *protocolDispatcher) AddProtocolImpl(implementations ...types.Any) {
 			self.iterator.AddImpl(t)
 		default:
 			utils.Debug(t)
-			panic("Unsupported interface")
+			panic(fmt.Sprintf("Unsupported interface: %T", imp))
 		}
 	}
 }

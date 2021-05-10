@@ -1,6 +1,7 @@
 package protocols
 
 import (
+	"context"
 	"reflect"
 
 	"github.com/Velocidex/ordereddict"
@@ -16,7 +17,7 @@ func (self BoolDispatcher) Copy() BoolDispatcher {
 		append([]BoolProtocol{}, self.impl...)}
 }
 
-func (self BoolDispatcher) Bool(scope types.Scope, a types.Any) bool {
+func (self BoolDispatcher) Bool(ctx context.Context, scope types.Scope, a types.Any) bool {
 
 	// Handle directly the built in types for speed.
 	switch t := a.(type) {
@@ -54,7 +55,7 @@ func (self BoolDispatcher) Bool(scope types.Scope, a types.Any) bool {
 		return t.Len() > 0
 
 	case types.LazyExpr:
-		return self.Bool(scope, t.Reduce())
+		return self.Bool(ctx, scope, t.ReduceWithScope(ctx, scope))
 	}
 
 	if is_array(a) {
@@ -65,7 +66,7 @@ func (self BoolDispatcher) Bool(scope types.Scope, a types.Any) bool {
 	for i, impl := range self.impl {
 		if impl.Applicable(a) {
 			scope.GetStats().IncProtocolSearch(i)
-			return impl.Bool(scope, a)
+			return impl.Bool(ctx, scope, a)
 		}
 	}
 
@@ -82,5 +83,5 @@ func (self *BoolDispatcher) AddImpl(elements ...BoolProtocol) {
 // This protocol implements the truth value.
 type BoolProtocol interface {
 	Applicable(a types.Any) bool
-	Bool(scope types.Scope, a types.Any) bool
+	Bool(ctx context.Context, scope types.Scope, a types.Any) bool
 }

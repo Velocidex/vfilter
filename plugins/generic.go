@@ -8,7 +8,7 @@ import (
 )
 
 // Generic synchronous plugins just return all their rows at once.
-type FunctionPlugin func(scope types.Scope, args *ordereddict.Dict) []types.Row
+type FunctionPlugin func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []types.Row
 
 // A generic plugin based on a function returning a slice of
 // rows. Many simpler plugins do not need an asynchronous interface
@@ -39,7 +39,7 @@ func (self GenericListPlugin) Call(
 	go func() {
 		defer close(output_chan)
 
-		for _, item := range self.Function(scope, args) {
+		for _, item := range self.Function(ctx, scope, args) {
 			select {
 			case <-ctx.Done():
 				return

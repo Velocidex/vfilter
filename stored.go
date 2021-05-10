@@ -71,7 +71,7 @@ func (self *_StoredQuery) Call(ctx context.Context,
 		v, _ := args.Get(k)
 		switch t := v.(type) {
 		case types.LazyExpr:
-			v = t.Reduce()
+			v = t.Reduce(ctx)
 		case types.StoredQuery:
 			v = types.Materialize(ctx, scope, t)
 		}
@@ -144,7 +144,7 @@ func (self *StoredExpression) Call(ctx context.Context,
 		v, _ := args.Get(k)
 		switch t := v.(type) {
 		case types.LazyExpr:
-			v = t.Reduce()
+			v = t.Reduce(ctx)
 		case types.StoredQuery:
 			v = types.Materialize(ctx, scope, t)
 		}

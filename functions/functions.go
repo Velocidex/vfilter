@@ -35,7 +35,7 @@ func (self _DictFunc) Call(ctx context.Context, scope types.Scope, args *ordered
 		v, _ := args.Get(k)
 		lazy_arg, ok := v.(types.LazyExpr)
 		if ok {
-			result.Set(k, lazy_arg.Reduce())
+			result.Set(k, lazy_arg.Reduce(ctx))
 		} else {
 			result.Set(k, v)
 		}

@@ -25,7 +25,7 @@ func (self IterateDispatcher) Iterate(
 
 	// A LazyExpr is a placeholder for a real value.
 	case types.LazyExpr:
-		return scope.Iterate(ctx, t.Reduce())
+		return scope.Iterate(ctx, t.Reduce(ctx))
 
 		// A StoredQuery is a source of rows and so returns a channel.
 	case types.StoredQuery:

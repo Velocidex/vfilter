@@ -172,7 +172,8 @@ func (self *Scope) Eq(a types.Any, b types.Any) bool {
 
 // Evaluate the truth value of a value.
 func (self *Scope) Bool(a types.Any) bool {
-	return self.dispatcher.bool.Bool(self, a)
+	ctx := context.Background()
+	return self.dispatcher.bool.Bool(ctx, self, a)
 }
 
 // Is a less than b?
