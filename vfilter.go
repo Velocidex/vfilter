@@ -158,6 +158,7 @@ var (
 			`|(?ims)(?P<WHERE>\bWHERE\b)` +
 			`|(?ims)(?P<AND>\bAND\b)` +
 			`|(?ims)(?P<OR>\bOR\b)` +
+			`|(?ims)(?P<AlternativeOR>\|+)` +
 			`|(?ims)(?P<FROM>\bFROM\b)` +
 			`|(?ims)(?P<NOT>\bNOT\b)` +
 			`|(?ims)(?P<AS>\bAS\b)` +
@@ -990,7 +991,7 @@ type _AndExpression struct {
 }
 
 type _OpAndTerm struct {
-	Operator string         ` AND `
+	Operator string         ` @AND `
 	Term     *_OrExpression `@@`
 }
 
@@ -1001,7 +1002,7 @@ type _OrExpression struct {
 }
 
 type _OpOrTerm struct {
-	Operator string             `OR `
+	Operator string             ` (@OR | @AlternativeOR) `
 	Term     *_ConditionOperand `@@`
 }
 
@@ -1461,9 +1462,10 @@ func (self _AndExpression) ToString(scope types.Scope) string {
 	result := []string{self.Left.ToString(scope)}
 
 	for _, right := range self.Right {
+		result = append(result, strings.ToUpper(right.Operator))
 		result = append(result, right.Term.ToString(scope))
 	}
-	return strings.Join(result, " AND ")
+	return strings.Join(result, " ")
 }
 
 func (self *_OrExpression) IsAggregate(scope types.Scope) bool {
@@ -1486,12 +1488,15 @@ func (self _OrExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	}
 
 	if scope.Bool(result) == true {
-		return true
+		return result
 	}
 
 	for _, term := range self.Right {
 		result = term.Term.Reduce(ctx, scope)
 		if scope.Bool(result) == true {
+			if term.Operator == "||" {
+				return result
+			}
 			return true
 		}
 	}
@@ -1503,9 +1508,10 @@ func (self _OrExpression) ToString(scope types.Scope) string {
 	result := []string{self.Left.ToString(scope)}
 
 	for _, right := range self.Right {
+		result = append(result, strings.ToUpper(right.Operator))
 		result = append(result, right.Term.ToString(scope))
 	}
-	return strings.Join(result, " OR ")
+	return strings.Join(result, " ")
 }
 
 func (self _AdditionExpression) IsAggregate(scope types.Scope) bool {

@@ -650,5 +650,10 @@
     {
       "column with space": "hello world"
     }
+  ],
+  "077 Alternatives with the OR shortcut operator: SELECT get(member='Foo') || get(member='Bar') || 'Hello' FROM scope()": [
+    {
+      "get(member='Foo') || get(member='Bar') || 'Hello'": "Hello"
+    }
   ]
 }

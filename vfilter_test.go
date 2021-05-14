@@ -662,6 +662,9 @@ select * from test() limit 1`},
 
 	{"Columns with space in them",
 		"SELECT foo as `column with space` FROM dict(foo='hello world')"},
+
+	{"Alternatives with the OR shortcut operator",
+		"SELECT get(member='Foo') || get(member='Bar') || 'Hello' FROM scope()"},
 }
 
 var multiVQLTest = []vqlTest{
