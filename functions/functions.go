@@ -111,7 +111,7 @@ func (self _SplitFunction) Call(ctx context.Context, scope types.Scope, args *or
 }
 
 type _GetFunctionArgs struct {
-	Item   types.Any `vfilter:"required,field=item"`
+	Item   types.Any `vfilter:"optional,field=item"`
 	Member string    `vfilter:"required,field=member"`
 }
 
@@ -137,6 +137,9 @@ func (self _GetFunction) Call(
 	}
 
 	result := arg.Item
+	if result == nil {
+		result = scope
+	}
 	var next_result types.Any
 
 	var pres bool
