@@ -1462,7 +1462,7 @@ func (self _AndExpression) ToString(scope types.Scope) string {
 	result := []string{self.Left.ToString(scope)}
 
 	for _, right := range self.Right {
-		result = append(result, strings.ToUpper(right.Operator))
+		result = append(result, right.Operator)
 		result = append(result, right.Term.ToString(scope))
 	}
 	return strings.Join(result, " ")
@@ -1508,7 +1508,7 @@ func (self _OrExpression) ToString(scope types.Scope) string {
 	result := []string{self.Left.ToString(scope)}
 
 	for _, right := range self.Right {
-		result = append(result, strings.ToUpper(right.Operator))
+		result = append(result, right.Operator)
 		result = append(result, right.Term.ToString(scope))
 	}
 	return strings.Join(result, " ")

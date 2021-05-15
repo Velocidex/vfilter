@@ -392,7 +392,7 @@
       "ColumnName123": 1
     }
   ],
-  "033/000 Aggregate functions with multiple evaluations: SELECT count() AS Count FROM foreach(row= [0, 1, 2]) WHERE Count \u003c= 2 AND Count AND Count AND Count AND count() AND count()": [
+  "033/000 Aggregate functions with multiple evaluations: SELECT count() AS Count FROM foreach(row= [0, 1, 2]) WHERE Count \u003c= 2 AND Count AND Count AND Count AND count() and count()": [
     {
       "Count": 1
     },
