@@ -161,7 +161,7 @@ func floatParser(ctx context.Context, scope types.Scope, arg interface{}) (inter
 	if ok {
 		return a, nil
 	}
-	return nil, errors.New(fmt.Sprintf("Should be a float not %t.", arg))
+	return nil, errors.New(fmt.Sprintf("Should be a float not %T.", arg))
 }
 
 func int64Parser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
@@ -174,7 +174,7 @@ func int64Parser(ctx context.Context, scope types.Scope, arg interface{}) (inter
 	if ok {
 		return a, nil
 	}
-	return nil, errors.New("Should be an int.")
+	return nil, fmt.Errorf("Should be an int not %T.", arg)
 }
 
 func uInt64Parser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {

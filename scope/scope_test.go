@@ -1,4 +1,4 @@
-package vfilter
+package scope_test
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/Velocidex/ordereddict"
 	"github.com/sebdah/goldie/v2"
+	"www.velocidex.com/golang/vfilter"
 	"www.velocidex.com/golang/vfilter/arg_parser"
 	"www.velocidex.com/golang/vfilter/functions"
 	"www.velocidex.com/golang/vfilter/types"
@@ -28,7 +29,7 @@ type DestructorFunction struct {
 }
 
 func (self DestructorFunction) Call(
-	ctx context.Context, scope types.Scope, args *ordereddict.Dict) Any {
+	ctx context.Context, scope types.Scope, args *ordereddict.Dict) types.Any {
 	arg := DestructorFunctionArgs{}
 	err := arg_parser.ExtractArgs(scope, args, &arg)
 	if err != nil {
@@ -56,8 +57,8 @@ func (self DestructorFunction) Call(
 	return count
 }
 
-func (self DestructorFunction) Info(scope types.Scope, type_map *TypeMap) *FunctionInfo {
-	return &FunctionInfo{
+func (self DestructorFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
+	return &types.FunctionInfo{
 		Name: "destructor",
 	}
 }
@@ -74,8 +75,8 @@ type DestructorPlugin struct {
 func (self *DestructorPlugin) Call(
 	ctx context.Context, scope types.Scope,
 
-	args *ordereddict.Dict) <-chan Row {
-	output_chan := make(chan Row)
+	args *ordereddict.Dict) <-chan types.Row {
+	output_chan := make(chan types.Row)
 
 	go func() {
 		defer close(output_chan)
@@ -106,10 +107,15 @@ func (self *DestructorPlugin) Call(
 	return output_chan
 }
 
-func (self DestructorPlugin) Info(scope types.Scope, type_map *TypeMap) *PluginInfo {
-	return &PluginInfo{
+func (self DestructorPlugin) Info(scope types.Scope, type_map *types.TypeMap) *types.PluginInfo {
+	return &types.PluginInfo{
 		Name: "destructor",
 	}
+}
+
+type vqlTest struct {
+	name string
+	vql  string
 }
 
 var scopeTests = []vqlTest{
@@ -177,11 +183,11 @@ func TestDestructors(t *testing.T) {
 		markers = []string{}
 		mu.Unlock()
 
-		scope := NewScope().
+		scope := vfilter.NewScope().
 			AppendFunctions(DestructorFunction{}).
 			AppendPlugins(&DestructorPlugin{})
 
-		multi_vql, err := MultiParse(testCase.vql)
+		multi_vql, err := vfilter.MultiParse(testCase.vql)
 		if err != nil {
 			t.Fatalf("Failed to parse %v: %v", testCase.vql, err)
 		}
@@ -189,9 +195,9 @@ func TestDestructors(t *testing.T) {
 		query := ""
 		for _, vql := range multi_vql {
 			ctx := context.Background()
-			var output []Row
+			var output []types.Row
 			for row := range vql.Eval(ctx, scope) {
-				output = append(output, RowToDict(ctx, scope, row))
+				output = append(output, vfilter.RowToDict(ctx, scope, row))
 			}
 			query += vql.ToString(scope)
 		}
@@ -212,4 +218,11 @@ func TestDestructors(t *testing.T) {
 		goldie.WithDiffEngine(goldie.ColoredDiff),
 	)
 	g.AssertJson(t, "TestDestructors", result)
+}
+
+func logMarkers(format string, args ...interface{}) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	markers = append(markers, fmt.Sprintf(format, args...))
 }

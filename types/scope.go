@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"runtime"
+
+	"github.com/Velocidex/ordereddict"
 )
 
 // A scope is passed inside the evaluation context.  Although this is
@@ -21,6 +23,9 @@ type Scope interface {
 	// The scope context is a global k/v store
 	GetContext(name string) (Any, bool)
 	SetContext(name string, value Any)
+
+	// Replace the entire context dict.
+	SetContextDict(context *ordereddict.Dict)
 	ClearContext()
 
 	// Extract debug string about the current scope state.
@@ -48,6 +53,7 @@ type Scope interface {
 
 	// Program a custom sorter
 	SetSorter(sorter Sorter)
+	SetGrouper(grouper Grouper)
 
 	// We can program the scope's protocols
 	AddProtocolImpl(implementations ...Any) Scope
