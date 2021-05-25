@@ -132,6 +132,7 @@ func (self *protocolDispatcher) Copy() *protocolDispatcher {
 		regex:       self.regex.Copy(),
 		iterator:    self.iterator.Copy(),
 		Sorter:      self.Sorter,
+		Grouper:     self.Grouper,
 		Logger:      self.Logger,
 		Tracer:      self.Tracer,
 	}
