@@ -1,0 +1,12 @@
+[
+  "Hello world Hex: 48 65 6c 6c 6f 20 77 6f 72 6c 64",
+  "Multi\nLine\n Hex: 4d 75 6c 74 69 0a 4c 69 6e 65 0a",
+  "Multi\r\nLine Hex: 4d 75 6c 74 69 0d 0a 4c 69 6e 65",
+  "With\ttab Hex: 57 69 74 68 09 74 61 62",
+  "With Hex \u0001\u0002\ufffd\ufffd Hex: 57 69 74 68 20 48 65 78 20 01 02 f0 f1",
+  "With escaped \"' quotes Hex: 57 69 74 68 20 65 73 63 61 70 65 64 20 22 27 20 71 75 6f 74 65 73",
+  "Raw \\r\\n Hex: 52 61 77 20 5c 72 5c 6e",
+  "Trailing  Hex: 54 72 61 69 6c 69 6e 67 20",
+  "Trailing  Hex: 54 72 61 69 6c 69 6e 67 20",
+  "Invalid hex \\xag Hex: 49 6e 76 61 6c 69 64 20 68 65 78 20 5c 78 61 67"
+]

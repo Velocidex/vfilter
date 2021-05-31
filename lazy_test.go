@@ -3,12 +3,18 @@ package vfilter
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/Velocidex/ordereddict"
 	"github.com/sebdah/goldie/v2"
 	"www.velocidex.com/golang/vfilter/arg_parser"
 	"www.velocidex.com/golang/vfilter/types"
+)
+
+var (
+	mu      sync.Mutex
+	markers = []string{}
 )
 
 type lazyTypeTest struct {

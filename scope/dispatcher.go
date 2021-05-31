@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/Velocidex/ordereddict"
+	"www.velocidex.com/golang/vfilter/grouper"
 	"www.velocidex.com/golang/vfilter/protocols"
 	sorter "www.velocidex.com/golang/vfilter/sort"
 	"www.velocidex.com/golang/vfilter/types"
@@ -39,7 +40,8 @@ type protocolDispatcher struct {
 	iterator    protocols.IterateDispatcher
 
 	// Sorters allow VQL to sort result sets.
-	Sorter types.Sorter
+	Sorter  types.Sorter
+	Grouper types.Grouper
 
 	Logger *log.Logger
 
@@ -59,6 +61,12 @@ func (self *protocolDispatcher) SetContext(context *ordereddict.Dict) {
 func (self *protocolDispatcher) SetSorter(sorter types.Sorter) {
 	self.Lock()
 	self.Sorter = sorter
+	self.Unlock()
+}
+
+func (self *protocolDispatcher) SetGrouper(grouper types.Grouper) {
+	self.Lock()
+	self.Grouper = grouper
 	self.Unlock()
 }
 
@@ -259,6 +267,7 @@ func (self *protocolDispatcher) GetSimilarPlugins(name string) []string {
 func newprotocolDispatcher() *protocolDispatcher {
 	return &protocolDispatcher{
 		Sorter:    &sorter.DefaultSorter{},
+		Grouper:   &grouper.DefaultGrouper{},
 		functions: make(map[string]types.FunctionInterface),
 		plugins:   make(map[string]types.PluginGeneratorInterface),
 		context:   ordereddict.NewDict(),

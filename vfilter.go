@@ -343,7 +343,7 @@ func (self VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 			scope.Log("LET expression is masking a built in function %v", self.Let)
 		}
 
-		name := unquote_ident(self.Let)
+		name := utils.Unquote_ident(self.Let)
 
 		// Let assigning an expression.
 		if self.Expression != nil {
@@ -514,154 +514,11 @@ func (self *_Select) ToString(scope types.Scope) string {
 }
 
 func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
-	output_chan := make(chan Row)
-
 	if self.GroupBy != nil {
-		go func() {
-			defer close(output_chan)
-
-			// Aggregate functions (count, sum etc)
-			// operate by storing data in the scope
-			// context between rows. When we group by we
-			// create a different scope context for each
-			// bin - all the rows with the same group by
-			// value are placed in the same bin and share
-			// the same context.
-			type AggregateContext struct {
-				row     *ordereddict.Dict
-				context *ordereddict.Dict
-			}
-
-			// Collect all the rows with the same group_by
-			// member. This is a map between unique group
-			// by values and an aggregate context.
-			bins := make(map[Any]*AggregateContext)
-
-			sub_ctx, cancel := context.WithCancel(ctx)
-			defer cancel()
-
-			// Append this row to a bin based on a unique
-			// value of the group by column.
-			for row := range self.From.Eval(sub_ctx, scope) {
-				func(row types.Row) {
-					transformed_row, closer := self.SelectExpression.Transform(
-						ctx, scope, row)
-					defer closer()
-
-					// Create a new scope over
-					// which we can evaluate the
-					// filter clause.
-					new_scope := scope.Copy()
-					defer new_scope.Close()
-
-					// Order matters - transformed
-					// row (from column
-					// specifiers) may mask
-					// original row (from plugin).
-					new_scope.AppendVars(row)
-					new_scope.AppendVars(transformed_row)
-
-					if self.Where != nil {
-						expression := self.Where.Reduce(ctx, new_scope)
-						// If the filtered expression returns
-						// a bool false, then skip the row.
-						if expression == nil || !scope.Bool(expression) {
-							scope.Trace("During Groupby: Row rejected")
-							return
-						}
-					}
-
-					// Evaluate the group by expression on the transformed row.
-					gb_element := self.GroupBy.Reduce(ctx, new_scope)
-
-					// Stringify the result to index into the bins.
-					bin_idx := fmt.Sprintf("%v", gb_element)
-
-					aggregate_ctx, pres := bins[bin_idx]
-					// No previous aggregate_row - initialize with a new context.
-					if !pres {
-						aggregate_ctx = &AggregateContext{
-							context: ordereddict.NewDict(),
-						}
-						bins[bin_idx] = aggregate_ctx
-					}
-
-					// The transform function receives
-					// its own unique context for the
-					// specific aggregate group.
-					GetIntScope(new_scope).SetContextDict(aggregate_ctx.context)
-
-					// Update the row with the transformed
-					// columns. Note we must materialize
-					// these rows because evaluating the
-					// row may have side effects (e.g. for
-					// aggregate functions).
-					new_transformed_row, closer := self.SelectExpression.Transform(
-						ctx, new_scope, row)
-					defer closer()
-
-					new_row := MaterializedLazyRow(ctx, new_transformed_row, scope)
-					new_row.Set("$groupby", bin_idx)
-
-					aggregate_ctx.row = new_row
-				}(row)
-			}
-
-			// Now sort the output according to the
-			// aggregate rows. NOTE: We always sort to
-			// maintain a stable output (since bins are a
-			// map)
-			desc := false
-			if self.OrderByDesc != nil {
-				desc = *self.OrderByDesc
-			}
-
-			// By default order by the group by column
-			// unless the query specified a different
-			// order by.
-			order_by := "$groupby"
-			if self.OrderBy != nil {
-				order_by = *self.OrderBy
-			}
-
-			// Sort the output groups
-			sorter_input_chan := make(chan Row)
-			sorted_chan := scope.(*scope_module.Scope).Sort(
-				ctx, scope, sorter_input_chan, order_by, desc)
-
-			// Feed all the aggregate rows into the sorter.
-			go func() {
-				defer close(sorter_input_chan)
-
-				// Emit the binned set as a new result set.
-				for _, aggregate_ctx := range bins {
-					sorter_input_chan <- aggregate_ctx.row
-				}
-
-			}()
-
-			// Remove the group by column prior to sending
-			// the row.
-			idx := 0
-			for row := range sorted_chan {
-				if self.Limit != nil && idx >= int(*self.Limit) {
-					break
-				}
-				idx++
-
-				emitted_row := MaterializedLazyRow(ctx, row, scope)
-				emitted_row.Delete("$groupby")
-				select {
-				case <-ctx.Done():
-					return
-				case output_chan <- emitted_row:
-				}
-
-			}
-		}()
-
-		return output_chan
+		return self.EvalGroupBy(ctx, scope)
 	}
+
+	output_chan := make(chan Row)
 
 	if self.Limit != nil {
 		go func() {
@@ -703,7 +560,7 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 		sorter_input_chan := make(chan Row)
 		sorted_chan := scope.(*scope_module.Scope).Sort(
 			ctx, scope, sorter_input_chan,
-			unquote_ident(*self.OrderBy), desc)
+			utils.Unquote_ident(*self.OrderBy), desc)
 
 		// Feed all the aggregate rows into the sorter.
 		go func() {
@@ -839,10 +696,10 @@ func (self *_AliasedExpression) GetName(scope types.Scope) string {
 	}
 
 	if self.As != "" {
-		name := unquote_ident(self.As)
+		name := utils.Unquote_ident(self.As)
 		column_name = &name
 	} else {
-		name := unquote_ident(self.ToString(scope))
+		name := utils.Unquote_ident(self.ToString(scope))
 		column_name = &name
 	}
 
@@ -1254,7 +1111,7 @@ func (self *_Plugin) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 		args := ordereddict.NewDict()
 		for _, arg := range self.Args {
 			if arg.Right != nil {
-				name := unquote_ident(arg.Left)
+				name := utils.Unquote_ident(arg.Left)
 				args.Set(name, NewLazyExpr(ctx, scope, arg.Right))
 
 			} else if arg.Array != nil {
@@ -1351,7 +1208,7 @@ func (self *_MemberExpression) Reduce(ctx context.Context, scope types.Scope) An
 		if term.Index != nil {
 			lhs, pres = scope.Associative(lhs, term.Index)
 		} else {
-			lhs, pres = scope.Associative(lhs, unquote_ident(term.Term))
+			lhs, pres = scope.Associative(lhs, utils.Unquote_ident(term.Term))
 		}
 		if !pres {
 			return Null{}
@@ -1696,52 +1553,6 @@ func (self *_Value) maybeParseStrNumber(scope types.Scope) {
 	}
 }
 
-// unquote either a " or ' delimited string.
-func unquote(s string) (string, error) {
-	if strings.HasPrefix(s, "'''") {
-		result := strings.TrimPrefix(s, "'''")
-		if strings.HasSuffix(s, "'''") {
-			return strings.TrimRight(result, "'''"), nil
-		}
-	}
-
-	quote := s[0]
-	if quote != '"' && quote != '\'' {
-		return s, nil
-	}
-	s = s[1 : len(s)-1]
-	out := ""
-	for s != "" {
-		value, _, tail, err := strconv.UnquoteChar(s, quote)
-		if err != nil {
-			return "", err
-		}
-		s = tail
-		out += string(value)
-	}
-	return out, nil
-}
-
-// Unquote a ` delimited string.
-func unquote_ident(s string) string {
-	quote := s[0]
-	if quote != '`' {
-		return s
-	}
-
-	s = s[1 : len(s)-1]
-	out := ""
-	for s != "" {
-		value, _, tail, err := strconv.UnquoteChar(s, quote)
-		if err != nil {
-			return s
-		}
-		s = tail
-		out += string(value)
-	}
-	return out
-}
-
 func (self *_Value) Reduce(ctx context.Context, scope types.Scope) Any {
 	self.maybeParseStrNumber(scope)
 
@@ -1765,13 +1576,7 @@ func (self *_Value) Reduce(ctx context.Context, scope types.Scope) Any {
 	}
 
 	if self.String != nil {
-		result, err := unquote(*self.String)
-		if err != nil {
-			self.cache = &Null{}
-		} else {
-			self.cache = result
-		}
-
+		self.cache = utils.Unquote(*self.String)
 	} else if self.Boolean != nil {
 		self.cache = strings.ToLower(*self.Boolean) == "true"
 
@@ -1855,7 +1660,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 	// The symbol is just a constant in the scope. It may be a
 	// stored expression, a function or a stored query or just a
 	// plain value.
-	value, pres := scope.Resolve(unquote_ident(self.Symbol))
+	value, pres := scope.Resolve(utils.Unquote_ident(self.Symbol))
 	if value != nil && pres {
 		switch t := value.(type) {
 
@@ -1929,7 +1734,7 @@ func (self *_SymbolRef) buildArgsFromParameters(
 	// args.
 	for _, arg := range parameters {
 		if arg.Right != nil {
-			name := unquote_ident(arg.Left)
+			name := utils.Unquote_ident(arg.Left)
 			args.Set(name, arg.Right.Reduce(ctx, scope))
 		} else if arg.Array != nil {
 			value := arg.Array.Reduce(ctx, scope)
@@ -1958,7 +1763,7 @@ func (self *_SymbolRef) callFunction(
 	for _, arg := range parameters {
 		if arg.Right != nil {
 			// Lazily evaluate right hand side.
-			name := unquote_ident(arg.Left)
+			name := utils.Unquote_ident(arg.Left)
 			args.Set(name, NewLazyExpr(ctx, scope, arg.Right))
 
 		} else if arg.Array != nil {
@@ -2045,7 +1850,7 @@ func CopyFunction(in types.Any) types.FunctionInterface {
 	result := reflect.New(in_value.Type()).Interface()
 
 	// Handle aggregate functions specifically.
-	aggregate_func, ok := result.(functions.AggrefatorInterface)
+	aggregate_func, ok := result.(functions.AggregatorInterface)
 	if ok {
 		aggregate_func.SetNewAggregator()
 	}

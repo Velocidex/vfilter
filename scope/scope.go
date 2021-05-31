@@ -319,6 +319,11 @@ func (self *Scope) Sort(
 	return self.dispatcher.Sorter.Sort(ctx, scope, input, key, desc)
 }
 
+func (self *Scope) Group(
+	ctx context.Context, scope types.Scope, actor types.GroupbyActor) <-chan types.Row {
+	return self.dispatcher.Grouper.Group(ctx, scope, actor)
+}
+
 // Adding a destructor to the current scope will call it when any
 // parent scopes are closed.
 func (self *Scope) AddDestructor(fn func()) error {
@@ -422,6 +427,10 @@ func (self *Scope) SetSorter(sorter types.Sorter) {
 	self.dispatcher.SetSorter(sorter)
 }
 
+func (self *Scope) SetGrouper(grouper types.Grouper) {
+	self.dispatcher.SetGrouper(grouper)
+}
+
 // Fetch the field from the scope variables.
 func (self *Scope) Resolve(field string) (interface{}, bool) {
 	self.Lock()
@@ -500,4 +509,9 @@ func (self _ScopeAssociative) Associative(
 		return nil, false
 	}
 	return a_scope.Resolve(b_str)
+}
+
+// Should only be used by groupers to replace the group context at once
+func (self *Scope) SetContextDict(context *ordereddict.Dict) {
+	self.dispatcher.SetContext(context)
 }

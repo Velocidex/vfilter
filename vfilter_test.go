@@ -510,13 +510,6 @@ var vqlTests = []vqlTest{
 		`select bar, { select column from dict(column=bar) } AS subquery from test()
                         `},
 
-	{"Create Let expression", "let result = select  * from test()"},
-	{"Create Let materialized expression", "let result <= select  * from test()"},
-	{"Refer to Let expression", "select * from result"},
-	{"Refer to non existent Let expression returns no rows", "select * from no_such_result"},
-	{"Refer to non existent Let expression by column returns no rows",
-		"select foobar from no_such_result"},
-
 	{"Foreach plugin", `
             select * from foreach(
                 row={
@@ -613,16 +606,21 @@ select * from test() limit 1`},
 	{"Group by enumrate of string",
 		"select baz, bar, enumerate(items=baz) from groupbytest() GROUP BY bar"},
 
+	{"Groupby evaluates each row twice",
+		`SELECT * FROM chain(
+a={ SELECT counter() FROM scope()},
+b={
+     SELECT counter(), count(items=bar), bar FROM groupbytest() GROUP BY bar
+})`},
+
 	{"Lazy row evaluation (Shoud panic if foo=2",
 		"select foo, panic(column=foo, value=2) from test() where foo = 4"},
 	{"Quotes strings",
 		"select 'foo\\'s quote' from scope()"},
+	{"Hex quotes",
+		`SELECT format(format='%x', args="\x01\x02\xf0\xf1") FROM scope()`},
 	{"Test get()",
 		"select get(item=[dict(foo=3), 2, 3, 4], member='0.foo') AS Foo from scope()"},
-	{"Test array index",
-		"LET BIN <= SELECT * FROM test()"},
-	{"Test array index 2",
-		"SELECT BIN, BIN[0] FROM scope()"},
 	{"Array concatenation",
 		"SELECT (1,2) + (3,4) FROM scope()"},
 	{"Array concatenation to any",
@@ -916,6 +914,24 @@ SELECT * FROM foreach(row=(1,1,1,1,8,3,3,3,2),
    query={
        SELECT _value AS X, 10 - _value AS Y FROM scope()
    }) GROUP BY X ORDER BY Y`},
+
+	{"Test array index", `
+LET BIN <= SELECT * FROM test()
+SELECT BIN, BIN[0] FROM scope()
+`},
+
+	{"Create Let expression", `
+let result = select  * from test()
+// Create Let materialized expression
+let result <= select  * from test()
+
+//Refer to Let expression
+select * from result
+
+//Refer to non existent Let expression returns no rows
+select * from no_such_result
+// Refer to non existent Let expression by column returns no rows
+select foobar from no_such_result`},
 }
 
 type _RangeArgs struct {
@@ -1024,11 +1040,11 @@ func TestMaterializedStoredQuery(t *testing.T) {
 }
 
 func TestVQLQueries(t *testing.T) {
-	scope := makeTestScope()
-
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range vqlTests {
+		scope := makeTestScope()
+
 		vql, err := Parse(testCase.vql)
 		if err != nil {
 			t.Fatalf("Failed to parse %v: %v", testCase.vql, err)
@@ -1058,7 +1074,6 @@ func TestMultiVQLQueries(t *testing.T) {
 	result := ordereddict.NewDict()
 	for i, testCase := range multiVQLTest {
 		scope := makeTestScope()
-
 		multi_vql, err := MultiParse(testCase.vql)
 		if err != nil {
 			t.Fatalf("Failed to parse %v: %v", testCase.vql, err)

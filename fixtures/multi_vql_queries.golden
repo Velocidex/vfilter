@@ -83,12 +83,12 @@
   "006/000 Group by with columns with spaces: LET X=SELECT foo, bar AS `Foo Bar` FROM groupbytest()": null,
   "006/001 Group by with columns with spaces: SELECT * FROM X GROUP BY `Foo Bar`": [
     {
-      "foo": 4,
-      "Foo Bar": 2
-    },
-    {
       "foo": 2,
       "Foo Bar": 5
+    },
+    {
+      "foo": 4,
+      "Foo Bar": 2
     }
   ],
   "007/000 Order by with columns with spaces: LET X=SELECT foo AS `Foo Bar` FROM groupbytest()": null,
@@ -341,20 +341,20 @@
   ],
   "029/000 Group by hidden column: SELECT bar, baz FROM groupbytest() GROUP BY bar": [
     {
-      "bar": 2,
-      "baz": "d"
-    },
-    {
       "bar": 5,
       "baz": "b"
+    },
+    {
+      "bar": 2,
+      "baz": "d"
     }
   ],
   "029/001 Group by hidden column: SELECT baz FROM groupbytest() GROUP BY bar": [
     {
-      "baz": "d"
+      "baz": "b"
     },
     {
-      "baz": "b"
+      "baz": "d"
     }
   ],
   "030/000 Group by expression: SELECT *, bar + bar FROM groupbytest() GROUP BY bar + bar": [
@@ -549,13 +549,13 @@
       "X": 1
     },
     {
-      "X": 2
+      "X": 8
     },
     {
       "X": 3
     },
     {
-      "X": 8
+      "X": 2
     }
   ],
   "051/000 Group by with explicit order by: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X, 10 - _value AS Y FROM scope()}) GROUP BY X ORDER BY Y": [
@@ -575,5 +575,46 @@
       "X": 1,
       "Y": 9
     }
-  ]
+  ],
+  "052/000 Test array index: LET BIN\u003c=SELECT * FROM test()": null,
+  "052/001 Test array index: SELECT BIN, BIN[0] FROM scope()": [
+    {
+      "BIN": [
+        {
+          "foo": 0,
+          "bar": 0
+        },
+        {
+          "foo": 2,
+          "bar": 1
+        },
+        {
+          "foo": 4,
+          "bar": 2
+        }
+      ],
+      "BIN[0]": {
+        "foo": 0,
+        "bar": 0
+      }
+    }
+  ],
+  "053/000 Create Let expression: LET result=SELECT * FROM test()": null,
+  "053/001 Create Let expression: LET result\u003c=SELECT * FROM test()": null,
+  "053/002 Create Let expression: SELECT * FROM result": [
+    {
+      "foo": 0,
+      "bar": 0
+    },
+    {
+      "foo": 2,
+      "bar": 1
+    },
+    {
+      "foo": 4,
+      "bar": 2
+    }
+  ],
+  "053/003 Create Let expression: SELECT * FROM no_such_result": null,
+  "053/004 Create Let expression: SELECT foobar FROM no_such_result": null
 }

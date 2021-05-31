@@ -52,7 +52,7 @@ func (self *Aggregator) SetNewAggregator() {
 	*self = Aggregator(new_str)
 }
 
-type AggrefatorInterface interface {
+type AggregatorInterface interface {
 	SetNewAggregator()
 }
 
@@ -168,6 +168,7 @@ func (self _MinFunction) Call(
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
 	arg := &_MinFunctionArgs{}
+
 	err := arg_parser.ExtractArgs(scope, args, arg)
 	if err != nil {
 		scope.Log("min: %s", err.Error())

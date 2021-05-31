@@ -180,25 +180,7 @@
       "subquery": 2
     }
   ],
-  "019 Create Let expression: LET result=SELECT * FROM test()": null,
-  "020 Create Let materialized expression: LET result\u003c=SELECT * FROM test()": null,
-  "021 Refer to Let expression: SELECT * FROM result": [
-    {
-      "foo": 0,
-      "bar": 0
-    },
-    {
-      "foo": 2,
-      "bar": 1
-    },
-    {
-      "foo": 4,
-      "bar": 2
-    }
-  ],
-  "022 Refer to non existent Let expression returns no rows: SELECT * FROM no_such_result": null,
-  "023 Refer to non existent Let expression by column returns no rows: SELECT foobar FROM no_such_result": null,
-  "024 Foreach plugin: SELECT * FROM foreach(row= { SELECT * FROM test()}, query= { SELECT bar, foo, value FROM range(start=bar, end=foo)})": [
+  "019 Foreach plugin: SELECT * FROM foreach(row= { SELECT * FROM test()}, query= { SELECT bar, foo, value FROM range(start=bar, end=foo)})": [
     {
       "bar": 0,
       "foo": 0,
@@ -230,7 +212,7 @@
       "value": 4
     }
   ],
-  "025 Foreach plugin with array: SELECT * FROM foreach(row= [dict(bar=1, foo=2), dict(foo=1, bar=2)], query= { SELECT bar, foo FROM scope()})": [
+  "020 Foreach plugin with array: SELECT * FROM foreach(row= [dict(bar=1, foo=2), dict(foo=1, bar=2)], query= { SELECT bar, foo FROM scope()})": [
     {
       "bar": 1,
       "foo": 2
@@ -240,23 +222,23 @@
       "foo": 1
     }
   ],
-  "026 Foreach plugin with single object: SELECT * FROM foreach(row=dict(bar=1, foo=2), query= { SELECT bar, foo FROM scope()})": [
+  "021 Foreach plugin with single object: SELECT * FROM foreach(row=dict(bar=1, foo=2), query= { SELECT bar, foo FROM scope()})": [
     {
       "bar": 1,
       "foo": 2
     }
   ],
-  "027 Foreach fully materializes row before passing to query : SELECT Evaluated FROM foreach(row= { SELECT value, set_env(column=\"Evaluated\", value=TRUE) FROM range(start=1, end=10)}, query= { SELECT value FROM scope()}) LIMIT 1 ": [
+  "022 Foreach fully materializes row before passing to query : SELECT Evaluated FROM foreach(row= { SELECT value, set_env(column=\"Evaluated\", value=TRUE) FROM range(start=1, end=10)}, query= { SELECT value FROM scope()}) LIMIT 1 ": [
     {
       "Evaluated": true
     }
   ],
-  "028 Foreach with non row elements: SELECT * FROM foreach(row=1, query='hello')": [
+  "023 Foreach with non row elements: SELECT * FROM foreach(row=1, query='hello')": [
     {
       "_value": "hello"
     }
   ],
-  "029 Foreach with non row elements: SELECT * FROM foreach(row=1, query= [1, 2, 3, 4])": [
+  "024 Foreach with non row elements: SELECT * FROM foreach(row=1, query= [1, 2, 3, 4])": [
     {
       "_value": 1
     },
@@ -270,7 +252,7 @@
       "_value": 4
     }
   ],
-  "030 Foreach with non row elements: SELECT * FROM foreach(row= [1, 2, 3], query= { SELECT _value FROM scope()})": [
+  "025 Foreach with non row elements: SELECT * FROM foreach(row= [1, 2, 3], query= { SELECT _value FROM scope()})": [
     {
       "_value": 1
     },
@@ -281,12 +263,12 @@
       "_value": 3
     }
   ],
-  "031 Foreach with no query - single object: SELECT * FROM foreach(row=dict(X=1))": [
+  "026 Foreach with no query - single object: SELECT * FROM foreach(row=dict(X=1))": [
     {
       "X": 1
     }
   ],
-  "032 Foreach with no query - array of objects: SELECT * FROM foreach(row= [dict(X=1), dict(X=2)])": [
+  "027 Foreach with no query - array of objects: SELECT * FROM foreach(row= [dict(X=1), dict(X=2)])": [
     {
       "X": 1
     },
@@ -294,19 +276,19 @@
       "X": 2
     }
   ],
-  "033 Foreach with no query - select with column: SELECT * FROM foreach(row= { SELECT dict(X=1) AS X FROM scope()}, column='X')": [
+  "028 Foreach with no query - select with column: SELECT * FROM foreach(row= { SELECT dict(X=1) AS X FROM scope()}, column='X')": [
     {
       "X": 1
     }
   ],
-  "034 Foreach with no query - with null: SELECT * FROM foreach(row=NULL)": null,
-  "035 Foreach with no query - with null in array: SELECT * FROM foreach(row= [NULL, NULL, dict(X=1)])": [
+  "029 Foreach with no query - with null: SELECT * FROM foreach(row=NULL)": null,
+  "030 Foreach with no query - with null in array: SELECT * FROM foreach(row= [NULL, NULL, dict(X=1)])": [
     {
       "X": 1
     }
   ],
-  "036 Query plugin with dots: SELECT * FROM Artifact.Linux.Sys()": null,
-  "037 Order by: SELECT * FROM test() ORDER BY foo": [
+  "031 Query plugin with dots: SELECT * FROM Artifact.Linux.Sys()": null,
+  "032 Order by: SELECT * FROM test() ORDER BY foo": [
     {
       "foo": 0,
       "bar": 0
@@ -320,7 +302,7 @@
       "bar": 2
     }
   ],
-  "038 Order by desc: SELECT * FROM test() ORDER BY foo DESC ": [
+  "033 Order by desc: SELECT * FROM test() ORDER BY foo DESC ": [
     {
       "foo": 4,
       "bar": 2
@@ -334,37 +316,37 @@
       "bar": 0
     }
   ],
-  "039 Limit: SELECT * FROM test() LIMIT 1 ": [
+  "034 Limit: SELECT * FROM test() LIMIT 1 ": [
     {
       "foo": 0,
       "bar": 0
     }
   ],
-  "040 Limit and order: SELECT * FROM test() ORDER BY foo DESC  LIMIT 1 ": [
+  "035 Limit and order: SELECT * FROM test() ORDER BY foo DESC  LIMIT 1 ": [
     {
       "foo": 4,
       "bar": 2
     }
   ],
-  "041 Comments Simple: SELECT * FROM test() LIMIT 1 ": [
+  "036 Comments Simple: SELECT * FROM test() LIMIT 1 ": [
     {
       "foo": 0,
       "bar": 0
     }
   ],
-  "042 Comments SQL Style: SELECT * FROM test() LIMIT 1 ": [
+  "037 Comments SQL Style: SELECT * FROM test() LIMIT 1 ": [
     {
       "foo": 0,
       "bar": 0
     }
   ],
-  "043 Comments Multiline: SELECT * FROM test() LIMIT 1 ": [
+  "038 Comments Multiline: SELECT * FROM test() LIMIT 1 ": [
     {
       "foo": 0,
       "bar": 0
     }
   ],
-  "044 Not combined with AND: SELECT * FROM test() WHERE 1 and NOT foo = 2": [
+  "039 Not combined with AND: SELECT * FROM test() WHERE 1 and NOT foo = 2": [
     {
       "foo": 0,
       "bar": 0
@@ -374,8 +356,8 @@
       "bar": 2
     }
   ],
-  "045 Not combined with AND 2: SELECT * FROM test() WHERE 0 and NOT foo = 2": null,
-  "046 Not combined with OR: SELECT * FROM test() WHERE 1 or NOT foo = 20": [
+  "040 Not combined with AND 2: SELECT * FROM test() WHERE 0 and NOT foo = 2": null,
+  "041 Not combined with OR: SELECT * FROM test() WHERE 1 or NOT foo = 20": [
     {
       "foo": 0,
       "bar": 0
@@ -389,7 +371,7 @@
       "bar": 2
     }
   ],
-  "047 Not combined with OR 2: SELECT * FROM test() WHERE 0 or NOT foo = 20": [
+  "042 Not combined with OR 2: SELECT * FROM test() WHERE 0 or NOT foo = 20": [
     {
       "foo": 0,
       "bar": 0
@@ -403,85 +385,77 @@
       "bar": 2
     }
   ],
-  "048 Group by 1: SELECT foo, bar FROM groupbytest() GROUP BY bar": [
-    {
-      "foo": 4,
-      "bar": 2
-    },
+  "043 Group by 1: SELECT foo, bar FROM groupbytest() GROUP BY bar": [
     {
       "foo": 2,
       "bar": 5
-    }
-  ],
-  "049 Group by *: SELECT * FROM groupbytest() GROUP BY bar": [
+    },
     {
       "foo": 4,
-      "bar": 2,
-      "baz": "d"
-    },
+      "bar": 2
+    }
+  ],
+  "044 Group by *: SELECT * FROM groupbytest() GROUP BY bar": [
     {
       "foo": 2,
       "bar": 5,
       "baz": "b"
-    }
-  ],
-  "050 Group by count: SELECT foo, bar, count(items=bar) FROM groupbytest() GROUP BY bar": [
+    },
     {
       "foo": 4,
       "bar": 2,
-      "count(items=bar)": 2
-    },
+      "baz": "d"
+    }
+  ],
+  "045 Group by count: SELECT foo, bar, count(items=bar) FROM groupbytest() GROUP BY bar": [
     {
       "foo": 2,
       "bar": 5,
       "count(items=bar)": 2
+    },
+    {
+      "foo": 4,
+      "bar": 2,
+      "count(items=bar)": 2
     }
   ],
-  "051 Group by count with where: SELECT foo, bar, count(items=bar) FROM groupbytest() WHERE foo \u003c 4 GROUP BY bar": [
+  "046 Group by count with where: SELECT foo, bar, count(items=bar) FROM groupbytest() WHERE foo \u003c 4 GROUP BY bar": [
+    {
+      "foo": 2,
+      "bar": 5,
+      "count(items=bar)": 2
+    },
     {
       "foo": 3,
       "bar": 2,
       "count(items=bar)": 1
-    },
-    {
-      "foo": 2,
-      "bar": 5,
-      "count(items=bar)": 2
     }
   ],
-  "052 Group by min: SELECT foo, bar, min(item=foo) FROM groupbytest() GROUP BY bar": [
-    {
-      "foo": 4,
-      "bar": 2,
-      "min(item=foo)": 3
-    },
+  "047 Group by min: SELECT foo, bar, min(item=foo) FROM groupbytest() GROUP BY bar": [
     {
       "foo": 2,
       "bar": 5,
       "min(item=foo)": 1
-    }
-  ],
-  "053 Group by max: SELECT foo, bar, max(item=foo) FROM groupbytest() GROUP BY bar": [
+    },
     {
       "foo": 4,
       "bar": 2,
-      "max(item=foo)": 4
-    },
+      "min(item=foo)": 3
+    }
+  ],
+  "048 Group by max: SELECT foo, bar, max(item=foo) FROM groupbytest() GROUP BY bar": [
     {
       "foo": 2,
       "bar": 5,
       "max(item=foo)": 2
+    },
+    {
+      "foo": 4,
+      "bar": 2,
+      "max(item=foo)": 4
     }
   ],
-  "054 Group by enumrate of string: SELECT baz, bar, enumerate(items=baz) FROM groupbytest() GROUP BY bar": [
-    {
-      "baz": "d",
-      "bar": 2,
-      "enumerate(items=baz)": [
-        "c",
-        "d"
-      ]
-    },
+  "049 Group by enumrate of string: SELECT baz, bar, enumerate(items=baz) FROM groupbytest() GROUP BY bar": [
     {
       "baz": "b",
       "bar": 5,
@@ -489,48 +463,53 @@
         "a",
         "b"
       ]
+    },
+    {
+      "baz": "d",
+      "bar": 2,
+      "enumerate(items=baz)": [
+        "c",
+        "d"
+      ]
     }
   ],
-  "055 Lazy row evaluation (Shoud panic if foo=2: SELECT foo, panic(column=foo, value=2) FROM test() WHERE foo = 4": [
+  "050 Groupby evaluates each row twice: SELECT * FROM chain(a= { SELECT counter() FROM scope()}, b= { SELECT counter(), count(items=bar), bar FROM groupbytest() GROUP BY bar})": [
+    {
+      "counter()": 4
+    },
+    {
+      "counter()": 6,
+      "count(items=bar)": 2,
+      "bar": 5
+    },
+    {
+      "counter()": 8,
+      "count(items=bar)": 2,
+      "bar": 2
+    }
+  ],
+  "051 Lazy row evaluation (Shoud panic if foo=2: SELECT foo, panic(column=foo, value=2) FROM test() WHERE foo = 4": [
     {
       "foo": 4,
       "panic(column=foo, value=2)": 2
     }
   ],
-  "056 Quotes strings: SELECT 'foo\\'s quote' FROM scope()": [
+  "052 Quotes strings: SELECT 'foo\\'s quote' FROM scope()": [
     {
       "'foo\\'s quote'": "foo's quote"
     }
   ],
-  "057 Test get(): SELECT get(item= [dict(foo=3), 2, 3, 4], member='0.foo') AS Foo FROM scope()": [
+  "053 Hex quotes: SELECT format(format='%x', args=\"\\x01\\x02\\xf0\\xf1\") FROM scope()": [
+    {
+      "format(format='%x', args=\"\\x01\\x02\\xf0\\xf1\")": "0102f0f1"
+    }
+  ],
+  "054 Test get(): SELECT get(item= [dict(foo=3), 2, 3, 4], member='0.foo') AS Foo FROM scope()": [
     {
       "Foo": 3
     }
   ],
-  "058 Test array index: LET BIN\u003c=SELECT * FROM test()": null,
-  "059 Test array index 2: SELECT BIN, BIN[0] FROM scope()": [
-    {
-      "BIN": [
-        {
-          "foo": 0,
-          "bar": 0
-        },
-        {
-          "foo": 2,
-          "bar": 1
-        },
-        {
-          "foo": 4,
-          "bar": 2
-        }
-      ],
-      "BIN[0]": {
-        "foo": 0,
-        "bar": 0
-      }
-    }
-  ],
-  "060 Array concatenation: SELECT (1, 2) + (3, 4) FROM scope()": [
+  "055 Array concatenation: SELECT (1, 2) + (3, 4) FROM scope()": [
     {
       "(1, 2) + (3, 4)": [
         1,
@@ -540,7 +519,7 @@
       ]
     }
   ],
-  "061 Array concatenation to any: SELECT (1, 2) + 4 FROM scope()": [
+  "056 Array concatenation to any: SELECT (1, 2) + 4 FROM scope()": [
     {
       "(1, 2) + 4": [
         1,
@@ -549,7 +528,7 @@
       ]
     }
   ],
-  "062 Array concatenation with if: SELECT (1, 2) + if(condition=1, then=(3, 4)) AS Field FROM scope()": [
+  "057 Array concatenation with if: SELECT (1, 2) + if(condition=1, then=(3, 4)) AS Field FROM scope()": [
     {
       "Field": [
         1,
@@ -559,7 +538,7 @@
       ]
     }
   ],
-  "063 Array concatenation with Null: SELECT (1, 2) + if(condition=0, then=(3, 4)) AS Field FROM scope()": [
+  "058 Array concatenation with Null: SELECT (1, 2) + if(condition=0, then=(3, 4)) AS Field FROM scope()": [
     {
       "Field": [
         1,
@@ -568,18 +547,18 @@
       ]
     }
   ],
-  "064 Spurious line feeds and tabs: SELECT 1 + 2 AS FooBar FROM scope() WHERE FooBar \u003e 1 AND TRUE": [
+  "059 Spurious line feeds and tabs: SELECT 1 + 2 AS FooBar FROM scope() WHERE FooBar \u003e 1 AND TRUE": [
     {
       "FooBar": 3
     }
   ],
-  "065 If function and comparison expression: SELECT if(condition=1 + 1 = 2, then=2, else=3), if(condition=1 + 2 = 2, then=2, else=3) FROM scope()": [
+  "060 If function and comparison expression: SELECT if(condition=1 + 1 = 2, then=2, else=3), if(condition=1 + 2 = 2, then=2, else=3) FROM scope()": [
     {
       "if(condition=1 + 1 = 2, then=2, else=3)": 2,
       "if(condition=1 + 2 = 2, then=2, else=3)": 3
     }
   ],
-  "066 If function and subselects: SELECT if(condition=1, then= { SELECT * FROM test()}) FROM scope()": [
+  "061 If function and subselects: SELECT if(condition=1, then= { SELECT * FROM test()}) FROM scope()": [
     {
       "if(condition=1, then= { SELECT * FROM test()})": [
         {
@@ -597,17 +576,17 @@
       ]
     }
   ],
-  "067 If function should be lazy: SELECT if(condition=FALSE, then=panic(column=2, value=2)) FROM scope()": [
+  "062 If function should be lazy: SELECT if(condition=FALSE, then=panic(column=2, value=2)) FROM scope()": [
     {
       "if(condition=FALSE, then=panic(column=2, value=2))": null
     }
   ],
-  "068 If function should be lazy: SELECT if(condition=TRUE, else=panic(column=7, value=7)) FROM scope()": [
+  "063 If function should be lazy: SELECT if(condition=TRUE, else=panic(column=7, value=7)) FROM scope()": [
     {
       "if(condition=TRUE, else=panic(column=7, value=7))": null
     }
   ],
-  "069 If function should be lazy with sub query: SELECT if(condition=TRUE, then= { SELECT * FROM test() LIMIT 1 }) FROM scope()": [
+  "064 If function should be lazy with sub query: SELECT if(condition=TRUE, then= { SELECT * FROM test() LIMIT 1 }) FROM scope()": [
     {
       "if(condition=TRUE, then= { SELECT * FROM test() LIMIT 1 })": [
         {
@@ -617,23 +596,23 @@
       ]
     }
   ],
-  "070 If function should be lazy with sub query: SELECT if(condition=FALSE, then= { SELECT panic(column=8, value=8) FROM test()}) FROM scope()": [
+  "065 If function should be lazy with sub query: SELECT if(condition=FALSE, then= { SELECT panic(column=8, value=8) FROM test()}) FROM scope()": [
     {
       "if(condition=FALSE, then= { SELECT panic(column=8, value=8) FROM test()})": null
     }
   ],
-  "071 If function should be lazy: SELECT if(condition=TRUE, else= { SELECT panic(column=9, value=9) FROM test()}) FROM scope()": [
+  "066 If function should be lazy: SELECT if(condition=TRUE, else= { SELECT panic(column=9, value=9) FROM test()}) FROM scope()": [
     {
       "if(condition=TRUE, else= { SELECT panic(column=9, value=9) FROM test()})": null
     }
   ],
-  "072 If function should be lazy WRT stored query 1/2: LET bomb=SELECT panic(column=1, value=1) FROM scope()": null,
-  "073 If function should be lazy WRT stored query 2/2: SELECT if(condition=FALSE, then=bomb) FROM scope()": [
+  "067 If function should be lazy WRT stored query 1/2: LET bomb=SELECT panic(column=1, value=1) FROM scope()": null,
+  "068 If function should be lazy WRT stored query 2/2: SELECT if(condition=FALSE, then=bomb) FROM scope()": [
     {
       "if(condition=FALSE, then=bomb)": null
     }
   ],
-  "074 If plugin and arrays: SELECT * FROM if(condition=1, then= [dict(Foo=1), dict(Foo=2)])": [
+  "069 If plugin and arrays: SELECT * FROM if(condition=1, then= [dict(Foo=1), dict(Foo=2)])": [
     {
       "Foo": 1
     },
@@ -641,17 +620,17 @@
       "Foo": 2
     }
   ],
-  "075 If plugin and dict: SELECT * FROM if(condition=1, then=dict(Foo=2))": [
+  "070 If plugin and dict: SELECT * FROM if(condition=1, then=dict(Foo=2))": [
     {
       "Foo": 2
     }
   ],
-  "076 Columns with space in them: SELECT foo AS `column with space` FROM dict(foo='hello world')": [
+  "071 Columns with space in them: SELECT foo AS `column with space` FROM dict(foo='hello world')": [
     {
       "column with space": "hello world"
     }
   ],
-  "077 Alternatives with the OR shortcut operator: SELECT get(member='Foo') || get(member='Bar') || 'Hello' FROM scope()": [
+  "072 Alternatives with the OR shortcut operator: SELECT get(member='Foo') || get(member='Bar') || 'Hello' FROM scope()": [
     {
       "get(member='Foo') || get(member='Bar') || 'Hello'": "Hello"
     }
