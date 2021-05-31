@@ -35,6 +35,10 @@ func (self *AssociativeDispatcher) Associative(
 	scope types.Scope, a types.Any, b types.Any) (types.Any, bool) {
 	ctx := context.Background()
 
+	if utils.IsNil(a) {
+		return types.Null{}, false
+	}
+
 	b_str, ok := utils.ToString(b)
 	if ok {
 		switch t := a.(type) {
