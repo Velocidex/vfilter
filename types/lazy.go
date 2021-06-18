@@ -34,3 +34,7 @@ type LazyExpr interface {
 	// Reduce with a new scope.
 	ReduceWithScope(ctx context.Context, scope Scope) Any
 }
+
+type StoredExpression interface {
+	Reduce(ctx context.Context, scope Scope) Any
+}

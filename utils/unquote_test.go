@@ -43,3 +43,27 @@ func TestUnquote(t *testing.T) {
 	)
 	g.AssertJson(t, "TestUnquote", res)
 }
+
+var split_ident_cases = []string{
+	// Escaped component
+	"X.`Hello world`",
+
+	// Embedded .
+	"`X.Hello world`",
+}
+
+func TestSplitIdent(t *testing.T) {
+	res := make([][]string, 0)
+	for _, testcase := range split_ident_cases {
+		decoded := SplitIdent(testcase)
+		res = append(res, decoded)
+	}
+
+	g := goldie.New(
+		t,
+		goldie.WithFixtureDir("fixtures"),
+		goldie.WithNameSuffix(".golden"),
+		goldie.WithDiffEngine(goldie.ColoredDiff),
+	)
+	g.AssertJson(t, "TestSplitIdent", res)
+}

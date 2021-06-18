@@ -883,7 +883,7 @@ type _Term struct {
 }
 
 type _SymbolRef struct {
-	Symbol     string   `@Ident`
+	Symbol     string   `@Ident { @"." @Ident }`
 	Called     bool     `{ @"(" `
 	Parameters []*_Args ` [ @@ { "," @@ } ] ")" } `
 
@@ -1647,22 +1647,48 @@ func (self *_SymbolRef) IsAggregate(scope types.Scope) bool {
 	return value.Info(scope, types.NewTypeMap()).IsAggregate
 }
 
-func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
+func (self *_SymbolRef) getFunction(scope types.Scope) (types.Any, bool) {
+	components := utils.SplitIdent(self.Symbol)
 
-	// The symbol is a function and this is a call site, e.g. Symbol(...)
-	if self.Called {
-		func_obj, pres := scope.GetFunction(self.Symbol)
+	// Single item reference and called - call built in function.
+	if len(components) == 1 && self.Called {
+		res, pres := scope.GetFunction(self.Symbol)
 		if pres {
-			return self.callFunction(ctx, scope, func_obj)
+			return res, pres
 		}
 	}
+
+	// Plugins with "." resolve themselves recursively.
+	var result Any = scope
+	for _, component := range components {
+		subcomponent, pres := scope.Associative(result, component)
+		if !pres {
+			return nil, false
+		}
+
+		result = subcomponent
+	}
+
+	return result, true
+}
+
+func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 
 	// The symbol is just a constant in the scope. It may be a
 	// stored expression, a function or a stored query or just a
 	// plain value.
-	value, pres := scope.Resolve(utils.Unquote_ident(self.Symbol))
+	value, pres := self.getFunction(scope)
 	if value != nil && pres {
 		switch t := value.(type) {
+		case FunctionInterface:
+			if !self.Called {
+				scope.Log("Symbol %v is a function but it is not being called.",
+					self.Symbol)
+				return &Null{}
+			}
+
+			// The symbol is a function and this is a call site, e.g. Symbol(...)
+			return self.callFunction(ctx, scope, t)
 
 		// If the symbol is a stored expression we evaluated
 		// it.
@@ -1705,11 +1731,17 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 			}
 		}
 
+		if self.Called {
+			scope.Log("Symbol %v is not a function but it is being called.",
+				self.Symbol)
+			return &Null{}
+		}
+
 		// Every thing else is taken literally.
 		return value
 	}
-	scope.Log("Symbol %v not found. %s", self.Symbol,
-		scope.PrintVars())
+
+	scope.Log("Symbol %v not found. %s", self.Symbol, scope.PrintVars())
 
 	return Null{}
 }

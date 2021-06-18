@@ -126,6 +126,38 @@ func Unquote_ident(s string) string {
 	return out
 }
 
+// Split an identifier to a list of components taking into account
+// backtick expansions.
+func SplitIdent(s string) []string {
+	result := make([]string, 0)
+	current := make([]rune, 0)
+	state_escaped := false
+
+	for _, c := range s {
+		if state_escaped {
+			switch c {
+			case '`':
+				state_escaped = false
+			default:
+				current = append(current, c)
+			}
+
+		} else {
+			switch c {
+			case '`':
+				state_escaped = true
+			case '.':
+				result = append(result, string(current))
+				current = nil
+			default:
+				current = append(current, c)
+			}
+		}
+	}
+	result = append(result, string(current))
+	return result
+}
+
 func decode_hex(left, right uint8) (uint8, error) {
 	res := hex_lookup[left]
 	if res < 0 {
