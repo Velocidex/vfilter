@@ -698,12 +698,6 @@ var multiVQLTest = []vqlTest{
 	{"Calling stored queries as plugins",
 		"LET X = SELECT Foo FROM scope() SELECT * FROM X(Foo=1)"},
 
-	// First two calls to Y are not function calls so they
-	// evaluate on the current scope. Third call makes a new scope
-	// which resets count().
-	{"Calling lazy expressions as functions creates a new scope",
-		"LET Y = count() SELECT Y AS Y1, Y AS Y2, Y() AS Y3 FROM scope()"},
-
 	{"Defining functions with args",
 		"LET X(Foo, Bar) = Foo + Bar SELECT X(Foo=5, Bar=2) FROM scope()"},
 
@@ -932,6 +926,9 @@ select * from result
 select * from no_such_result
 // Refer to non existent Let expression by column returns no rows
 select foobar from no_such_result`},
+
+	{"Override function with a variable",
+		"LET format = 5 SELECT format, format(format='%v', args=1) AS A FROM scope()"},
 }
 
 type _RangeArgs struct {
