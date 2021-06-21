@@ -1846,12 +1846,7 @@ func (self *_SymbolRef) ToString(scope types.Scope) string {
 	defer self.mu.Unlock()
 
 	symbol := self.Symbol
-	if self.Parameters == nil {
-		_, pres := scope.GetFunction(symbol)
-		if pres {
-			return symbol + "()"
-		}
-
+	if !self.Called && self.Parameters == nil {
 		return symbol
 	}
 
