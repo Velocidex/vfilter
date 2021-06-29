@@ -1647,9 +1647,7 @@ func (self *_SymbolRef) IsAggregate(scope types.Scope) bool {
 	return value.Info(scope, types.NewTypeMap()).IsAggregate
 }
 
-func (self *_SymbolRef) getFunction(scope types.Scope) (types.Any, bool) {
-	components := utils.SplitIdent(self.Symbol)
-
+func (self *_SymbolRef) getFunction(scope types.Scope, components []string) (types.Any, bool) {
 	// Single item reference and called - call built in function.
 	if len(components) == 1 && self.Called {
 		res, pres := scope.GetFunction(self.Symbol)
@@ -1660,9 +1658,22 @@ func (self *_SymbolRef) getFunction(scope types.Scope) (types.Any, bool) {
 
 	// Plugins with "." resolve themselves recursively.
 	var result Any = scope
-	for _, component := range components {
+	for idx, component := range components {
 		subcomponent, pres := scope.Associative(result, component)
 		if !pres {
+			// Only warn when accessing a top level component:
+			// SELECT Foobar FROM scope() -> warn if Foobar is not found
+			// SELECT Foo.Bar FROM scope() -> warn
+			// if Foo is not found but not if Foo is found but Bar is not found
+			if idx == 0 {
+				if len(components) > 1 {
+					scope.Log("While resolving %v Symbol %v not found. %s",
+						self.Symbol, components[0], scope.PrintVars())
+				} else {
+					scope.Log("Symbol %v not found. %s", self.Symbol, scope.PrintVars())
+				}
+			}
+
 			return nil, false
 		}
 
@@ -1673,11 +1684,12 @@ func (self *_SymbolRef) getFunction(scope types.Scope) (types.Any, bool) {
 }
 
 func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
+	components := utils.SplitIdent(self.Symbol)
 
 	// The symbol is just a constant in the scope. It may be a
 	// stored expression, a function or a stored query or just a
 	// plain value.
-	value, pres := self.getFunction(scope)
+	value, pres := self.getFunction(scope, components)
 	if value != nil && pres {
 		switch t := value.(type) {
 		case FunctionInterface:
@@ -1740,8 +1752,6 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 		// Every thing else is taken literally.
 		return value
 	}
-
-	scope.Log("Symbol %v not found. %s", self.Symbol, scope.PrintVars())
 
 	return Null{}
 }
