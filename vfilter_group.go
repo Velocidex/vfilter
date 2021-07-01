@@ -59,11 +59,7 @@ func (self *GroupbyActor) GetNextRow(ctx context.Context, scope types.Scope) (
 
 func (self *GroupbyActor) MaterializeRow(ctx context.Context,
 	row types.Row, scope types.Scope) *ordereddict.Dict {
-	new_transformed_row, closer := self.delegate.SelectExpression.Transform(
-		ctx, scope, row)
-	defer closer()
-
-	return MaterializedLazyRow(ctx, new_transformed_row, scope)
+	return MaterializedLazyRow(ctx, row, scope)
 }
 
 func (self *_Select) EvalGroupBy(ctx context.Context, scope types.Scope) <-chan Row {

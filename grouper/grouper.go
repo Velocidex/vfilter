@@ -69,7 +69,6 @@ func (self *DefaultGrouper) Group(
 			// side effects (e.g. for aggregate
 			// functions).
 			new_row := actor.MaterializeRow(ctx, row, new_scope)
-			//new_row.Set("$groupby", bin_idx)
 
 			aggregate_ctx.row = new_row
 		}

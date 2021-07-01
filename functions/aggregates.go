@@ -34,22 +34,22 @@ var (
 // All aggregate functions need to embed the Aggregator. Aggregators
 // store their state in the scope context so they can retrieve it next
 // time they are evaluated.
-type Aggregator string
+type Aggregator struct {
+	id string
+}
 
 func (self Aggregator) GetContext(scope types.Scope) (types.Any, bool) {
-	return scope.GetContext(string(self))
+	return scope.GetContext(self.id)
 }
 
 func (self Aggregator) SetContext(scope types.Scope, value types.Any) {
-	scope.SetContext(string(self), value)
+	scope.SetContext(self.id, value)
 }
 
 // Sets a new aggregator if possible
 func (self *Aggregator) SetNewAggregator() {
 	new_id := atomic.AddUint64(&id, 1)
-	new_str := fmt.Sprintf("__aggr_id_%v", new_id)
-
-	*self = Aggregator(new_str)
+	self.id = fmt.Sprintf("__aggr_id_%v", new_id)
 }
 
 type AggregatorInterface interface {
