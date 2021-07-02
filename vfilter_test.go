@@ -596,6 +596,9 @@ select * from test() limit 1`},
 		"select * from groupbytest() GROUP BY bar"},
 	{"Group by count",
 		"select foo, bar, count(items=bar) from groupbytest() GROUP BY bar"},
+	// Should be exactly the same as above
+	{"Group by count with *",
+		"select *, count(items=bar) from groupbytest() GROUP BY bar"},
 	{"Group by count with where",
 		"select foo, bar, count(items=bar) from groupbytest() WHERE foo < 4 GROUP BY bar"},
 	{"Group by min",
@@ -608,9 +611,9 @@ select * from test() limit 1`},
 
 	{"Groupby evaluates each row twice",
 		`SELECT * FROM chain(
-a={ SELECT counter() FROM scope()},
+a={ SELECT count() FROM scope()},
 b={
-     SELECT counter(), count(items=bar), bar FROM groupbytest() GROUP BY bar
+     SELECT count(), count(items=bar), bar FROM groupbytest() GROUP BY bar
 })`},
 
 	{"Lazy row evaluation (Shoud panic if foo=2",

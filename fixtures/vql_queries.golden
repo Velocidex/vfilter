@@ -419,7 +419,21 @@
       "count(items=bar)": 2
     }
   ],
-  "046 Group by count with where: SELECT foo, bar, count(items=bar) FROM groupbytest() WHERE foo \u003c 4 GROUP BY bar": [
+  "046 Group by count with *: SELECT *, count(items=bar) FROM groupbytest() GROUP BY bar": [
+    {
+      "foo": 2,
+      "bar": 5,
+      "baz": "b",
+      "count(items=bar)": 2
+    },
+    {
+      "foo": 4,
+      "bar": 2,
+      "baz": "d",
+      "count(items=bar)": 2
+    }
+  ],
+  "047 Group by count with where: SELECT foo, bar, count(items=bar) FROM groupbytest() WHERE foo \u003c 4 GROUP BY bar": [
     {
       "foo": 2,
       "bar": 5,
@@ -431,7 +445,7 @@
       "count(items=bar)": 1
     }
   ],
-  "047 Group by min: SELECT foo, bar, min(item=foo) FROM groupbytest() GROUP BY bar": [
+  "048 Group by min: SELECT foo, bar, min(item=foo) FROM groupbytest() GROUP BY bar": [
     {
       "foo": 2,
       "bar": 5,
@@ -443,7 +457,7 @@
       "min(item=foo)": 3
     }
   ],
-  "048 Group by max: SELECT foo, bar, max(item=foo) FROM groupbytest() GROUP BY bar": [
+  "049 Group by max: SELECT foo, bar, max(item=foo) FROM groupbytest() GROUP BY bar": [
     {
       "foo": 2,
       "bar": 5,
@@ -455,7 +469,7 @@
       "max(item=foo)": 4
     }
   ],
-  "049 Group by enumrate of string: SELECT baz, bar, enumerate(items=baz) FROM groupbytest() GROUP BY bar": [
+  "050 Group by enumrate of string: SELECT baz, bar, enumerate(items=baz) FROM groupbytest() GROUP BY bar": [
     {
       "baz": "b",
       "bar": 5,
@@ -473,43 +487,43 @@
       ]
     }
   ],
-  "050 Groupby evaluates each row twice: SELECT * FROM chain(a= { SELECT counter() FROM scope()}, b= { SELECT counter(), count(items=bar), bar FROM groupbytest() GROUP BY bar})": [
+  "051 Groupby evaluates each row twice: SELECT * FROM chain(a= { SELECT count() FROM scope()}, b= { SELECT count(), count(items=bar), bar FROM groupbytest() GROUP BY bar})": [
     {
-      "counter()": 4
+      "count()": 1
     },
     {
-      "counter()": 6,
+      "count()": 2,
       "count(items=bar)": 2,
       "bar": 5
     },
     {
-      "counter()": 8,
+      "count()": 2,
       "count(items=bar)": 2,
       "bar": 2
     }
   ],
-  "051 Lazy row evaluation (Shoud panic if foo=2: SELECT foo, panic(column=foo, value=2) FROM test() WHERE foo = 4": [
+  "052 Lazy row evaluation (Shoud panic if foo=2: SELECT foo, panic(column=foo, value=2) FROM test() WHERE foo = 4": [
     {
       "foo": 4,
       "panic(column=foo, value=2)": 2
     }
   ],
-  "052 Quotes strings: SELECT 'foo\\'s quote' FROM scope()": [
+  "053 Quotes strings: SELECT 'foo\\'s quote' FROM scope()": [
     {
       "'foo\\'s quote'": "foo's quote"
     }
   ],
-  "053 Hex quotes: SELECT format(format='%x', args=\"\\x01\\x02\\xf0\\xf1\") FROM scope()": [
+  "054 Hex quotes: SELECT format(format='%x', args=\"\\x01\\x02\\xf0\\xf1\") FROM scope()": [
     {
       "format(format='%x', args=\"\\x01\\x02\\xf0\\xf1\")": "0102f0f1"
     }
   ],
-  "054 Test get(): SELECT get(item= [dict(foo=3), 2, 3, 4], member='0.foo') AS Foo FROM scope()": [
+  "055 Test get(): SELECT get(item= [dict(foo=3), 2, 3, 4], member='0.foo') AS Foo FROM scope()": [
     {
       "Foo": 3
     }
   ],
-  "055 Array concatenation: SELECT (1, 2) + (3, 4) FROM scope()": [
+  "056 Array concatenation: SELECT (1, 2) + (3, 4) FROM scope()": [
     {
       "(1, 2) + (3, 4)": [
         1,
@@ -519,7 +533,7 @@
       ]
     }
   ],
-  "056 Array concatenation to any: SELECT (1, 2) + 4 FROM scope()": [
+  "057 Array concatenation to any: SELECT (1, 2) + 4 FROM scope()": [
     {
       "(1, 2) + 4": [
         1,
@@ -528,7 +542,7 @@
       ]
     }
   ],
-  "057 Array concatenation with if: SELECT (1, 2) + if(condition=1, then=(3, 4)) AS Field FROM scope()": [
+  "058 Array concatenation with if: SELECT (1, 2) + if(condition=1, then=(3, 4)) AS Field FROM scope()": [
     {
       "Field": [
         1,
@@ -538,7 +552,7 @@
       ]
     }
   ],
-  "058 Array concatenation with Null: SELECT (1, 2) + if(condition=0, then=(3, 4)) AS Field FROM scope()": [
+  "059 Array concatenation with Null: SELECT (1, 2) + if(condition=0, then=(3, 4)) AS Field FROM scope()": [
     {
       "Field": [
         1,
@@ -547,18 +561,18 @@
       ]
     }
   ],
-  "059 Spurious line feeds and tabs: SELECT 1 + 2 AS FooBar FROM scope() WHERE FooBar \u003e 1 AND TRUE": [
+  "060 Spurious line feeds and tabs: SELECT 1 + 2 AS FooBar FROM scope() WHERE FooBar \u003e 1 AND TRUE": [
     {
       "FooBar": 3
     }
   ],
-  "060 If function and comparison expression: SELECT if(condition=1 + 1 = 2, then=2, else=3), if(condition=1 + 2 = 2, then=2, else=3) FROM scope()": [
+  "061 If function and comparison expression: SELECT if(condition=1 + 1 = 2, then=2, else=3), if(condition=1 + 2 = 2, then=2, else=3) FROM scope()": [
     {
       "if(condition=1 + 1 = 2, then=2, else=3)": 2,
       "if(condition=1 + 2 = 2, then=2, else=3)": 3
     }
   ],
-  "061 If function and subselects: SELECT if(condition=1, then= { SELECT * FROM test()}) FROM scope()": [
+  "062 If function and subselects: SELECT if(condition=1, then= { SELECT * FROM test()}) FROM scope()": [
     {
       "if(condition=1, then= { SELECT * FROM test()})": [
         {
@@ -576,17 +590,17 @@
       ]
     }
   ],
-  "062 If function should be lazy: SELECT if(condition=FALSE, then=panic(column=2, value=2)) FROM scope()": [
+  "063 If function should be lazy: SELECT if(condition=FALSE, then=panic(column=2, value=2)) FROM scope()": [
     {
       "if(condition=FALSE, then=panic(column=2, value=2))": null
     }
   ],
-  "063 If function should be lazy: SELECT if(condition=TRUE, else=panic(column=7, value=7)) FROM scope()": [
+  "064 If function should be lazy: SELECT if(condition=TRUE, else=panic(column=7, value=7)) FROM scope()": [
     {
       "if(condition=TRUE, else=panic(column=7, value=7))": null
     }
   ],
-  "064 If function should be lazy with sub query: SELECT if(condition=TRUE, then= { SELECT * FROM test() LIMIT 1 }) FROM scope()": [
+  "065 If function should be lazy with sub query: SELECT if(condition=TRUE, then= { SELECT * FROM test() LIMIT 1 }) FROM scope()": [
     {
       "if(condition=TRUE, then= { SELECT * FROM test() LIMIT 1 })": [
         {
@@ -596,23 +610,23 @@
       ]
     }
   ],
-  "065 If function should be lazy with sub query: SELECT if(condition=FALSE, then= { SELECT panic(column=8, value=8) FROM test()}) FROM scope()": [
+  "066 If function should be lazy with sub query: SELECT if(condition=FALSE, then= { SELECT panic(column=8, value=8) FROM test()}) FROM scope()": [
     {
       "if(condition=FALSE, then= { SELECT panic(column=8, value=8) FROM test()})": null
     }
   ],
-  "066 If function should be lazy: SELECT if(condition=TRUE, else= { SELECT panic(column=9, value=9) FROM test()}) FROM scope()": [
+  "067 If function should be lazy: SELECT if(condition=TRUE, else= { SELECT panic(column=9, value=9) FROM test()}) FROM scope()": [
     {
       "if(condition=TRUE, else= { SELECT panic(column=9, value=9) FROM test()})": null
     }
   ],
-  "067 If function should be lazy WRT stored query 1/2: LET bomb=SELECT panic(column=1, value=1) FROM scope()": null,
-  "068 If function should be lazy WRT stored query 2/2: SELECT if(condition=FALSE, then=bomb) FROM scope()": [
+  "068 If function should be lazy WRT stored query 1/2: LET bomb=SELECT panic(column=1, value=1) FROM scope()": null,
+  "069 If function should be lazy WRT stored query 2/2: SELECT if(condition=FALSE, then=bomb) FROM scope()": [
     {
       "if(condition=FALSE, then=bomb)": null
     }
   ],
-  "069 If plugin and arrays: SELECT * FROM if(condition=1, then= [dict(Foo=1), dict(Foo=2)])": [
+  "070 If plugin and arrays: SELECT * FROM if(condition=1, then= [dict(Foo=1), dict(Foo=2)])": [
     {
       "Foo": 1
     },
@@ -620,17 +634,17 @@
       "Foo": 2
     }
   ],
-  "070 If plugin and dict: SELECT * FROM if(condition=1, then=dict(Foo=2))": [
+  "071 If plugin and dict: SELECT * FROM if(condition=1, then=dict(Foo=2))": [
     {
       "Foo": 2
     }
   ],
-  "071 Columns with space in them: SELECT foo AS `column with space` FROM dict(foo='hello world')": [
+  "072 Columns with space in them: SELECT foo AS `column with space` FROM dict(foo='hello world')": [
     {
       "column with space": "hello world"
     }
   ],
-  "072 Alternatives with the OR shortcut operator: SELECT get(member='Foo') || get(member='Bar') || 'Hello' FROM scope()": [
+  "073 Alternatives with the OR shortcut operator: SELECT get(member='Foo') || get(member='Bar') || 'Hello' FROM scope()": [
     {
       "get(member='Foo') || get(member='Bar') || 'Hello'": "Hello"
     }
