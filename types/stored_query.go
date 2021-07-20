@@ -8,6 +8,8 @@ import (
 // into the scope to select from it.
 type StoredQuery interface {
 	Eval(ctx context.Context, scope Scope) <-chan Row
+	ToString(scope Scope) string
+	GetParams() []string
 }
 
 // Materialize a stored query into a set of rows.
