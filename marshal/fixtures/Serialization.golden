@@ -1,0 +1,169 @@
+{
+  "0: Marshal Simple materialized": {
+    "type": "Scope",
+    "data": {
+      "vars": [
+        {
+          "const_foo": {
+            "type": "JSON",
+            "data": 1
+          }
+        },
+        {
+          "X": {
+            "type": "JSON",
+            "data": 1
+          }
+        }
+      ]
+    }
+  },
+  "0: Rows Simple materialized": [
+    {
+      "X": 1
+    }
+  ],
+  "1: Marshal Materialized query": {
+    "type": "Scope",
+    "data": {
+      "vars": [
+        {
+          "const_foo": {
+            "type": "JSON",
+            "data": 1
+          }
+        },
+        {
+          "X": {
+            "type": "JSON",
+            "comment": "Default encoding from []types.Row",
+            "data": [
+              {
+                "_value": 0,
+                "A": 1
+              },
+              {
+                "_value": 1,
+                "A": 2
+              },
+              {
+                "_value": 2,
+                "A": 3
+              },
+              {
+                "_value": 3,
+                "A": 4
+              },
+              {
+                "_value": 4,
+                "A": 5
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "1: Rows Materialized query": [
+    {
+      "_value": 4,
+      "A": 5
+    }
+  ],
+  "2: Marshal Stored Query": {
+    "type": "Scope",
+    "data": {
+      "vars": [
+        {
+          "const_foo": {
+            "type": "JSON",
+            "data": 1
+          }
+        },
+        {
+          "X": {
+            "type": "Replay",
+            "data": "LET `X` = SELECT _value FROM range(start=0, end=5, step=1)"
+          }
+        }
+      ]
+    }
+  },
+  "2: Rows Stored Query": [
+    {
+      "_value": 2
+    }
+  ],
+  "3: Marshal Lazy Expression": {
+    "type": "Scope",
+    "data": {
+      "vars": [
+        {
+          "const_foo": {
+            "type": "JSON",
+            "data": 1
+          }
+        },
+        {
+          "X": {
+            "type": "Replay",
+            "data": "LET `X` = 1 + 2"
+          }
+        }
+      ]
+    }
+  },
+  "3: Rows Lazy Expression": [
+    {
+      "X": 3
+    }
+  ],
+  "4: Marshal VQL Functions": {
+    "type": "Scope",
+    "data": {
+      "vars": [
+        {
+          "const_foo": {
+            "type": "JSON",
+            "data": 1
+          }
+        },
+        {
+          "X": {
+            "type": "Replay",
+            "data": "LET `X`(Y) = 1 + Y"
+          }
+        }
+      ]
+    }
+  },
+  "4: Rows VQL Functions": [
+    {
+      "X(Y=1)": 2
+    }
+  ],
+  "5: Marshal Stored Query with parameters": {
+    "type": "Scope",
+    "data": {
+      "vars": [
+        {
+          "const_foo": {
+            "type": "JSON",
+            "data": 1
+          }
+        },
+        {
+          "X": {
+            "type": "Replay",
+            "data": "LET `X`(Y) = SELECT Y FROM scope()"
+          }
+        }
+      ]
+    }
+  },
+  "5: Rows Stored Query with parameters": [
+    {
+      "Y": 1
+    }
+  ]
+}
