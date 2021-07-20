@@ -166,6 +166,26 @@ func (self *storedQueryWrapper) Eval(ctx context.Context, scope types.Scope) <-c
 	return output_chan
 }
 
+func (self *storedQueryWrapper) ToString(scope types.Scope) string {
+	switch t := self.value.(type){
+		case types.StoredQuery:
+		  return t.ToString(scope)
+		default:
+		  return ""
+	}
+	return ""
+}
+
+func (self *storedQueryWrapper) GetParams() []string {
+	switch t := self.value.(type){
+		case types.StoredQuery:
+		  return t.GetParams()
+		default:
+		  return nil
+	}
+	return nil
+}
+
 func (self *storedQueryWrapper) toRow(scope types.Scope, value types.Any) types.Row {
 	if types.IsNullObject(value) {
 		return types.Null{}

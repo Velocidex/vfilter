@@ -54,6 +54,10 @@ func (self *_StoredQuery) ToString(scope types.Scope) string {
 	return self.query.ToString(scope)
 }
 
+func (self *_StoredQuery) GetParams() []string {
+	return self.parameters
+}
+
 // Stored queries can also behave like plugins. This just means we
 // evaluate it with a subscope built on top of the args.
 func (self *_StoredQuery) Info(scope types.Scope, type_map *TypeMap) *PluginInfo {
@@ -125,6 +129,14 @@ type StoredExpression struct {
 	Expr       *_AndExpression
 	name       string
 	parameters []string
+}
+
+func (self *StoredExpression) ToString(scope types.Scope) string {
+	return self.Expr.ToString(scope)
+}
+
+func (self *StoredExpression) GetParams() []string {
+	return self.parameters
 }
 
 func (self *StoredExpression) Reduce(
