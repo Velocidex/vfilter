@@ -13,18 +13,20 @@ import (
 
 // Marshal a scope so it can be restored.
 type ScopeItems struct {
-	Vars []map[string]*types.MarshalItem `json:"vars,omitempty"`
+	Vars map[string]*types.MarshalItem `json:"vars,omitempty"`
 }
 
 func (self *Scope) Marshal(scope types.Scope) (*types.MarshalItem, error) {
-	result := &ScopeItems{}
+	result := &ScopeItems{
+		Vars: make(map[string]*types.MarshalItem),
+	}
 
 	for _, var_item := range self.vars {
-		data := make(map[string]*types.MarshalItem)
 		for _, k := range self.GetMembers(var_item) {
 			// Skip these vars
 			if strings.HasPrefix(k, "$") ||
 				k == "NULL" ||
+				k == "config" ||
 				k == "Artifact" {
 				continue
 			}
@@ -39,11 +41,7 @@ func (self *Scope) Marshal(scope types.Scope) (*types.MarshalItem, error) {
 			if err != nil {
 				return nil, err
 			}
-			data[k] = serialized
-		}
-
-		if len(data) > 0 {
-			result.Vars = append(result.Vars, data)
+			result.Vars[k] = serialized
 		}
 	}
 
@@ -54,7 +52,9 @@ func (self *Scope) Marshal(scope types.Scope) (*types.MarshalItem, error) {
 	}, err
 }
 
-type ScopeUnmarshaller struct{}
+type ScopeUnmarshaller struct {
+	IgnoreVars []string
+}
 
 func (self ScopeUnmarshaller) Unmarshal(
 	unmarshaller types.Unmarshaller,
@@ -69,17 +69,18 @@ func (self ScopeUnmarshaller) Unmarshal(
 	}
 
 	env := ordereddict.NewDict()
-	for _, var_item := range scope_items.Vars {
-		for k, v := range var_item {
-			unmarshalled, err := unmarshaller.Unmarshal(unmarshaller,
-				new_scope, v)
-			if err == nil {
-				if !utils.IsNil(unmarshaller) {
-					env.Set(k, unmarshalled)
-				}
-			} else {
-				fmt.Printf("Cant decode %v: %v\n", k, err)
+	for k, v := range scope_items.Vars {
+		if utils.InString(&self.IgnoreVars, k) {
+			continue
+		}
+		unmarshalled, err := unmarshaller.Unmarshal(unmarshaller,
+			new_scope, v)
+		if err == nil {
+			if !utils.IsNil(unmarshaller) {
+				env.Set(k, unmarshalled)
 			}
+		} else {
+			fmt.Printf("Can't decode %v: %v\n", k, err)
 		}
 	}
 
