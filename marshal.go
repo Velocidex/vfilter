@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"www.velocidex.com/golang/vfilter/marshal"
 	"www.velocidex.com/golang/vfilter/types"
 )
 
@@ -76,4 +77,12 @@ func (self ReplayUnmarshaller) Unmarshal(
 	// Return nil here indicates not to set the value into the
 	// scope (since we already did in the Replay above).
 	return nil, nil
+}
+
+func NewUnmarshaller(ignore_vars []string) *marshal.Unmarshaller {
+	unmarshaller := marshal.NewUnmarshaller()
+	unmarshaller.Handlers["Scope"] = ScopeUnmarshaller{ignore_vars}
+	unmarshaller.Handlers["Replay"] = ReplayUnmarshaller{}
+
+	return unmarshaller
 }

@@ -513,10 +513,6 @@ func (self *_Select) ToString(scope types.Scope) string {
 	return result
 }
 
-func (self *_Select) GetParams() []string {
-	return nil
-}
-
 func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	if self.GroupBy != nil {
 		return self.EvalGroupBy(ctx, scope)

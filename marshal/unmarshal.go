@@ -11,6 +11,11 @@ type Unmarshaller struct {
 	Handlers map[string]types.Unmarshaller
 }
 
+func (self *Unmarshaller) RegisterHandler(name string,
+	unmarshaller types.Unmarshaller) {
+	self.Handlers[name] = unmarshaller
+}
+
 func (self *Unmarshaller) Unmarshal(
 	unmarshaller types.Unmarshaller,
 	scope types.Scope, item *types.MarshalItem) (interface{}, error) {
