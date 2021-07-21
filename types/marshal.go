@@ -14,6 +14,13 @@ type Marshaler interface {
 	Marshal(scope Scope) (*MarshalItem, error)
 }
 
+// An unmarshaller for a custom type. Note: You must register this
+// unmarshaller with marshal/Unmarshaller like this:
+//
+// unmarshaller := marshal.NewUnmarshaller()
+// unmarshaller.Handlers["Scope"] = vfilter.ScopeUnmarshaller{ignoreVars}
+// unmarshaller.Handlers["Replay"] = vfilter.ReplayUnmarshaller{}
+//
 type Unmarshaller interface {
 	Unmarshal(unmarshaller Unmarshaller,
 		scope Scope, item *MarshalItem) (interface{}, error)

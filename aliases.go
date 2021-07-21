@@ -29,6 +29,8 @@ type Null = types.Null
 type LazyExpr = types.LazyExpr
 type StoredQuery = types.StoredQuery
 
+type ScopeUnmarshaller = scope.ScopeUnmarshaller
+
 func NewScope() types.Scope {
 	return scope.NewScope()
 }

@@ -113,10 +113,6 @@ func (self *Scope) SetContext(name string, value types.Any) {
 	self.dispatcher.SetContextValue(name, value)
 }
 
-func (self *Scope) GetVars() []types.Row {
-	return self.vars
-}
-
 func (self *Scope) PrintVars() string {
 	self.Lock()
 	defer self.Unlock()
