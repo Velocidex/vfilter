@@ -75,9 +75,7 @@ func (self ReplayUnmarshaller) Unmarshal(
 	for _ = range vql.Eval(context.Background(), scope) {
 	}
 
-	// Return nil here indicates not to set the value into the
-	// scope (since we already did in the Replay above).
-	return nil, nil
+	return scope, nil
 }
 
 type OrdereddictUnmarshaller struct{}
