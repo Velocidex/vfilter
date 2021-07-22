@@ -127,6 +127,10 @@ type StoredExpression struct {
 	parameters []string
 }
 
+func (self *StoredExpression) ToString(scope types.Scope) string {
+	return self.Expr.ToString(scope)
+}
+
 func (self *StoredExpression) Reduce(
 	ctx context.Context, scope types.Scope) types.Any {
 	return self.Expr.Reduce(ctx, scope)

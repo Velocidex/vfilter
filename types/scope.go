@@ -43,6 +43,7 @@ type Scope interface {
 	Membership(a Any, b Any) bool
 	Associative(a Any, b Any) (Any, bool)
 	GetMembers(a Any) []string
+
 	Match(a Any, b Any) bool
 	Iterate(ctx context.Context, a Any) <-chan Row
 
