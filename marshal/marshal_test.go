@@ -44,6 +44,9 @@ var marshalTestCases = []struct {
 	{`Stored Query with parameters`,
 		`LET X(Y) = SELECT Y FROM scope()`,
 		`SELECT * FROM X(Y=1)`},
+
+	{`OrderedDict materialized`,
+		`LET X <= dict(A=1)`, `SELECT X FROM scope()`},
 }
 
 func TestMarshal(t *testing.T) {
@@ -51,6 +54,7 @@ func TestMarshal(t *testing.T) {
 	unmarshaller := marshal.NewUnmarshaller()
 	unmarshaller.Handlers["Scope"] = scope.ScopeUnmarshaller{}
 	unmarshaller.Handlers["Replay"] = vfilter.ReplayUnmarshaller{}
+	unmarshaller.Handlers["OrderedDict"] = vfilter.OrdereddictUnmarshaller{}
 
 	results := ordereddict.NewDict()
 
