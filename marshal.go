@@ -8,6 +8,7 @@ import (
 
 	"www.velocidex.com/golang/vfilter/marshal"
 	"www.velocidex.com/golang/vfilter/types"
+	"github.com/Velocidex/ordereddict"
 )
 
 type StoredQueryItem struct {
@@ -79,10 +80,25 @@ func (self ReplayUnmarshaller) Unmarshal(
 	return nil, nil
 }
 
+type OrdereddictUnmarshaller struct{}
+
+func (self OrdereddictUnmarshaller) Unmarshal(
+	unmarshaller types.Unmarshaller,
+	scope types.Scope, item *types.MarshalItem) (interface{}, error) {
+	dict := ordereddict.NewDict()
+	err := json.Unmarshal(item.Data, dict)
+	if err != nil {
+		return nil, err
+	}
+
+	return dict, nil
+}
+
 func NewUnmarshaller(ignore_vars []string) *marshal.Unmarshaller {
 	unmarshaller := marshal.NewUnmarshaller()
 	unmarshaller.Handlers["Scope"] = ScopeUnmarshaller{ignore_vars}
 	unmarshaller.Handlers["Replay"] = ReplayUnmarshaller{}
+	unmarshaller.Handlers["OrderedDict"] = OrdereddictUnmarshaller{}
 
 	return unmarshaller
 }
