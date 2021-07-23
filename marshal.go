@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/marshal"
 	"www.velocidex.com/golang/vfilter/types"
-	"github.com/Velocidex/ordereddict"
 )
 
 type StoredQueryItem struct {
@@ -75,7 +75,7 @@ func (self ReplayUnmarshaller) Unmarshal(
 	for _ = range vql.Eval(context.Background(), scope) {
 	}
 
-	return scope, nil
+	return nil, nil
 }
 
 type OrdereddictUnmarshaller struct{}

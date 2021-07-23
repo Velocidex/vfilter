@@ -76,13 +76,8 @@ func (self ScopeUnmarshaller) Unmarshal(
 		unmarshalled, err := unmarshaller.Unmarshal(unmarshaller,
 			new_scope, v)
 		if err == nil {
-			if !utils.IsNil(unmarshaller) {
-				switch v := unmarshalled.(type) {
-				case types.Scope:
-					new_scope = v
-				default:
-				  env.Set(k, unmarshalled)
-				}
+			if !utils.IsNil(unmarshalled) {
+				env.Set(k, unmarshalled)
 			}
 		} else {
 			fmt.Printf("Can't decode %v: %v\n", k, err)

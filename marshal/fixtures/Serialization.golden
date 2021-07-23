@@ -142,28 +142,28 @@
       "Y": 1
     }
   ],
-    "6: Marshal OrderedDict materialized": {
-        "type": "Scope",
-        "data": {
-            "vars": {
-                "X": {
-                    "type": "OrderedDict",
-                    "data": {
-                        "A": 1
-                    }
-                },
-                "const_foo": {
-                    "type": "JSON",
-                    "data": 1
-                }
-            }
+  "6: Marshal OrderedDict materialized": {
+    "type": "Scope",
+    "data": {
+      "vars": {
+        "X": {
+          "type": "OrderedDict",
+          "data": {
+            "A": 1
+          }
+        },
+        "const_foo": {
+          "type": "JSON",
+          "data": 1
         }
-    },
-    "6: Rows OrderedDict materialized": [
-        {
-            "X":{
-                "A": 1
-            }
-        }
-    ]
+      }
+    }
+  },
+  "6: Rows OrderedDict materialized": [
+    {
+      "X": {
+        "A": 1
+      }
+    }
+  ]
 }
