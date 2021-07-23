@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/marshal"
 	"www.velocidex.com/golang/vfilter/types"
 )
@@ -74,15 +75,28 @@ func (self ReplayUnmarshaller) Unmarshal(
 	for _ = range vql.Eval(context.Background(), scope) {
 	}
 
-	// Return nil here indicates not to set the value into the
-	// scope (since we already did in the Replay above).
 	return nil, nil
+}
+
+type OrdereddictUnmarshaller struct{}
+
+func (self OrdereddictUnmarshaller) Unmarshal(
+	unmarshaller types.Unmarshaller,
+	scope types.Scope, item *types.MarshalItem) (interface{}, error) {
+	dict := ordereddict.NewDict()
+	err := json.Unmarshal(item.Data, dict)
+	if err != nil {
+		return nil, err
+	}
+
+	return dict, nil
 }
 
 func NewUnmarshaller(ignore_vars []string) *marshal.Unmarshaller {
 	unmarshaller := marshal.NewUnmarshaller()
 	unmarshaller.Handlers["Scope"] = ScopeUnmarshaller{ignore_vars}
 	unmarshaller.Handlers["Replay"] = ReplayUnmarshaller{}
+	unmarshaller.Handlers["OrderedDict"] = OrdereddictUnmarshaller{}
 
 	return unmarshaller
 }
