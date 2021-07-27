@@ -134,6 +134,9 @@ SELECT parse(r=1,any=Foo(X=1)) FROM scope()`},
 LET query = SELECT 1 FROM scope()
 SELECT parse(r=1,any=query) FROM scope()`},
 
+	{"Dict type", `
+SELECT parse(r=1, dict=dict(Foo=1)) FROM scope()`},
+
 	// Unexpected args
 	{"Unexpected args", `
 SELECT parse(r=1,int=1, foobar=2) FROM scope()`},
@@ -150,6 +153,7 @@ type argFuncArgs struct {
 	StringArray []string          `vfilter:"optional,field=string_array"`
 	StoredQuery types.StoredQuery `vfilter:"optional,field=query"`
 	R           int               `vfilter:"required,field=r"`
+	Dict        *ordereddict.Dict `vfilter:"optional,field=dict"`
 }
 
 type argFunc struct{}
@@ -173,6 +177,10 @@ func (self argFunc) Call(ctx context.Context, scope types.Scope, args *ordereddi
 
 	if arg.StringArray != nil {
 		result.Set("string_array", arg.StringArray)
+	}
+
+	if arg.Dict != nil {
+		result.Set("dict", arg.Dict)
 	}
 
 	if !utils.IsNil(arg.Any) {

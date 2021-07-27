@@ -16,6 +16,7 @@ type tmpTypes struct {
 	any    types.Any
 	stored types.StoredQuery
 	lazy   types.LazyExpr
+	dict   *ordereddict.Dict
 }
 
 var (
@@ -24,6 +25,7 @@ var (
 	anyType         = reflect.ValueOf(testType).Type().Field(0).Type
 	storedQueryType = reflect.ValueOf(testType).Type().Field(1).Type
 	lazyExprType    = reflect.ValueOf(testType).Type().Field(2).Type
+	dictExprType    = reflect.ValueOf(testType).Type().Field(3).Type
 )
 
 // Structs may tag fields with this name to control parsing.
@@ -177,6 +179,31 @@ func int64Parser(ctx context.Context, scope types.Scope, arg interface{}) (inter
 	return nil, fmt.Errorf("Should be an int not %T.", arg)
 }
 
+func dictParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+	lazy_arg, ok := arg.(types.LazyExpr)
+	if ok {
+		arg = lazy_arg.Reduce(ctx)
+	}
+
+	// Build the query args
+	env := ordereddict.NewDict()
+	if !utils.IsNil(arg) {
+		// Shortcut for actual dicts
+		dict, ok := arg.(*ordereddict.Dict)
+		if ok {
+			return dict, nil
+		}
+
+		// Fallback for dict like things
+		for _, member := range scope.GetMembers(arg) {
+			v, _ := scope.Associative(arg, member)
+			env.Set(member, v)
+		}
+	}
+
+	return env, nil
+}
+
 func uInt64Parser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
@@ -288,6 +315,12 @@ func BuildParser(v reflect.Value) (*Parser, error) {
 		// The target field is an types.Any type - just assign it directly.
 		if field_types_value.Type == anyType {
 			field_parser.Parser = anyParser
+			continue
+		}
+
+		// The target field is an ordered dict type - just assign it directly.
+		if field_types_value.Type == dictExprType {
+			field_parser.Parser = dictParser
 			continue
 		}
 

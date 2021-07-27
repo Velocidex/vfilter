@@ -248,14 +248,23 @@
       }
     }
   ],
-  "024/000 Unexpected args: SELECT parse(r=1, int=1, foobar=2) FROM scope()": [
+  "024/000 Dict type: SELECT parse(r=1, dict=dict(Foo=1)) FROM scope()": [
+    {
+      "parse(r=1, dict=dict(Foo=1))": {
+        "dict": {
+          "Foo": 1
+        }
+      }
+    }
+  ],
+  "025/000 Unexpected args: SELECT parse(r=1, int=1, foobar=2) FROM scope()": [
     {
       "parse(r=1, int=1, foobar=2)": {
         "ParseError": "Unexpected arg foobar"
       }
     }
   ],
-  "025/000 Required args: SELECT parse() FROM scope()": [
+  "026/000 Required args: SELECT parse() FROM scope()": [
     {
       "parse()": {
         "ParseError": "Field r is required"
