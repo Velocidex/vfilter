@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Velocidex/ordereddict"
+	"github.com/alecthomas/assert"
 	"github.com/sebdah/goldie/v2"
 	"www.velocidex.com/golang/vfilter"
 	"www.velocidex.com/golang/vfilter/arg_parser"
@@ -230,6 +231,20 @@ func makeTestScope() types.Scope {
 	result := scope.NewScope().AppendFunctions(&argFunc{})
 	result.SetLogger(log.New(os.Stdout, "Log: ", log.Ldate|log.Ltime|log.Lshortfile))
 	return result
+}
+
+// Default values may be present in the arg struct and we should not
+// override them.
+func TestArgParsingDoesNotOverrideDefaults(t *testing.T) {
+	scope := makeTestScope()
+	arg := argFuncArgs{
+		Int: 5,
+	}
+	args := ordereddict.NewDict().Set("r", 1)
+	ctx := context.Background()
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, &arg)
+	assert.NoError(t, err)
+	assert.Equal(t, 5, arg.Int)
 }
 
 func TestArgParsing(t *testing.T) {

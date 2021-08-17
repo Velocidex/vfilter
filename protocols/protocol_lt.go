@@ -1,6 +1,9 @@
 package protocols
 
 import (
+	"fmt"
+	"time"
+
 	"www.velocidex.com/golang/vfilter/types"
 	"www.velocidex.com/golang/vfilter/utils"
 )
@@ -37,6 +40,17 @@ func (self LtDispatcher) Lt(scope types.Scope, a types.Any, b types.Any) bool {
 			return t < rhs
 		}
 
+	case time.Time:
+		rhs, ok := toTime(b)
+		if ok {
+			return t.UnixNano() < rhs.UnixNano()
+		}
+
+	case *time.Time:
+		rhs, ok := toTime(b)
+		if ok {
+			return t.UnixNano() < rhs.UnixNano()
+		}
 	}
 
 	lhs, ok := utils.ToInt64(a)
@@ -55,6 +69,18 @@ func (self LtDispatcher) Lt(scope types.Scope, a types.Any, b types.Any) bool {
 	}
 
 	return false
+}
+
+func toTime(a types.Any) (*time.Time, bool) {
+	switch t := a.(type) {
+	case time.Time:
+		return &t, true
+	case *time.Time:
+		return t, true
+	default:
+		fmt.Printf("type is %T\n", a)
+		return nil, false
+	}
 }
 
 func (self *LtDispatcher) AddImpl(elements ...LtProtocol) {

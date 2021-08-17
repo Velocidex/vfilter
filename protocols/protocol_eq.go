@@ -2,6 +2,7 @@ package protocols
 
 import (
 	"reflect"
+	"time"
 
 	"www.velocidex.com/golang/vfilter/types"
 	"www.velocidex.com/golang/vfilter/utils"
@@ -46,6 +47,17 @@ func (self EqDispatcher) Eq(scope types.Scope, a types.Any, b types.Any) bool {
 			return t == rhs
 		}
 
+	case time.Time:
+		rhs, ok := toTime(b)
+		if ok {
+			return t.UnixNano() == rhs.UnixNano()
+		}
+
+	case *time.Time:
+		rhs, ok := toTime(b)
+		if ok {
+			return t.UnixNano() == rhs.UnixNano()
+		}
 	}
 
 	lhs, ok := utils.ToInt64(a)

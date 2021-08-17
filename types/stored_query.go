@@ -13,6 +13,7 @@ type StoredQuery interface {
 // Materialize a stored query into a set of rows.
 func Materialize(ctx context.Context, scope Scope, stored_query StoredQuery) []Row {
 	result := []Row{}
+	var warned bool
 
 	// Materialize both queries to an array.
 	new_scope := scope.Copy()
@@ -20,6 +21,12 @@ func Materialize(ctx context.Context, scope Scope, stored_query StoredQuery) []R
 
 	for item := range stored_query.Eval(ctx, new_scope) {
 		result = append(result, item)
+
+		if !warned && len(result) > 10000 {
+			scope.Log("During Materialize of StoredQuery %s: Expand larger than 10,000 rows!",
+				ToString(stored_query, scope))
+			warned = true
+		}
 	}
 
 	return result
