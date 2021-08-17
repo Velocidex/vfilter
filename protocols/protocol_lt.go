@@ -43,13 +43,13 @@ func (self LtDispatcher) Lt(scope types.Scope, a types.Any, b types.Any) bool {
 	case time.Time:
 		rhs, ok := toTime(b)
 		if ok {
-			return t.UnixNano() < rhs.UnixNano()
+			return t.Before(*rhs)
 		}
 
 	case *time.Time:
 		rhs, ok := toTime(b)
 		if ok {
-			return t.UnixNano() < rhs.UnixNano()
+			return t.Before(*rhs)
 		}
 	}
 
