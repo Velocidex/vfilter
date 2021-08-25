@@ -1,7 +1,6 @@
 package protocols
 
 import (
-	"fmt"
 	"time"
 
 	"www.velocidex.com/golang/vfilter/types"
@@ -78,7 +77,6 @@ func toTime(a types.Any) (*time.Time, bool) {
 	case *time.Time:
 		return t, true
 	default:
-		fmt.Printf("type is %T\n", a)
 		return nil, false
 	}
 }
