@@ -6,7 +6,7 @@ require (
 	github.com/alecthomas/colour v0.1.0 // indirect
 	github.com/alecthomas/participle v0.4.4
 	github.com/alecthomas/repr v0.0.0-20181024024818-d37bc2a10ba1
-	github.com/go-test/deep v1.0.5
+	github.com/google/go-cmp v0.5.6
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/sebdah/goldie/v2 v2.5.3

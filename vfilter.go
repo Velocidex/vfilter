@@ -296,7 +296,7 @@ type _ParameterList struct {
 	Right *_ParameterListTerm `{ @@ }`
 }
 
-func (self _ParameterList) ToString(scope types.Scope) string {
+func (self *_ParameterList) ToString(scope types.Scope) string {
 	result := self.Left
 
 	if self.Right != nil {
@@ -327,7 +327,7 @@ func (self *VQL) Type() string {
 
 // Evaluate the expression. Returns a channel which emits a series of
 // rows.
-func (self VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
+func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	output_chan := make(chan Row)
 
 	// If this is a Let expression we need to create a stored
@@ -431,7 +431,7 @@ func visitor(parameters *_ParameterList, result *[]string) {
 	}
 }
 
-func (self VQL) getParameters() []string {
+func (self *VQL) getParameters() []string {
 	result := []string{}
 
 	if self.Let != "" && self.Parameters != nil {
@@ -442,7 +442,7 @@ func (self VQL) getParameters() []string {
 }
 
 // Encodes the query into a string again.
-func (self VQL) ToString(scope types.Scope) string {
+func (self *VQL) ToString(scope types.Scope) string {
 	if self.Let != "" {
 		operator := " = "
 		if self.LetOperator != "" {
@@ -1247,7 +1247,7 @@ func (self *_CommaExpression) IsAggregate(scope types.Scope) bool {
 	return false
 }
 
-func (self _CommaExpression) Reduce(ctx context.Context, scope types.Scope) Any {
+func (self *_CommaExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	lhs := self.Left.Reduce(ctx, scope)
 	if lhs == nil {
 		return Null{}
@@ -1297,7 +1297,7 @@ func (self *_AndExpression) IsAggregate(scope types.Scope) bool {
 	return false
 }
 
-func (self _AndExpression) Reduce(ctx context.Context, scope types.Scope) Any {
+func (self *_AndExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	result := self.Left.Reduce(ctx, scope)
 	if self.Right == nil {
 		return result
@@ -1339,7 +1339,7 @@ func (self *_OrExpression) IsAggregate(scope types.Scope) bool {
 	return false
 }
 
-func (self _OrExpression) Reduce(ctx context.Context, scope types.Scope) Any {
+func (self *_OrExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	result := self.Left.Reduce(ctx, scope)
 	if self.Right == nil {
 		return result
@@ -1385,7 +1385,7 @@ func (self _AdditionExpression) IsAggregate(scope types.Scope) bool {
 	return false
 }
 
-func (self _AdditionExpression) Reduce(ctx context.Context, scope types.Scope) Any {
+func (self *_AdditionExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	result := self.Left.Reduce(ctx, scope)
 	for _, term := range self.Right {
 		term_value := term.Term.Reduce(ctx, scope)
@@ -1427,7 +1427,7 @@ func (self _ConditionOperand) IsAggregate(scope types.Scope) bool {
 	return false
 }
 
-func (self _ConditionOperand) Reduce(ctx context.Context, scope types.Scope) Any {
+func (self *_ConditionOperand) Reduce(ctx context.Context, scope types.Scope) Any {
 	if self.Not != nil {
 		value := self.Not.Reduce(ctx, scope)
 		return !scope.Bool(value)
@@ -1494,7 +1494,7 @@ func (self _MultiplicationExpression) IsAggregate(scope types.Scope) bool {
 	return false
 }
 
-func (self _MultiplicationExpression) Reduce(ctx context.Context, scope types.Scope) Any {
+func (self *_MultiplicationExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	result := self.Left.Reduce(ctx, scope)
 	for _, term := range self.Right {
 		term_value := term.Factor.Reduce(ctx, scope)
@@ -1556,25 +1556,40 @@ func (self *_Value) maybeParseStrNumber(scope types.Scope) {
 
 func (self *_Value) Reduce(ctx context.Context, scope types.Scope) Any {
 	self.mu.Lock()
-	defer self.mu.Unlock()
-
 	self.maybeParseStrNumber(scope)
 
-	if self.Subexpression != nil {
-		return self.Subexpression.Reduce(ctx, scope)
-	} else if self.SymbolRef != nil {
-		return self.SymbolRef.Reduce(ctx, scope)
+	subexpression := self.Subexpression
+	if subexpression != nil {
+		self.mu.Unlock()
+		return subexpression.Reduce(ctx, scope)
 
-	} else if self.Int != nil {
-		return *self.Int
+	}
 
-	} else if self.Float != nil {
-		return *self.Float
+	symbolref := self.SymbolRef
+	if symbolref != nil {
+		self.mu.Unlock()
+		return symbolref.Reduce(ctx, scope)
+
+	}
+
+	if self.Int != nil {
+		res := *self.Int
+		self.mu.Unlock()
+		return res
+
+	}
+
+	if self.Float != nil {
+		res := *self.Float
+		self.mu.Unlock()
+		return res
 	}
 
 	// The following are static constants and can be cached.
 	if self.cache != nil {
-		return self.cache
+		res := self.cache
+		self.mu.Unlock()
+		return res
 	}
 
 	if self.String != nil {
@@ -1586,13 +1601,13 @@ func (self *_Value) Reduce(ctx context.Context, scope types.Scope) Any {
 		self.cache = Null{}
 	}
 
-	return self.cache
+	res := self.cache
+	self.mu.Unlock()
+	return res
 }
 
 func (self *_Value) ToString(scope types.Scope) string {
 	self.mu.Lock()
-	defer self.mu.Unlock()
-
 	self.maybeParseStrNumber(scope)
 
 	factor := 1.0
@@ -1600,43 +1615,71 @@ func (self *_Value) ToString(scope types.Scope) string {
 		factor = -1.0
 	}
 
-	if self.SymbolRef != nil {
-		return self.SymbolRef.ToString(scope)
-	} else if self.Subexpression != nil {
-		return "(" + self.Subexpression.ToString(scope) + ")"
+	symbolref := self.SymbolRef
+	if symbolref != nil {
+		self.mu.Unlock()
+		return symbolref.ToString(scope)
 
-	} else if self.String != nil {
-		return *self.String
+	}
 
-	} else if self.Int != nil {
+	subexpression := self.Subexpression
+	if subexpression != nil {
+		self.mu.Unlock()
+		return "(" + subexpression.ToString(scope) + ")"
+
+	}
+
+	if self.String != nil {
+		res := *self.String
+		self.mu.Unlock()
+		return res
+
+	}
+
+	if self.Int != nil {
 		factor := int64(1)
 		if self.Negated {
 			factor = -1
 		}
 
-		return strconv.FormatInt(factor**self.Int, 10)
+		res := strconv.FormatInt(factor**self.Int, 10)
+		self.mu.Unlock()
+		return res
 
-	} else if self.Float != nil {
+	}
+
+	if self.Float != nil {
 		result := strconv.FormatFloat(factor**self.Float, 'f', -1, 64)
 		if !strings.Contains(result, ".") {
 			result = result + ".0"
 		}
 
+		self.mu.Unlock()
 		return result
 
-	} else if self.Boolean != nil {
-		return *self.Boolean
-	} else if self.Null {
-		return "NULL"
-	} else {
-		return "FALSE"
 	}
+
+	if self.Boolean != nil {
+		res := *self.Boolean
+		self.mu.Unlock()
+		return res
+
+	}
+
+	if self.Null {
+		self.mu.Unlock()
+		return "NULL"
+	}
+
+	self.mu.Unlock()
+	return "FALSE"
 }
 
 func (self *_SymbolRef) IsAggregate(scope types.Scope) bool {
 	self.mu.Lock()
 	// If it is not a function then it can not be an aggregate.
 	if self.Parameters == nil {
+		self.mu.Unlock()
 		return false
 	}
 
@@ -1652,7 +1695,8 @@ func (self *_SymbolRef) IsAggregate(scope types.Scope) bool {
 	return value.Info(scope, types.NewTypeMap()).IsAggregate
 }
 
-func (self *_SymbolRef) getFunction(scope types.Scope, components []string) (types.Any, bool) {
+func (self *_SymbolRef) getFunction(scope types.Scope) (types.Any, bool) {
+	components := utils.SplitIdent(self.Symbol)
 
 	// Single item reference and called - call built in function.
 	if len(components) == 1 && self.Called {
@@ -1690,12 +1734,11 @@ func (self *_SymbolRef) getFunction(scope types.Scope, components []string) (typ
 }
 
 func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
-	components := utils.SplitIdent(self.Symbol)
 
 	// The symbol is just a constant in the scope. It may be a
 	// stored expression, a function or a stored query or just a
 	// plain value.
-	value, pres := self.getFunction(scope, components)
+	value, pres := self.getFunction(scope)
 	if value != nil && pres {
 		switch t := value.(type) {
 		case FunctionInterface:

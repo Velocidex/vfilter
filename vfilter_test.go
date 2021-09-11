@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/Velocidex/ordereddict"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/assert"
 	"www.velocidex.com/golang/vfilter/plugins"
@@ -25,6 +25,9 @@ type execTest struct {
 	clause string
 	result Any
 }
+
+var compareOptions = cmpopts.IgnoreUnexported(
+	_Value{}, _SymbolRef{}, _AliasedExpression{})
 
 var execTestsSerialization = []execTest{
 	{"1 or sleep(a=100)", true},
@@ -442,10 +445,12 @@ func TestSerializaition(t *testing.T) {
 				vql_string, err, test.clause)
 		}
 
-		if !reflect.DeepEqual(parsed_vql, vql) {
-			utils.Debug(vql)
-			t.Fatalf("Parsed generated VQL not equivalent: %v vs %v.",
-				preamble+test.clause, vql_string)
+		parsed_vql.ToString(scope)
+
+		diff := cmp.Diff(parsed_vql, vql, compareOptions)
+		if diff != "" {
+			t.Fatalf("Parsed generated VQL not equivalent: %v vs %v: \n%v",
+				preamble+test.clause, vql_string, diff)
 		}
 	}
 }
@@ -1128,12 +1133,12 @@ func TestVQLSerializaition(t *testing.T) {
 			t.Fatalf("Failed to parse stringified VQL %v: %v (%v)",
 				vql_string, err, test.vql)
 		}
+		parsed_vql.ToString(scope)
 
-		diffs := deep.Equal(parsed_vql, vql)
-		if diffs != nil {
-			t.Error(diffs)
-			t.Fatalf("Parsed generated VQL not equivalent: %v vs %v.",
-				test.vql, vql_string)
+		diff := cmp.Diff(parsed_vql, vql, compareOptions)
+		if diff != "" {
+			t.Fatalf("Parsed generated VQL not equivalent: %v vs %v: \n%v",
+				test.vql, vql_string, diff)
 		}
 	}
 }
