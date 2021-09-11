@@ -998,6 +998,7 @@ func (self *_From) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	go func() {
 		defer close(output_chan)
 		for row := range input_chan {
+			scope.GetStats().IncRowsScanned()
 			select {
 			case <-ctx.Done():
 				return
@@ -1015,152 +1016,152 @@ func (self *_From) ToString(scope types.Scope) string {
 	return result
 }
 
-func (self *_Plugin) getPlugin(scope types.Scope, plugin_name string) (
-	PluginGeneratorInterface, bool) {
-	components := strings.Split(plugin_name, ".")
-	// Single plugin reference.
-	if len(components) == 1 {
-		// Try to find the plugin in the scope plugins.
-		plugin, pres := scope.GetPlugin(plugin_name)
-		if !pres {
-			// Otherwise maybe there is a plugin-like
-			// object in the scope.
-			symbol, _ := scope.Resolve(plugin_name)
-			plugin, pres = symbol.(PluginGeneratorInterface)
-		}
+// Fetch the object that references a function
+func (self *_Plugin) resolveSymbol(
+	ctx context.Context, scope types.Scope,
+	components []string) (
+	types.Any, bool) {
 
-		return plugin, pres
+	// Single item reference and called - call built in plugin.
+	if len(components) == 1 && self.Call {
+		_plugin, pres := scope.GetPlugin(components[0])
+		if pres {
+			return _plugin, pres
+		}
 	}
 
 	// Plugins with "." resolve themselves recursively.
 	var result Any = scope
-	for _, component := range components {
+	for idx, component := range components {
 		subcomponent, pres := scope.Associative(result, component)
 		if !pres {
+			// Only warn when accessing a top level component:
+			// SELECT Foobar FROM scope() -> warn if Foobar is not found
+			// SELECT Foo.Bar FROM scope() -> warn
+			// if Foo is not found but not if Foo is found but Bar is not found
+			if idx == 0 {
+				if len(components) > 1 {
+					scope.Log("While resolving %v Plugin %v not found. %s",
+						self.Name, components[0], scope.PrintVars())
+				} else {
+					scope.Log("Plugin %v not found. %s", self.Name, scope.PrintVars())
+				}
+			}
+
 			return nil, false
 		}
 
 		result = subcomponent
 	}
 
-	// It is a plugin
-	plugin, ok := result.(PluginGeneratorInterface)
-	if ok {
-		return plugin, true
-	}
-
-	// Not a plugin - do not return it.
-	return nil, false
+	return result, true
 }
 
 func (self *_Plugin) Eval(ctx context.Context, scope types.Scope) <-chan Row {
+
+	components := utils.SplitIdent(self.Name)
+	symbol, pres := self.resolveSymbol(ctx, scope, components)
+	// Symbol not found! alert the caller.
+	if !pres {
+		options := scope.GetSimilarPlugins(self.Name)
+		message := fmt.Sprintf("Plugin %v not found. ", self.Name)
+		if len(options) > 0 {
+			message += fmt.Sprintf(
+				"Did you mean %v? ",
+				strings.Join(options, " "))
+		}
+
+		_, pres := scope.GetFunction(self.Name)
+		if pres {
+			message += fmt.Sprintf(
+				"There is a VQL function called \"%v\" "+
+					"- did you mean to call this "+
+					"function instead?", self.Name)
+		}
+
+		scope.Log("%v", message)
+		output_chan := make(chan Row)
+		close(output_chan)
+		return output_chan
+	}
+
+	if self.Call {
+		return self.evalSymbol(
+			ctx, scope,
+			symbol, self.Name, buildArgsFromParameters(ctx, scope, self.Args))
+	}
+	return self.evalSymbol(ctx, scope, symbol, self.Name, nil)
+}
+
+func (self *_Plugin) evalSymbol(
+	ctx context.Context, scope types.Scope,
+	symbol types.Any, name string, args *ordereddict.Dict) <-chan Row {
+
 	output_chan := make(chan Row)
+
+	if scope.CheckForOverflow() {
+		close(output_chan)
+		return output_chan
+	}
+
+	// We need to call the symbol depending on what it is.
+	if args != nil {
+		switch t := symbol.(type) {
+
+		// Stored Expression e.g. LET Foo(X) = X + 1
+		case types.StoredExpression:
+			subscope := scope.Copy()
+			defer subscope.Close()
+
+			subscope.AppendVars(args)
+			return self.evalSymbol(
+				ctx, scope, t.Reduce(ctx, subscope), name, nil)
+
+			// A plugin like item
+		case PluginGeneratorInterface:
+			scope.GetStats().IncPluginsCalled()
+			return t.Call(ctx, scope, args)
+
+		default:
+			scope.Log("Symbol %v is not callable", name)
+			close(output_chan)
+			return output_chan
+		}
+
+		// Symbol is not called
+	} else {
+
+		switch t := symbol.(type) {
+		case types.StoredExpression:
+			return self.evalSymbol(ctx, scope, t.Reduce(ctx, scope), name, nil)
+
+		case StoredQuery:
+			return t.Eval(ctx, scope)
+
+		}
+	}
 
 	go func() {
 		defer close(output_chan)
 
-		if scope.CheckForOverflow() {
-			return
-		}
-
-		// The FROM clause refers to a var and not a
-		// plugin. Just read the var from the scope.
-		if !self.Call {
-			variable, pres := scope.Resolve(self.Name)
-			if pres {
-				// If the variable is a stored query
-				// we just copy from its channel to
-				// the output.
-				stored_query, ok := variable.(StoredQuery)
-				if ok {
-					from_chan := stored_query.Eval(ctx, scope)
-					for row := range from_chan {
-						select {
-						case <-ctx.Done():
-							return
-						case output_chan <- row:
-						}
-					}
-
-				} else if utils.IsArray(variable) {
-					var_slice := reflect.ValueOf(variable)
-					for i := 0; i < var_slice.Len(); i++ {
-						select {
-						case <-ctx.Done():
-							return
-						case output_chan <- var_slice.Index(i).Interface():
-						}
-					}
-				} else {
-					select {
-					case <-ctx.Done():
-						return
-					case output_chan <- variable:
-					}
-				}
-			} else {
-				scope.Log("SELECTing from %v failed! No such var in scope",
-					self.Name)
-			}
-			return
-		}
-
-		// Build up the args to pass to the function. The
-		// plugin implementation can extract these using the
-		// ExtractArgs() helper.
-		args := ordereddict.NewDict()
-		for _, arg := range self.Args {
-			if arg.Right != nil {
-				name := utils.Unquote_ident(arg.Left)
-				args.Set(name, NewLazyExpr(ctx, scope, arg.Right))
-
-			} else if arg.Array != nil {
-				value := arg.Array.Reduce(ctx, scope)
-				if value == nil {
-					select {
-					case <-ctx.Done():
-						return
-					case output_chan <- Null{}:
-					}
-					return
-				}
-				args.Set(arg.Left, value)
-
-			} else if arg.SubSelect != nil {
-				args.Set(arg.Left, arg.SubSelect)
-			}
-		}
-
-		if plugin, pres := self.getPlugin(scope, self.Name); pres {
-			scope.GetStats().IncPluginsCalled()
-			for row := range plugin.Call(ctx, scope, args) {
+		if utils.IsArray(symbol) {
+			var_slice := reflect.ValueOf(symbol)
+			for i := 0; i < var_slice.Len(); i++ {
 				select {
 				case <-ctx.Done():
 					return
-
-				case output_chan <- row:
-					scope.GetStats().IncRowsScanned()
+				case output_chan <- var_slice.Index(i).Interface():
 				}
 			}
-		} else {
-			options := scope.GetSimilarPlugins(self.Name)
-			message := fmt.Sprintf("Plugin %v not found. ", self.Name)
-			if len(options) > 0 {
-				message += fmt.Sprintf(
-					"Did you mean %v? ",
-					strings.Join(options, " "))
-			}
-
-			_, pres := scope.GetFunction(self.Name)
-			if pres {
-				message += fmt.Sprintf(
-					"There is a VQL function called \"%v\" "+
-						"- did you mean to call this "+
-						"function instead?", self.Name)
-			}
-
-			scope.Log("%v", message)
+			return
 		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case output_chan <- symbol:
+		}
+
 	}()
 
 	return output_chan
@@ -1554,6 +1555,9 @@ func (self *_Value) maybeParseStrNumber(scope types.Scope) {
 }
 
 func (self *_Value) Reduce(ctx context.Context, scope types.Scope) Any {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
 	self.maybeParseStrNumber(scope)
 
 	if self.Subexpression != nil {
@@ -1568,8 +1572,6 @@ func (self *_Value) Reduce(ctx context.Context, scope types.Scope) Any {
 		return *self.Float
 	}
 
-	self.mu.Lock()
-	defer self.mu.Unlock()
 	// The following are static constants and can be cached.
 	if self.cache != nil {
 		return self.cache
@@ -1587,7 +1589,10 @@ func (self *_Value) Reduce(ctx context.Context, scope types.Scope) Any {
 	return self.cache
 }
 
-func (self _Value) ToString(scope types.Scope) string {
+func (self *_Value) ToString(scope types.Scope) string {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
 	self.maybeParseStrNumber(scope)
 
 	factor := 1.0
@@ -1648,6 +1653,7 @@ func (self *_SymbolRef) IsAggregate(scope types.Scope) bool {
 }
 
 func (self *_SymbolRef) getFunction(scope types.Scope, components []string) (types.Any, bool) {
+
 	// Single item reference and called - call built in function.
 	if len(components) == 1 && self.Called {
 		res, pres := scope.GetFunction(self.Symbol)
@@ -1761,16 +1767,23 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 func (self *_SymbolRef) buildArgsFromParameters(
 	ctx context.Context, scope types.Scope) *ordereddict.Dict {
 
-	args := ordereddict.NewDict()
-
 	// Not a function call - pass the scope as it is.
 	if !self.Called {
-		return args
+		return ordereddict.NewDict()
 	}
 
 	self.mu.Lock()
 	parameters := self.Parameters
 	self.mu.Unlock()
+
+	return buildArgsFromParameters(ctx, scope, parameters)
+}
+
+func buildArgsFromParameters(
+	ctx context.Context,
+	scope types.Scope, parameters []*_Args) *ordereddict.Dict {
+
+	args := ordereddict.NewDict()
 
 	// When calling into a VQL stored function, we materialize all
 	// args.

@@ -932,6 +932,15 @@ select foobar from no_such_result`},
 
 	{"Override function with a variable",
 		"LET format = 5 SELECT format, format(format='%v', args=1) AS A FROM scope()"},
+
+	{"Stored Expressions as plugins",
+		"LET Foo = (dict(X=1),dict(X=2),dict(X=3))   SELECT * FROM Foo"},
+
+	{"Materialized Expressions as plugins",
+		"LET Foo <= (dict(X=1),dict(X=2),dict(X=3))   SELECT * FROM Foo"},
+
+	{"Stored Expressions as plugins with args",
+		"LET Foo(X) = (dict(X=1+X),dict(X=2+X),dict(X=3+X))   SELECT * FROM Foo(X=1)"},
 }
 
 type _RangeArgs struct {
