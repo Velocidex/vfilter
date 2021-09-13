@@ -615,5 +615,41 @@
       "format": 5,
       "A": "1"
     }
+  ],
+  "054/000 Stored Expressions as plugins: LET Foo=(dict(X=1), dict(X=2), dict(X=3))": null,
+  "054/001 Stored Expressions as plugins: SELECT * FROM Foo": [
+    {
+      "X": 1
+    },
+    {
+      "X": 2
+    },
+    {
+      "X": 3
+    }
+  ],
+  "055/000 Materialized Expressions as plugins: LET Foo\u003c=(dict(X=1), dict(X=2), dict(X=3))": null,
+  "055/001 Materialized Expressions as plugins: SELECT * FROM Foo": [
+    {
+      "X": 1
+    },
+    {
+      "X": 2
+    },
+    {
+      "X": 3
+    }
+  ],
+  "056/000 Stored Expressions as plugins with args: LET Foo(X)=(dict(X=1 + X), dict(X=2 + X), dict(X=3 + X))": null,
+  "056/001 Stored Expressions as plugins with args: SELECT * FROM Foo(X=1)": [
+    {
+      "X": 2
+    },
+    {
+      "X": 3
+    },
+    {
+      "X": 4
+    }
   ]
 }

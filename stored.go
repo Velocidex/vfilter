@@ -136,6 +136,7 @@ func (self *StoredExpression) Reduce(
 	return self.Expr.Reduce(ctx, scope)
 }
 
+// Act as a function
 func (self *StoredExpression) Call(ctx context.Context,
 	scope types.Scope, args *ordereddict.Dict) types.Any {
 	self.checkCallingArgs(scope, args)
@@ -149,6 +150,7 @@ func (self *StoredExpression) Call(ctx context.Context,
 		switch t := v.(type) {
 		case types.LazyExpr:
 			v = t.Reduce(ctx)
+
 		case types.StoredQuery:
 			v = types.Materialize(ctx, scope, t)
 		}
