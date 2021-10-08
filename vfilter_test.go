@@ -238,7 +238,7 @@ var execTestsSerialization = []execTest{
 var execTests = append(execTestsSerialization, []execTest{
 
 	// We now support hex and octal integers directly.
-	{"(0x10, 0x20, 070, -4)", []int64{16, 32, 56, -4}},
+	{"(0x10, 0x20, 070, 0xea, -4)", []int64{16, 32, 56, 234, -4}},
 
 	// Spurious line breaks should be ignored.
 	{"1 +\n2", 3},
