@@ -139,6 +139,10 @@ func stringParser(ctx context.Context, scope types.Scope, arg interface{}) (inte
 
 	case types.Null, *types.Null, nil:
 		return "", nil
+
+	case fmt.Stringer:
+		return t.String(), nil
+
 	default:
 		return fmt.Sprintf("%s", arg), nil
 	}

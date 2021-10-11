@@ -40,7 +40,7 @@ func (self *Lambda) ToString(scope types.Scope) string {
 func (self *Lambda) Reduce(ctx context.Context, scope types.Scope, parameters []Any) Any {
 	my_parameters := self.GetParameters()
 	if len(my_parameters) != len(parameters) {
-		scope.Log("Incorrect number of parameters is Lambda call")
+		scope.Log("Incorrect number of parameters in Lambda call")
 		return Null{}
 	}
 
