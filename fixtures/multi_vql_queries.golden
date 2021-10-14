@@ -399,7 +399,14 @@
       "Count": 3
     }
   ],
-  "034/000 Aggregate functions keep state per unique instance: SELECT * FROM foreach(row= [0, 1, 2], query= { SELECT count() AS A, count() AS B FROM scope()})": [
+  "034/000 Aggregate functions: min max on strings: SELECT min(item=_value) AS Min, max(item=_value) AS Max, count() AS Count FROM foreach(row= [\"AAA\", \"BBBB\", \"CCC\"]) GROUP BY 1": [
+    {
+      "Min": "AAA",
+      "Max": "CCC",
+      "Count": 3
+    }
+  ],
+  "035/000 Aggregate functions keep state per unique instance: SELECT * FROM foreach(row= [0, 1, 2], query= { SELECT count() AS A, count() AS B FROM scope()})": [
     {
       "A": 1,
       "B": 1
@@ -413,7 +420,7 @@
       "B": 3
     }
   ],
-  "035/000 Aggregate functions: Sum and Count together: SELECT * FROM foreach(row= [2, 3, 4], query= { SELECT count() AS A, sum(item=_value) AS B FROM scope()})": [
+  "036/000 Aggregate functions: Sum and Count together: SELECT * FROM foreach(row= [2, 3, 4], query= { SELECT count() AS A, sum(item=_value) AS B FROM scope()})": [
     {
       "A": 1,
       "B": 2
@@ -427,21 +434,21 @@
       "B": 9
     }
   ],
-  "036/000 Aggregate functions: Sum all rows: SELECT sum(item=_value) AS Total, sum(item=_value * 2) AS TotalDouble FROM foreach(row= [2, 3, 4]) GROUP BY 1": [
+  "037/000 Aggregate functions: Sum all rows: SELECT sum(item=_value) AS Total, sum(item=_value * 2) AS TotalDouble FROM foreach(row= [2, 3, 4]) GROUP BY 1": [
     {
       "Total": 9,
       "TotalDouble": 18
     }
   ],
-  "037/000 If function with stored query: LET Foo=SELECT 2 FROM scope() WHERE set_env(column=\"Eval\", value=TRUE)": null,
-  "037/001 If function with stored query: LET result\u003c=if(condition=TRUE, then=Foo)": null,
-  "037/002 If function with stored query: SELECT RootEnv.Eval AS Pass FROM scope()": [
+  "038/000 If function with stored query: LET Foo=SELECT 2 FROM scope() WHERE set_env(column=\"Eval\", value=TRUE)": null,
+  "038/001 If function with stored query: LET result\u003c=if(condition=TRUE, then=Foo)": null,
+  "038/002 If function with stored query: SELECT RootEnv.Eval AS Pass FROM scope()": [
     {
       "Pass": true
     }
   ],
-  "038/000 If function with subqueries: LET abc(a)=if(condition=a, then= { SELECT a AS Pass FROM scope()}, else= { SELECT false AS Pass FROM scope()})": null,
-  "038/001 If function with subqueries: SELECT abc(a=TRUE) AS Pass FROM scope()": [
+  "039/000 If function with subqueries: LET abc(a)=if(condition=a, then= { SELECT a AS Pass FROM scope()}, else= { SELECT false AS Pass FROM scope()})": null,
+  "039/001 If function with subqueries: SELECT abc(a=TRUE) AS Pass FROM scope()": [
     {
       "Pass": [
         {
@@ -450,15 +457,15 @@
       ]
     }
   ],
-  "039/000 If function with functions: LET abc(a)=if(condition=a, then=set_env(column=\"EvalFunc\", value=TRUE))": null,
-  "039/001 If function with functions: LET _\u003c=SELECT abc(a=TRUE) FROM scope()": null,
-  "039/002 If function with functions: SELECT RootEnv.EvalFunc AS Pass FROM scope()": [
+  "040/000 If function with functions: LET abc(a)=if(condition=a, then=set_env(column=\"EvalFunc\", value=TRUE))": null,
+  "040/001 If function with functions: LET _\u003c=SELECT abc(a=TRUE) FROM scope()": null,
+  "040/002 If function with functions: SELECT RootEnv.EvalFunc AS Pass FROM scope()": [
     {
       "Pass": true
     }
   ],
-  "040/000 If function with conditions as subqueries: LET abc(a)=if(condition= { SELECT * FROM scope()}, then= { SELECT a AS Pass FROM scope()}, else= { SELECT false AS Pass FROM scope()})": null,
-  "040/001 If function with conditions as subqueries: SELECT abc(a=TRUE) AS Pass FROM scope()": [
+  "041/000 If function with conditions as subqueries: LET abc(a)=if(condition= { SELECT * FROM scope()}, then= { SELECT a AS Pass FROM scope()}, else= { SELECT false AS Pass FROM scope()})": null,
+  "041/001 If function with conditions as subqueries: SELECT abc(a=TRUE) AS Pass FROM scope()": [
     {
       "Pass": [
         {
@@ -467,9 +474,9 @@
       ]
     }
   ],
-  "041/000 If function with conditions as stored query: LET stored_query=SELECT * FROM scope()": null,
-  "041/001 If function with conditions as stored query: LET abc(a)=if(condition=stored_query, then= { SELECT a AS Pass FROM scope()}, else= { SELECT false AS Pass FROM scope()})": null,
-  "041/002 If function with conditions as stored query: SELECT abc(a=TRUE) AS Pass FROM scope()": [
+  "042/000 If function with conditions as stored query: LET stored_query=SELECT * FROM scope()": null,
+  "042/001 If function with conditions as stored query: LET abc(a)=if(condition=stored_query, then= { SELECT a AS Pass FROM scope()}, else= { SELECT false AS Pass FROM scope()})": null,
+  "042/002 If function with conditions as stored query: SELECT abc(a=TRUE) AS Pass FROM scope()": [
     {
       "Pass": [
         {
@@ -478,9 +485,9 @@
       ]
     }
   ],
-  "042/000 If function with conditions as vql functions: LET adder(a)=a =~ \"Foo\"": null,
-  "042/001 If function with conditions as vql functions: LET abc(a)=if(condition=adder(a=\"Foobar\"), then= { SELECT a AS Pass FROM scope()}, else= { SELECT false AS Pass FROM scope()})": null,
-  "042/002 If function with conditions as vql functions: SELECT abc(a=TRUE) AS Pass FROM scope()": [
+  "043/000 If function with conditions as vql functions: LET adder(a)=a =~ \"Foo\"": null,
+  "043/001 If function with conditions as vql functions: LET abc(a)=if(condition=adder(a=\"Foobar\"), then= { SELECT a AS Pass FROM scope()}, else= { SELECT false AS Pass FROM scope()})": null,
+  "043/002 If function with conditions as vql functions: SELECT abc(a=TRUE) AS Pass FROM scope()": [
     {
       "Pass": [
         {
@@ -489,32 +496,32 @@
       ]
     }
   ],
-  "043/000 Multiline string constants: LET X='''This\nis\na\nmultiline with 'quotes' and \"double quotes\" and \\ backslashes\n''' + \"A string\"": null,
-  "043/001 Multiline string constants: SELECT X FROM scope()": [
+  "044/000 Multiline string constants: LET X='''This\nis\na\nmultiline with 'quotes' and \"double quotes\" and \\ backslashes\n''' + \"A string\"": null,
+  "044/001 Multiline string constants: SELECT X FROM scope()": [
     {
       "X": "This\nis\na\nmultiline with 'quotes' and \"double quotes\" and \\ backslashes\nA string"
     }
   ],
-  "044/000 Early breakout of foreach with infinite row query: SELECT * FROM foreach(row= { SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)}, query= { SELECT Count FROM scope()}) LIMIT 1 ": [
+  "045/000 Early breakout of foreach with infinite row query: SELECT * FROM foreach(row= { SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)}, query= { SELECT Count FROM scope()}) LIMIT 1 ": [
     {
       "Count": 1
     }
   ],
-  "045/000 Early breakout of foreach with stored query: LET X=SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)": null,
-  "045/001 Early breakout of foreach with stored query: SELECT * FROM foreach(row=X, query= { SELECT Count FROM scope()}) LIMIT 1 ": [
+  "046/000 Early breakout of foreach with stored query: LET X=SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)": null,
+  "046/001 Early breakout of foreach with stored query: SELECT * FROM foreach(row=X, query= { SELECT Count FROM scope()}) LIMIT 1 ": [
     {
       "Count": 1
     }
   ],
-  "046/000 Early breakout of foreach with stored query with parameters: LET X(Y)=SELECT Y, count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)": null,
-  "046/001 Early breakout of foreach with stored query with parameters: SELECT * FROM foreach(row=X(Y=23), query= { SELECT Y, Count FROM scope()}) LIMIT 1 ": [
+  "047/000 Early breakout of foreach with stored query with parameters: LET X(Y)=SELECT Y, count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5)": null,
+  "047/001 Early breakout of foreach with stored query with parameters: SELECT * FROM foreach(row=X(Y=23), query= { SELECT Y, Count FROM scope()}) LIMIT 1 ": [
     {
       "Y": 23,
       "Count": 1
     }
   ],
-  "047/000 Expand stored query with parameters on associative: LET X(Y)=SELECT Y + 5 + value AS Foo FROM range(start=1, end=2)": null,
-  "047/001 Expand stored query with parameters on associative: SELECT X(Y=2).Foo FROM scope()": [
+  "048/000 Expand stored query with parameters on associative: LET X(Y)=SELECT Y + 5 + value AS Foo FROM range(start=1, end=2)": null,
+  "048/001 Expand stored query with parameters on associative: SELECT X(Y=2).Foo FROM scope()": [
     {
       "X(Y=2).Foo": [
         8,
@@ -522,7 +529,7 @@
       ]
     }
   ],
-  "048/000 Order by: SELECT * FROM foreach(row=(1, 8, 3, 2), query= { SELECT _value AS X FROM scope()}) ORDER BY X": [
+  "049/000 Order by: SELECT * FROM foreach(row=(1, 8, 3, 2), query= { SELECT _value AS X FROM scope()}) ORDER BY X": [
     {
       "X": 1
     },
@@ -536,7 +543,7 @@
       "X": 8
     }
   ],
-  "049/000 Group by also orders: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X FROM scope()}) GROUP BY X": [
+  "050/000 Group by also orders: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X FROM scope()}) GROUP BY X": [
     {
       "X": 1
     },
@@ -550,7 +557,7 @@
       "X": 2
     }
   ],
-  "050/000 Group by with explicit order by: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X, 10 - _value AS Y FROM scope()}) GROUP BY X ORDER BY Y": [
+  "051/000 Group by with explicit order by: SELECT * FROM foreach(row=(1, 1, 1, 1, 8, 3, 3, 3, 2), query= { SELECT _value AS X, 10 - _value AS Y FROM scope()}) GROUP BY X ORDER BY Y": [
     {
       "X": 8,
       "Y": 2
@@ -568,8 +575,8 @@
       "Y": 9
     }
   ],
-  "051/000 Test array index: LET BIN\u003c=SELECT * FROM test()": null,
-  "051/001 Test array index: SELECT BIN, BIN[0] FROM scope()": [
+  "052/000 Test array index: LET BIN\u003c=SELECT * FROM test()": null,
+  "052/001 Test array index: SELECT BIN, BIN[0] FROM scope()": [
     {
       "BIN": [
         {
@@ -591,9 +598,9 @@
       }
     }
   ],
-  "052/000 Create Let expression: LET result=SELECT * FROM test()": null,
-  "052/001 Create Let expression: LET result\u003c=SELECT * FROM test()": null,
-  "052/002 Create Let expression: SELECT * FROM result": [
+  "053/000 Create Let expression: LET result=SELECT * FROM test()": null,
+  "053/001 Create Let expression: LET result\u003c=SELECT * FROM test()": null,
+  "053/002 Create Let expression: SELECT * FROM result": [
     {
       "foo": 0,
       "bar": 0
@@ -607,17 +614,17 @@
       "bar": 2
     }
   ],
-  "052/003 Create Let expression: SELECT * FROM no_such_result": null,
-  "052/004 Create Let expression: SELECT foobar FROM no_such_result": null,
-  "053/000 Override function with a variable: LET format=5": null,
-  "053/001 Override function with a variable: SELECT format, format(format='%v', args=1) AS A FROM scope()": [
+  "053/003 Create Let expression: SELECT * FROM no_such_result": null,
+  "053/004 Create Let expression: SELECT foobar FROM no_such_result": null,
+  "054/000 Override function with a variable: LET format=5": null,
+  "054/001 Override function with a variable: SELECT format, format(format='%v', args=1) AS A FROM scope()": [
     {
       "format": 5,
       "A": "1"
     }
   ],
-  "054/000 Stored Expressions as plugins: LET Foo=(dict(X=1), dict(X=2), dict(X=3))": null,
-  "054/001 Stored Expressions as plugins: SELECT * FROM Foo": [
+  "055/000 Stored Expressions as plugins: LET Foo=(dict(X=1), dict(X=2), dict(X=3))": null,
+  "055/001 Stored Expressions as plugins: SELECT * FROM Foo": [
     {
       "X": 1
     },
@@ -628,8 +635,8 @@
       "X": 3
     }
   ],
-  "055/000 Materialized Expressions as plugins: LET Foo\u003c=(dict(X=1), dict(X=2), dict(X=3))": null,
-  "055/001 Materialized Expressions as plugins: SELECT * FROM Foo": [
+  "056/000 Materialized Expressions as plugins: LET Foo\u003c=(dict(X=1), dict(X=2), dict(X=3))": null,
+  "056/001 Materialized Expressions as plugins: SELECT * FROM Foo": [
     {
       "X": 1
     },
@@ -640,8 +647,8 @@
       "X": 3
     }
   ],
-  "056/000 Stored Expressions as plugins with args: LET Foo(X)=(dict(X=1 + X), dict(X=2 + X), dict(X=3 + X))": null,
-  "056/001 Stored Expressions as plugins with args: SELECT * FROM Foo(X=1)": [
+  "057/000 Stored Expressions as plugins with args: LET Foo(X)=(dict(X=1 + X), dict(X=2 + X), dict(X=3 + X))": null,
+  "057/001 Stored Expressions as plugins with args: SELECT * FROM Foo(X=1)": [
     {
       "X": 2
     },

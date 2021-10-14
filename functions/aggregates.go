@@ -147,7 +147,7 @@ func (self _SumFunction) Call(
 }
 
 type _MinFunctionArgs struct {
-	Item int64 `vfilter:"required,field=item"`
+	Item types.LazyExpr `vfilter:"required,field=item"`
 }
 
 type _MinFunction struct {
@@ -175,7 +175,7 @@ func (self _MinFunction) Call(
 		return types.Null{}
 	}
 
-	var min_value types.Any = arg.Item
+	var min_value types.Any = arg.Item.Reduce(ctx)
 	previous_value, pres := self.GetContext(scope)
 	if pres && !scope.Lt(min_value, previous_value) {
 		min_value = previous_value
@@ -210,7 +210,7 @@ func (self _MaxFunction) Call(
 		return types.Null{}
 	}
 
-	var max_value types.Any = arg.Item
+	var max_value types.Any = arg.Item.Reduce(ctx)
 	previous_value, pres := self.GetContext(scope)
 	if pres && scope.Lt(max_value, previous_value) {
 		max_value = previous_value
