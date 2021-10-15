@@ -781,6 +781,14 @@ FROM foreach(row=[0, 1, 2])
 GROUP BY 1
 `},
 
+	{"Aggregate functions: min max on strings", `
+SELECT min(item=_value) AS Min,
+       max(item=_value) AS Max,
+       count() AS Count
+FROM foreach(row=["AAA", "BBBB", "CCC"])
+GROUP BY 1
+`},
+
 	{"Aggregate functions keep state per unique instance", `
 SELECT * FROM foreach(row=[0, 1, 2],
   query={
