@@ -1111,6 +1111,7 @@ func (self *_Plugin) evalSymbol(
 		// Stored Expression e.g. LET Foo(X) = X + 1
 		case types.StoredExpression:
 			subscope := scope.Copy()
+			subscope.ClearContext()
 			defer subscope.Close()
 
 			subscope.AppendVars(args)
@@ -1120,6 +1121,11 @@ func (self *_Plugin) evalSymbol(
 			// A plugin like item
 		case PluginGeneratorInterface:
 			scope.GetStats().IncPluginsCalled()
+
+			subscope := scope.Copy()
+			subscope.ClearContext()
+			defer subscope.Close()
+
 			return t.Call(ctx, scope, args)
 
 		default:

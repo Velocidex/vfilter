@@ -790,10 +790,14 @@ GROUP BY 1
 `},
 
 	{"Aggregate functions keep state per unique instance", `
-SELECT * FROM foreach(row=[0, 1, 2],
-  query={
-    SELECT count() AS A, count() AS B FROM scope()
-})`},
+SELECT count() AS A, count() AS B FROM foreach(row=[0, 1, 2])
+`},
+
+	{"Aggregate functions within a VQL function have their own state", `
+LET Adder(X) = SELECT *, count() AS Count FROM range(start=10, end=10 + X, step=1)
+
+SELECT Adder(X=4), Adder(X=2) FROM scope()
+`},
 
 	{"Aggregate functions: Sum and Count together", `
 SELECT * FROM foreach(row=[2, 3, 4],
