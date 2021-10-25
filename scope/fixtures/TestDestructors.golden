@@ -19,8 +19,8 @@
     "Plugin Open rows_query 1",
     "Func Open iterator_func 1",
     "Func Close iterator_func 1",
-    "Func Open iterator_func 2",
-    "Func Close iterator_func 2",
+    "Func Open iterator_func 1",
+    "Func Close iterator_func 1",
     "Plugin Close rows_query 1"
   ],
   "004 Lazy function: SELECT destructor(name='lazy_func') AS X FROM scope() WHERE FALSE - markers": [],
