@@ -934,6 +934,13 @@ LET BIN <= SELECT * FROM test()
 SELECT BIN, BIN[0] FROM scope()
 `},
 
+	{"Test array index with expression", `
+LET Index(X) = X - 1
+LET BIN <= SELECT * FROM test()
+SELECT BIN, BIN[ Index(X=2) ] FROM scope()
+SELECT BIN, BIN[ Index(X=0) ] FROM scope()
+`},
+
 	{"Create Let expression", `
 let result = select  * from test()
 // Create Let materialized expression
