@@ -639,9 +639,52 @@
       }
     }
   ],
-  "054/000 Create Let expression: LET result=SELECT * FROM test()": null,
-  "054/001 Create Let expression: LET result\u003c=SELECT * FROM test()": null,
-  "054/002 Create Let expression: SELECT * FROM result": [
+  "054/000 Test array index with expression: LET Index(X)=X - 1": null,
+  "054/001 Test array index with expression: LET BIN\u003c=SELECT * FROM test()": null,
+  "054/002 Test array index with expression: SELECT BIN, BIN[Index(X=2)] FROM scope()": [
+    {
+      "BIN": [
+        {
+          "foo": 0,
+          "bar": 0
+        },
+        {
+          "foo": 2,
+          "bar": 1
+        },
+        {
+          "foo": 4,
+          "bar": 2
+        }
+      ],
+      "BIN[Index(X=2)]": {
+        "foo": 2,
+        "bar": 1
+      }
+    }
+  ],
+  "054/003 Test array index with expression: SELECT BIN, BIN[Index(X=0)] FROM scope()": [
+    {
+      "BIN": [
+        {
+          "foo": 0,
+          "bar": 0
+        },
+        {
+          "foo": 2,
+          "bar": 1
+        },
+        {
+          "foo": 4,
+          "bar": 2
+        }
+      ],
+      "BIN[Index(X=0)]": null
+    }
+  ],
+  "055/000 Create Let expression: LET result=SELECT * FROM test()": null,
+  "055/001 Create Let expression: LET result\u003c=SELECT * FROM test()": null,
+  "055/002 Create Let expression: SELECT * FROM result": [
     {
       "foo": 0,
       "bar": 0
@@ -655,17 +698,17 @@
       "bar": 2
     }
   ],
-  "054/003 Create Let expression: SELECT * FROM no_such_result": null,
-  "054/004 Create Let expression: SELECT foobar FROM no_such_result": null,
-  "055/000 Override function with a variable: LET format=5": null,
-  "055/001 Override function with a variable: SELECT format, format(format='%v', args=1) AS A FROM scope()": [
+  "055/003 Create Let expression: SELECT * FROM no_such_result": null,
+  "055/004 Create Let expression: SELECT foobar FROM no_such_result": null,
+  "056/000 Override function with a variable: LET format=5": null,
+  "056/001 Override function with a variable: SELECT format, format(format='%v', args=1) AS A FROM scope()": [
     {
       "format": 5,
       "A": "1"
     }
   ],
-  "056/000 Stored Expressions as plugins: LET Foo=(dict(X=1), dict(X=2), dict(X=3))": null,
-  "056/001 Stored Expressions as plugins: SELECT * FROM Foo": [
+  "057/000 Stored Expressions as plugins: LET Foo=(dict(X=1), dict(X=2), dict(X=3))": null,
+  "057/001 Stored Expressions as plugins: SELECT * FROM Foo": [
     {
       "X": 1
     },
@@ -676,8 +719,8 @@
       "X": 3
     }
   ],
-  "057/000 Materialized Expressions as plugins: LET Foo\u003c=(dict(X=1), dict(X=2), dict(X=3))": null,
-  "057/001 Materialized Expressions as plugins: SELECT * FROM Foo": [
+  "058/000 Materialized Expressions as plugins: LET Foo\u003c=(dict(X=1), dict(X=2), dict(X=3))": null,
+  "058/001 Materialized Expressions as plugins: SELECT * FROM Foo": [
     {
       "X": 1
     },
@@ -688,8 +731,8 @@
       "X": 3
     }
   ],
-  "058/000 Stored Expressions as plugins with args: LET Foo(X)=(dict(X=1 + X), dict(X=2 + X), dict(X=3 + X))": null,
-  "058/001 Stored Expressions as plugins with args: SELECT * FROM Foo(X=1)": [
+  "059/000 Stored Expressions as plugins with args: LET Foo(X)=(dict(X=1 + X), dict(X=2 + X), dict(X=3 + X))": null,
+  "059/001 Stored Expressions as plugins with args: SELECT * FROM Foo(X=1)": [
     {
       "X": 2
     },

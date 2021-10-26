@@ -815,8 +815,8 @@ type _MemberExpression struct {
 }
 
 type _OpMembershipTerm struct {
-	Index *int64 `( "[" @Number "]" | `
-	Term  string `  "." @Ident )`
+	Index *_Value `( "[" @@ "]" | `
+	Term  string  `  "." @Ident )`
 }
 
 // ---------------------------------------
@@ -1213,7 +1213,8 @@ func (self *_MemberExpression) Reduce(ctx context.Context, scope types.Scope) An
 
 		// Slice index implementation via Associative protocol.
 		if term.Index != nil {
-			lhs, pres = scope.Associative(lhs, term.Index)
+			index := term.Index.Reduce(ctx, scope)
+			lhs, pres = scope.Associative(lhs, index)
 		} else {
 			lhs, pres = scope.Associative(lhs, utils.Unquote_ident(term.Term))
 		}
@@ -1230,7 +1231,7 @@ func (self *_MemberExpression) ToString(scope types.Scope) string {
 
 	for _, right := range self.Right {
 		if right.Index != nil {
-			result += fmt.Sprintf("[%d]", *right.Index)
+			result += fmt.Sprintf("[%s]", right.Index.ToString(scope))
 		} else {
 			result += fmt.Sprintf(".%s", right.Term)
 		}
