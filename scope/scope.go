@@ -21,9 +21,40 @@ import (
 // Destructors are attached to each scope in the stack - they are
 // called when scope.Close() is called.
 type _destructors struct {
+	mu           sync.Mutex
 	fn           []func()
 	is_destroyed bool
 	wg           sync.WaitGroup
+}
+
+func (self *_destructors) SetDestroyed() {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	self.is_destroyed = true
+}
+
+func (self *_destructors) IsDestroyed() bool {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	return self.is_destroyed
+}
+
+func (self *_destructors) AddDestructor(fn func()) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	self.fn = append(self.fn, fn)
+}
+
+func (self *_destructors) RemoveDestructors() []func() {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	result := append(self.fn[:0:0], self.fn...)
+	self.fn = nil
+	return result
 }
 
 /* The scope is a common environment passed to all plugins, functions
@@ -331,10 +362,10 @@ func (self *Scope) AddDestructor(fn func()) error {
 	self.Unlock()
 
 	// Scope is already destroyed - call the destructor now.
-	if self.destructors.is_destroyed {
+	if self.destructors.IsDestroyed() {
 		return errors.New("Scope already closed")
 	} else {
-		self.destructors.fn = append(self.destructors.fn, fn)
+		self.destructors.AddDestructor(fn)
 		return nil
 	}
 }
@@ -356,11 +387,10 @@ func (self *Scope) Close() {
 	parent := self.parent
 
 	// Stop new destructors from appearing.
-	self.destructors.is_destroyed = true
+	self.destructors.SetDestroyed()
 
 	// Remove destructors from list so they are not run again.
-	ds := append(self.destructors.fn[:0:0], self.destructors.fn...)
-	self.destructors.fn = []func(){}
+	ds := self.destructors.RemoveDestructors()
 
 	// Unlock the scope and start running the
 	// destructors. Destructors may actually add new destructors
