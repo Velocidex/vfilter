@@ -81,15 +81,16 @@ type _SubSelectFunctionArgs struct {
 }
 
 type _SplitFunctionArgs struct {
-	String string `vfilter:"required,field=string,doc=The value to split"`
-	Sep    string `vfilter:"required,field=sep,doc=The serparator that will be used to split"`
+	String     string `vfilter:"required,field=string,doc=The value to split"`
+	Sep        string `vfilter:"optional,field=sep,doc=The serparator that will be used to split"`
+	Sep_string string `vfilter:"optional,field=sep_string,doc=The serparator as string that will be used to split"`
 }
 type _SplitFunction struct{}
 
 func (self _SplitFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
 	return &types.FunctionInfo{
 		Name:    "split",
-		Doc:     "Splits a string into an array based on a regexp separator.",
+		Doc:     "Splits a string into an array based on a regexp or string separator.",
 		ArgType: type_map.AddType(scope, _SplitFunctionArgs{}),
 	}
 }
@@ -101,13 +102,20 @@ func (self _SplitFunction) Call(ctx context.Context, scope types.Scope, args *or
 		scope.Log("split: %s", err.Error())
 		return types.Null{}
 	}
-	re, err := regexp.Compile(arg.Sep)
-	if err != nil {
-		scope.Log("split: %s", err.Error())
+
+	if arg.Sep != "" {
+		re, err := regexp.Compile(arg.Sep)
+		if err != nil {
+			scope.Log("split: %s", err.Error())
+			return types.Null{}
+		}
+		return re.Split(arg.String, -1)
+	} else if arg.Sep_string != "" {
+		return strings.Split(arg.String, arg.Sep_string)
+	} else {
+		scope.Log("split: requires either sep or sep_string")
 		return types.Null{}
 	}
-
-	return re.Split(arg.String, -1)
 }
 
 type _GetFunctionArgs struct {
