@@ -8,6 +8,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Velocidex/ordereddict"
@@ -16,6 +17,10 @@ import (
 	"www.velocidex.com/golang/vfilter/protocols"
 	"www.velocidex.com/golang/vfilter/types"
 	"www.velocidex.com/golang/vfilter/utils"
+)
+
+var (
+	idx uint64
 )
 
 // Destructors are attached to each scope in the stack - they are
@@ -91,6 +96,8 @@ type Scope struct {
 
 	// types.Any destructors attached to this scope.
 	destructors _destructors
+
+	id uint64
 }
 
 func (self *Scope) SetLogger(logger *log.Logger) {
@@ -118,6 +125,7 @@ func (self *Scope) NewScope() types.Scope {
 		},
 		children:   make(map[*Scope]*Scope),
 		dispatcher: self.dispatcher.Copy(),
+		id:         NextId(),
 	}
 
 	return result
@@ -278,6 +286,7 @@ func (self *Scope) Copy() types.Scope {
 		stack_depth: self.stack_depth + 1,
 		children:    make(map[*Scope]*Scope),
 		parent:      self,
+		id:          NextId(),
 	}
 
 	// Remember our children.
@@ -370,6 +379,13 @@ func (self *Scope) AddDestructor(fn func()) error {
 	}
 }
 
+func (self *Scope) IsClosed() bool {
+	self.Lock()
+	defer self.Unlock()
+
+	return self.destructors.IsDestroyed()
+}
+
 // Closing a scope will also close all its children. Note that
 // destructors may use the scope so we can not lock it for the
 // duration.
@@ -438,6 +454,7 @@ func NewScope() *Scope {
 	result := &Scope{
 		children:   make(map[*Scope]*Scope),
 		dispatcher: dispatcher,
+		id:         NextId(),
 	}
 
 	// Add Builtin protocols, functions, and plugins
@@ -544,4 +561,8 @@ func (self _ScopeAssociative) Associative(
 // Should only be used by groupers to replace the group context at once
 func (self *Scope) SetContextDict(context *ordereddict.Dict) {
 	self.dispatcher.SetContext(context)
+}
+
+func NextId() uint64 {
+	return atomic.AddUint64(&idx, 1)
 }

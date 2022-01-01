@@ -80,6 +80,7 @@ type Scope interface {
 	// Destructors are called when the scope is Close(). If the
 	// scope is already closed adding the destructor may fail.
 	AddDestructor(fn func()) error
+	IsClosed() bool
 	Close()
 }
 
