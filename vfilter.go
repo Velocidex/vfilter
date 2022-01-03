@@ -1450,7 +1450,7 @@ func (self *_ConditionOperand) Reduce(ctx context.Context, scope types.Scope) An
 	var result Any = false
 
 	switch self.Right.Operator {
-	case "IN":
+	case "IN", "in", "In":
 		result = scope.Membership(lhs, rhs)
 	case "<":
 		result = scope.Lt(lhs, rhs)
