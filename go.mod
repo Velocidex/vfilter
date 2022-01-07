@@ -1,17 +1,15 @@
 module www.velocidex.com/golang/vfilter
 
 require (
-	github.com/Velocidex/ordereddict v0.0.0-20200723153557-9460a6764ab8
-	github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38
-	github.com/alecthomas/colour v0.1.0 // indirect
+	github.com/Velocidex/ordereddict v0.0.0-20220107075049-3dbe58412844
+	github.com/alecthomas/assert v1.0.0
 	github.com/alecthomas/participle v0.4.4
-	github.com/alecthomas/repr v0.0.0-20181024024818-d37bc2a10ba1
+	github.com/alecthomas/repr v0.0.0-20210801044451-80ca428c5142
 	github.com/google/go-cmp v0.5.6
-	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/sebdah/goldie/v2 v2.5.3
-	github.com/stretchr/testify v1.4.0
-	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
+	github.com/stretchr/testify v1.7.0
+	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	golang.org/x/text v0.3.0
 )
 
