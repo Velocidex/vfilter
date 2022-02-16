@@ -12,8 +12,8 @@ import (
 type _ForeachPluginImplArgs struct {
 	Row     types.LazyExpr    `vfilter:"required,field=row,doc=A query or slice which generates rows."`
 	Query   types.StoredQuery `vfilter:"optional,field=query,doc=Run this query for each row."`
-	Async   bool              `vfilter:"optional,field=async,doc=If set we run all queries asyncronously (implies workers=1000)."`
-	Workers int64             `vfilter:"optional,field=workers,doc=Total number of asyncronous workers."`
+	Async   bool              `vfilter:"optional,field=async,doc=If set we run all queries asynchronously (implies workers=1000)."`
+	Workers int64             `vfilter:"optional,field=workers,doc=Total number of asynchronous workers."`
 	Column  string            `vfilter:"optional,field=column,doc=If set we only extract the column from row."`
 }
 
