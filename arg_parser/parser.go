@@ -35,7 +35,9 @@ var (
 // Structs may tag fields with this name to control parsing.
 const tagName = "vfilter"
 
-type ParserDipatcher func(ctx context.Context, scope types.Scope, value interface{}) (interface{}, error)
+type ParserDipatcher func(ctx context.Context,
+	scope types.Scope, args *ordereddict.Dict,
+	value interface{}) (interface{}, error)
 
 type FieldParser struct {
 	Field    string
@@ -65,7 +67,7 @@ func (self *Parser) Parse(
 		parsed = append(parsed, parser.Field)
 
 		// Convert the value using the parser
-		new_value, err := parser.Parser(ctx, scope, value)
+		new_value, err := parser.Parser(ctx, scope, args, value)
 		if err != nil {
 			return fmt.Errorf("Field %s %w", parser.Field, err)
 		}
@@ -96,19 +98,22 @@ func (self *Parser) Parse(
 // LazyExpr.Reduce() must be followed by a StoredQuery check. The
 // plugin may then choose to either iterate over each StoredQuery row,
 // or materialize the StoredQuery into memory (not recommended).
-func lazyExprParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+func lazyExprParser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
 	return ToLazyExpr(scope, arg), nil
 }
 
 // The target field is a types.StoredQuery - check that what was
 // provided is actually one of those.
-func storedQueryParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+func storedQueryParser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
 	return ToStoredQuery(ctx, arg), nil
 }
 
 // Any fields can accept both storedQuery and LazyExpr but will
 // materialize both.
-func anyParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+func anyParser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
 		arg = lazy_arg.ReduceWithScope(ctx, scope)
@@ -117,7 +122,8 @@ func anyParser(ctx context.Context, scope types.Scope, arg interface{}) (interfa
 	return arg, nil
 }
 
-func sliceParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+func sliceParser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
 		arg = lazy_arg.Reduce(ctx)
@@ -130,7 +136,8 @@ func sliceParser(ctx context.Context, scope types.Scope, arg interface{}) (inter
 	return []interface{}{}, nil
 }
 
-func sliceAnyParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+func sliceAnyParser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
 		arg = lazy_arg.Reduce(ctx)
@@ -143,7 +150,8 @@ func sliceAnyParser(ctx context.Context, scope types.Scope, arg interface{}) (in
 	return []interface{}{}, nil
 }
 
-func stringParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+func stringParser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
 		arg = lazy_arg.Reduce(ctx)
@@ -176,7 +184,8 @@ func stringParser(ctx context.Context, scope types.Scope, arg interface{}) (inte
 	}
 }
 
-func boolParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+func boolParser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
 		arg = lazy_arg.Reduce(ctx)
@@ -185,7 +194,8 @@ func boolParser(ctx context.Context, scope types.Scope, arg interface{}) (interf
 	return scope.Bool(arg), nil
 }
 
-func floatParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+func floatParser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
 		arg = lazy_arg.Reduce(ctx)
@@ -198,7 +208,8 @@ func floatParser(ctx context.Context, scope types.Scope, arg interface{}) (inter
 	return nil, errors.New(fmt.Sprintf("Should be a float not %T.", arg))
 }
 
-func int64Parser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+func int64Parser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
 		arg = lazy_arg.Reduce(ctx)
@@ -212,7 +223,8 @@ func int64Parser(ctx context.Context, scope types.Scope, arg interface{}) (inter
 }
 
 // The target field is an ordered dict type - just assign it directly.
-func dictParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+func dictParser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
 		arg = lazy_arg.Reduce(ctx)
@@ -237,7 +249,8 @@ func dictParser(ctx context.Context, scope types.Scope, arg interface{}) (interf
 	return env, nil
 }
 
-func uInt64Parser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+func uInt64Parser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
 		arg = lazy_arg.Reduce(ctx)
@@ -250,7 +263,8 @@ func uInt64Parser(ctx context.Context, scope types.Scope, arg interface{}) (inte
 	return nil, errors.New("Should be an int.")
 }
 
-func intParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+func intParser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
 		arg = lazy_arg.Reduce(ctx)
