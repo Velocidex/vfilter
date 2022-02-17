@@ -152,9 +152,21 @@ func (self DefaultAssociative) Associative(scope types.Scope, a types.Any, b typ
 	idx, ok := utils.ToInt64(b)
 	if ok {
 		a_value := reflect.Indirect(reflect.ValueOf(a))
-		if idx < 0 || int(idx) > a_value.Len() {
+		if a_value.Type().Kind() != reflect.Slice {
 			return &types.Null{}, false
 		}
+		array_length := int64(a_value.Len())
+
+		// Negative index refers to the end of the slice.
+		if idx < 0 {
+			idx = array_length + idx
+		}
+
+		// Index out of bounds - return NULL
+		if idx < 0 || idx > array_length {
+			return &types.Null{}, false
+		}
+
 		value := a_value.Index(int(idx))
 		if value.Kind() == reflect.Ptr && value.IsNil() {
 			return &types.Null{}, true
@@ -163,6 +175,57 @@ func (self DefaultAssociative) Associative(scope types.Scope, a types.Any, b typ
 	}
 
 	switch field_name := b.(type) {
+
+	// Slice sub range can operate on strings or slices
+	case []*int64:
+		if len(field_name) != 2 {
+			return &types.Null{}, true
+		}
+
+		a_value := reflect.Indirect(reflect.ValueOf(a))
+		if a_value.Type().Kind() == reflect.Slice {
+			array_length := int64(a_value.Len())
+
+			var start_range, end_range int64
+			if field_name[0] != nil {
+				start_range = *field_name[0]
+			}
+			if start_range < 0 {
+				start_range = array_length + start_range
+			}
+			if start_range < 0 {
+				start_range = 0
+			}
+
+			if field_name[1] != nil {
+				end_range = *field_name[1]
+			} else {
+				end_range = array_length
+			}
+
+			if end_range < 0 {
+				end_range = array_length + end_range
+			}
+			if end_range < 0 {
+				end_range = 0
+			}
+
+			if end_range <= start_range {
+				return []types.Any{}, true
+			}
+
+			result := make([]types.Any, 0, end_range-start_range)
+			for i := start_range; i < end_range; i++ {
+				value := a_value.Index(int(i))
+				if value.Kind() == reflect.Ptr && value.IsNil() {
+					result = append(result, &types.Null{})
+				} else {
+					result = append(result, value.Interface())
+				}
+			}
+			return result, true
+		}
+
 	case string:
 		if !utils.IsExported(field_name) {
 			field_name = strings.Title(field_name)

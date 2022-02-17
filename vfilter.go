@@ -174,7 +174,7 @@ var (
 			`|''(?P<MultilineString>'.*?')''` +
 			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")` +
 			`|(?P<Number>[-+]?(0x[0-9a-f]+|\d*\.?\d+([eE][-+]?\d+)?))` +
-			`|(?P<Operators><>|!=|<=|>=|=>|=~|[-+*/%,.()=<>{}\[\]])`,
+			`|(?P<Operators><>|!=|<=|>=|=>|=~|[-:+*/%,.()=<>{}\[\]])`,
 	))
 
 	vqlParser = participle.MustBuild(
@@ -815,8 +815,15 @@ type _MemberExpression struct {
 }
 
 type _OpMembershipTerm struct {
-	Index *_Value `( "[" @@ "]" | `
-	Term  string  `  "." @Ident )`
+	Index    *_Value ` ( "[" {@@} `
+	Range    *string ` { @":" }`
+	RangeEnd *_Value ` { @@ } "]" |`
+	Term     *string `  "." @Ident )`
+}
+
+type _SliceRange struct {
+	X             *string `( { @Number} ":" `
+	RangeRightStr *string ` { @Number } )`
 }
 
 // ---------------------------------------
@@ -1211,12 +1218,35 @@ func (self *_MemberExpression) Reduce(ctx context.Context, scope types.Scope) An
 	for _, term := range self.Right {
 		var pres bool
 
-		// Slice index implementation via Associative protocol.
-		if term.Index != nil {
+		// This is a range expression.
+		if term.Range != nil {
+			var range_start *int64
+			if term.Index != nil {
+				start, ok := utils.ToInt64(term.Index.Reduce(ctx, scope))
+				if !ok {
+					return types.Null{}
+				}
+				range_start = &start
+			}
+
+			var range_end *int64
+			if term.RangeEnd != nil {
+				end, ok := utils.ToInt64(term.RangeEnd.Reduce(ctx, scope))
+				if !ok {
+					return types.Null{}
+				}
+				range_end = &end
+			}
+
+			lhs, pres = scope.Associative(lhs, []*int64{range_start, range_end})
+
+			// Slice index implementation via Associative protocol.
+		} else if term.Index != nil {
 			index := term.Index.Reduce(ctx, scope)
 			lhs, pres = scope.Associative(lhs, index)
-		} else {
-			lhs, pres = scope.Associative(lhs, utils.Unquote_ident(term.Term))
+
+		} else if term.Term != nil {
+			lhs, pres = scope.Associative(lhs, utils.Unquote_ident(*term.Term))
 		}
 		if !pres {
 			return Null{}
@@ -1230,10 +1260,23 @@ func (self *_MemberExpression) ToString(scope types.Scope) string {
 	result := self.Left.ToString(scope)
 
 	for _, right := range self.Right {
-		if right.Index != nil {
+		if right.Range != nil {
+			range_start := ""
+			if right.Index != nil {
+				range_start = right.Index.ToString(scope)
+			}
+
+			range_end := ""
+			if right.RangeEnd != nil {
+				range_end = right.RangeEnd.ToString(scope)
+			}
+
+			result += fmt.Sprintf("[%s : %s]", range_start, range_end)
+
+		} else if right.Index != nil {
 			result += fmt.Sprintf("[%s]", right.Index.ToString(scope))
 		} else {
-			result += fmt.Sprintf(".%s", right.Term)
+			result += fmt.Sprintf(".%s", *right.Term)
 		}
 	}
 

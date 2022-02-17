@@ -965,6 +965,15 @@ select foobar from no_such_result`},
 
 	{"Stored Expressions as plugins with args",
 		"LET Foo(X) = (dict(X=1+X),dict(X=2+X),dict(X=3+X))   SELECT * FROM Foo(X=1)"},
+
+	// This behaves identically to Python
+	// >>> X = (0, 1, 2, 3, 4, 5, 6, 7)
+	// >>> X[2 : ], X[2 : 4], X[ : 2], X[-1], X[-2], X[-2 : ], X[2 : -1]
+	// ((2, 3, 4, 5, 6, 7), (2, 3), (0, 1), 7, 6, (6, 7), (2, 3, 4, 5, 6))
+	{"Slice Range", `
+LET X <= (0,1,2,3,4,5,6,7)
+SELECT X[2:], X[2:4], X[:2], X[-1], X[-2], X[-2:], X[2:-1] FROM scope()
+`},
 }
 
 type _RangeArgs struct {
