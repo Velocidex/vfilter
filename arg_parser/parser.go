@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/Velocidex/ordereddict"
 	errors "github.com/pkg/errors"
@@ -26,16 +27,21 @@ var (
 	storedQueryType = reflect.ValueOf(testType).Type().Field(1).Type
 	lazyExprType    = reflect.ValueOf(testType).Type().Field(2).Type
 	dictExprType    = reflect.ValueOf(testType).Type().Field(3).Type
+
+	parser_mu      sync.Mutex
+	typeDispatcher = initDefaultTypeDispatcher()
 )
 
 // Structs may tag fields with this name to control parsing.
 const tagName = "vfilter"
 
+type ParserDipatcher func(ctx context.Context, scope types.Scope, value interface{}) (interface{}, error)
+
 type FieldParser struct {
 	Field    string
 	FieldIdx int
 	Required bool
-	Parser   func(ctx context.Context, scope types.Scope, value interface{}) (interface{}, error)
+	Parser   ParserDipatcher
 }
 
 type Parser struct {
@@ -83,10 +89,19 @@ func (self *Parser) Parse(
 	return nil
 }
 
+// The plugin may specify the arg as being a LazyExpr, in which case
+// it is completely up to it to evaluate the expression (if at all).
+// Note: Reducing the lazy expression may yield a StoredQuery - it is
+// up to the plugin to handle this case! Generally every
+// LazyExpr.Reduce() must be followed by a StoredQuery check. The
+// plugin may then choose to either iterate over each StoredQuery row,
+// or materialize the StoredQuery into memory (not recommended).
 func lazyExprParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
 	return ToLazyExpr(scope, arg), nil
 }
 
+// The target field is a types.StoredQuery - check that what was
+// provided is actually one of those.
 func storedQueryParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
 	return ToStoredQuery(ctx, arg), nil
 }
@@ -109,6 +124,19 @@ func sliceParser(ctx context.Context, scope types.Scope, arg interface{}) (inter
 	}
 
 	new_value, pres := _ExtractStringArray(ctx, scope, arg)
+	if pres {
+		return new_value, nil
+	}
+	return []interface{}{}, nil
+}
+
+func sliceAnyParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
+	lazy_arg, ok := arg.(types.LazyExpr)
+	if ok {
+		arg = lazy_arg.Reduce(ctx)
+	}
+
+	new_value, pres := _ExtractAnyArray(ctx, scope, arg)
 	if pres {
 		return new_value, nil
 	}
@@ -183,6 +211,7 @@ func int64Parser(ctx context.Context, scope types.Scope, arg interface{}) (inter
 	return nil, fmt.Errorf("Should be an int not %T.", arg)
 }
 
+// The target field is an ordered dict type - just assign it directly.
 func dictParser(ctx context.Context, scope types.Scope, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
@@ -294,37 +323,10 @@ func BuildParser(v reflect.Value) (*Parser, error) {
 				"Field %s is unsettable.", field_name))
 		}
 
-		// The plugin may specify the arg as being a LazyExpr,
-		// in which case it is completely up to it to evaluate
-		// the expression (if at all).  Note: Reducing the
-		// lazy expression may yield a StoredQuery - it is up
-		// to the plugin to handle this case! Generally every
-		// LazyExpr.Reduce() must be followed by a StoredQuery
-		// check. The plugin may then choose to either iterate
-		// over each StoredQuery row, or materialize the
-		// StoredQuery into memory (not recommended).
-		if field_types_value.Type == lazyExprType {
-			// It is not a types.LazyExpr, we wrap it in one.
-			field_parser.Parser = lazyExprParser
-			continue
-		}
-
-		// The target field is a types.StoredQuery - check that what
-		// was provided is actually one of those.
-		if field_types_value.Type == storedQueryType {
-			field_parser.Parser = storedQueryParser
-			continue
-		}
-
-		// The target field is an types.Any type - just assign it directly.
-		if field_types_value.Type == anyType {
-			field_parser.Parser = anyParser
-			continue
-		}
-
-		// The target field is an ordered dict type - just assign it directly.
-		if field_types_value.Type == dictExprType {
-			field_parser.Parser = dictParser
+		// Find a specialized parser for this type.
+		parser, pres := typeDispatcher[field_types_value.Type]
+		if pres {
+			field_parser.Parser = parser
 			continue
 		}
 
@@ -333,7 +335,16 @@ func BuildParser(v reflect.Value) (*Parser, error) {
 
 		// It is a slice.
 		case reflect.Slice:
-			field_parser.Parser = sliceParser
+			target_type := field_types_value.Type.Elem()
+			// Currently only support slice of string and slice of any
+			if target_type == anyType {
+				field_parser.Parser = sliceAnyParser
+			} else if target_type.Kind() == reflect.String {
+				field_parser.Parser = sliceParser
+			} else {
+				return nil, fmt.Errorf(
+					"Unsupported slice type only []string and []types.Any are supported")
+			}
 			continue
 
 		case reflect.String:
@@ -367,4 +378,21 @@ func BuildParser(v reflect.Value) (*Parser, error) {
 	}
 
 	return result, nil
+}
+
+func initDefaultTypeDispatcher() map[reflect.Type]ParserDipatcher {
+	result := make(map[reflect.Type]ParserDipatcher)
+	result[anyType] = anyParser
+	result[storedQueryType] = storedQueryParser
+	result[lazyExprType] = lazyExprParser
+	result[dictExprType] = dictParser
+	return result
+}
+
+func RegisterParser(exemplar types.Any, parser ParserDipatcher) {
+	parser_mu.Lock()
+	defer parser_mu.Unlock()
+
+	type_obj := reflect.ValueOf(exemplar).Type()
+	typeDispatcher[type_obj] = parser
 }

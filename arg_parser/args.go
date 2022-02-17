@@ -117,6 +117,31 @@ func _ExtractStringArray(
 	return result, true
 }
 
+func _ExtractAnyArray(
+	ctx context.Context, scope types.Scope, arg types.Any) ([]types.Any, bool) {
+	var result []types.Any
+
+	// Handle potentially lazy args.
+	lazy_arg, ok := arg.(types.LazyExpr)
+	if ok {
+		arg = lazy_arg.Reduce(ctx)
+	}
+
+	slice := reflect.ValueOf(arg)
+
+	// A slice of strings.
+	if slice.Type().Kind() == reflect.Slice {
+		for i := 0; i < slice.Len(); i++ {
+			value := slice.Index(i).Interface()
+			result = append(result, value)
+		}
+		return result, true
+	}
+
+	result = append(result, slice.Interface())
+	return result, true
+}
+
 // Convert a type to a stored query
 func ToStoredQuery(ctx context.Context, arg types.Any) types.StoredQuery {
 	switch t := arg.(type) {
