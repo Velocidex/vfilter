@@ -255,22 +255,27 @@ func (self DefaultAssociative) Associative(scope types.Scope, a types.Any, b typ
 				method_value = method_value.Elem()
 			}
 
-			results := method_value.Call([]reflect.Value{})
+			cb := &LazyFunctionWrapper{cb: func() types.Any {
+				results := method_value.Call([]reflect.Value{})
 
-			// In Go, a common pattern is to
-			// return (value, err). We try to
-			// guess here by taking the first
-			// return value as the value.
-			if len(results) == 1 || len(results) == 2 {
-				res := results[0]
-				if res.CanInterface() {
-					if res.Kind() == reflect.Ptr && res.IsNil() {
-						return &types.Null{}, true
+				// In Go, a common pattern is to
+				// return (value, err). We try to
+				// guess here by taking the first
+				// return value as the value.
+				if len(results) == 1 || len(results) == 2 {
+					res := results[0]
+					if res.CanInterface() {
+						if res.Kind() == reflect.Ptr && res.IsNil() {
+							return &types.Null{}
+						}
+
+						return res.Interface()
 					}
-
-					return res.Interface(), true
 				}
-			}
+				return &types.Null{}
+			}}
+
+			return cb, true
 		}
 
 		// An array - we call Associative on each member.
@@ -328,4 +333,17 @@ func (self DefaultAssociative) GetMembers(scope types.Scope, a types.Any) []stri
 	}
 
 	return result
+}
+
+type LazyFunctionWrapper struct {
+	cb func() types.Any
+}
+
+func (self *LazyFunctionWrapper) Reduce(ctx context.Context) types.Any {
+	return self.cb()
+}
+
+func (self *LazyFunctionWrapper) ReduceWithScope(
+	ctx context.Context, scope types.Scope) types.Any {
+	return self.cb()
 }

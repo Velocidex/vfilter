@@ -50,9 +50,17 @@ func IsCallable(method_value reflect.Value, field_name string) bool {
 	return true
 }
 
-func IsNil(a interface{}) bool {
-	defer func() { recover() }()
-	return a == nil || reflect.ValueOf(a).IsNil()
+func IsNil(i interface{}) bool {
+	if i == nil {
+		return true
+	}
+
+	switch reflect.TypeOf(i).Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+		//use of IsNil method
+		return reflect.ValueOf(i).IsNil()
+	}
+	return false
 }
 
 func InString(hay *[]string, needle string) bool {
