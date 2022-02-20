@@ -2,10 +2,8 @@ package protocols
 
 import (
 	"context"
-	"encoding/json"
 	"reflect"
 	"strings"
-	"sync"
 
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/types"
@@ -245,9 +243,6 @@ func (self DefaultAssociative) Associative(scope types.Scope, a types.Any, b typ
 				if field_value.Kind() == reflect.Ptr && field_value.IsNil() {
 					return &types.Null{}, true
 				}
-				if field_value.Kind() == reflect.Ptr {
-					field_value = field_value.Elem()
-				}
 				return field_value.Interface(), true
 			}
 		}
@@ -259,26 +254,23 @@ func (self DefaultAssociative) Associative(scope types.Scope, a types.Any, b typ
 				method_value = method_value.Elem()
 			}
 
-			cb := &LazyFunctionWrapper{cb: func() types.Any {
-				results := method_value.Call([]reflect.Value{})
+			results := method_value.Call([]reflect.Value{})
 
-				// In Go, a common pattern is to
-				// return (value, err). We try to
-				// guess here by taking the first
-				// return value as the value.
-				if len(results) == 1 || len(results) == 2 {
-					res := results[0]
-					if res.CanInterface() {
-						if res.Kind() == reflect.Ptr && res.IsNil() {
-							return &types.Null{}
-						}
-
-						return res.Interface()
+			// In Go, a common pattern is to
+			// return (value, err). We try to
+			// guess here by taking the first
+			// return value as the value.
+			if len(results) == 1 || len(results) == 2 {
+				res := results[0]
+				if res.CanInterface() {
+					if res.Kind() == reflect.Ptr && res.IsNil() {
+						return &types.Null{}, true
 					}
+
+					return res.Interface(), true
 				}
-				return &types.Null{}
-			}}
-			return cb, true
+			}
+			return &types.Null{}, true
 		}
 
 		// An array - we call Associative on each member.
@@ -336,38 +328,4 @@ func (self DefaultAssociative) GetMembers(scope types.Scope, a types.Any) []stri
 	}
 
 	return result
-}
-
-type LazyFunctionWrapper struct {
-	mu sync.Mutex
-	cb func() types.Any
-
-	cached types.Any
-}
-
-func (self *LazyFunctionWrapper) MarshalJSON() ([]byte, error) {
-	return json.Marshal(self.Reduce(context.Background()))
-}
-
-func (self *LazyFunctionWrapper) Reduce(ctx context.Context) types.Any {
-	self.mu.Lock()
-	defer self.mu.Unlock()
-
-	if self.cached == nil {
-		self.cached = self.cb()
-	}
-
-	return self.cached
-}
-
-func (self *LazyFunctionWrapper) ReduceWithScope(
-	ctx context.Context, scope types.Scope) types.Any {
-	self.mu.Lock()
-	defer self.mu.Unlock()
-
-	if self.cached == nil {
-		self.cached = self.cb()
-	}
-
-	return self.cached
 }
