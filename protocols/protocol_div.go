@@ -21,6 +21,8 @@ func (self DivDispatcher) Copy() DivDispatcher {
 }
 
 func (self DivDispatcher) Div(scope types.Scope, a types.Any, b types.Any) types.Any {
+	a = maybeReduce(a)
+
 	switch t := a.(type) {
 	case types.Null, *types.Null, nil:
 		return &types.Null{}

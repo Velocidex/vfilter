@@ -23,6 +23,9 @@ func (self LtDispatcher) Copy() LtDispatcher {
 }
 
 func (self LtDispatcher) Lt(scope types.Scope, a types.Any, b types.Any) bool {
+	a = maybeReduce(a)
+	b = maybeReduce(b)
+
 	switch t := a.(type) {
 	case types.Null, *types.Null, nil:
 		return false

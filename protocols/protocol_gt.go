@@ -23,6 +23,9 @@ func (self GtDispatcher) Copy() GtDispatcher {
 }
 
 func (self GtDispatcher) Gt(scope types.Scope, a types.Any, b types.Any) bool {
+	a = maybeReduce(a)
+	b = maybeReduce(b)
+
 	switch t := a.(type) {
 	case string:
 		rhs, ok := b.(string)

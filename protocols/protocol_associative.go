@@ -2,8 +2,10 @@ package protocols
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/types"
@@ -148,6 +150,8 @@ func (self DefaultAssociative) Associative(scope types.Scope, a types.Any, b typ
 		recover()
 	}()
 
+	a = maybeReduce(a)
+
 	// Handle an int index.
 	idx, ok := utils.ToInt64(b)
 	if ok {
@@ -274,7 +278,6 @@ func (self DefaultAssociative) Associative(scope types.Scope, a types.Any, b typ
 				}
 				return &types.Null{}
 			}}
-
 			return cb, true
 		}
 
@@ -336,14 +339,35 @@ func (self DefaultAssociative) GetMembers(scope types.Scope, a types.Any) []stri
 }
 
 type LazyFunctionWrapper struct {
+	mu sync.Mutex
 	cb func() types.Any
+
+	cached types.Any
+}
+
+func (self *LazyFunctionWrapper) MarshalJSON() ([]byte, error) {
+	return json.Marshal(self.Reduce(context.Background()))
 }
 
 func (self *LazyFunctionWrapper) Reduce(ctx context.Context) types.Any {
-	return self.cb()
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	if self.cached == nil {
+		self.cached = self.cb()
+	}
+
+	return self.cached
 }
 
 func (self *LazyFunctionWrapper) ReduceWithScope(
 	ctx context.Context, scope types.Scope) types.Any {
-	return self.cb()
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	if self.cached == nil {
+		self.cached = self.cb()
+	}
+
+	return self.cached
 }

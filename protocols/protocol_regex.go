@@ -23,6 +23,8 @@ func (self RegexDispatcher) Copy() RegexDispatcher {
 }
 
 func (self RegexDispatcher) Match(scope types.Scope, pattern types.Any, target types.Any) bool {
+	target = maybeReduce(target)
+
 	pattern_str, ok := pattern.(string)
 	if ok {
 		switch t := target.(type) {

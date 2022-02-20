@@ -24,6 +24,8 @@ func (self EqDispatcher) Copy() EqDispatcher {
 }
 
 func (self EqDispatcher) Eq(scope types.Scope, a types.Any, b types.Any) bool {
+	a = maybeReduce(a)
+	b = maybeReduce(b)
 
 	switch t := a.(type) {
 	case types.Null, *types.Null, nil:

@@ -18,6 +18,7 @@ func (self BoolDispatcher) Copy() BoolDispatcher {
 }
 
 func (self BoolDispatcher) Bool(ctx context.Context, scope types.Scope, a types.Any) bool {
+	a = maybeReduce(a)
 
 	// Handle directly the built in types for speed.
 	switch t := a.(type) {
