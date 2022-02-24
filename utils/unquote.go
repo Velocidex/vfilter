@@ -130,7 +130,7 @@ func Unquote_ident(s string) string {
 // backtick expansions.
 func SplitIdent(s string) []string {
 	result := make([]string, 0)
-	current := make([]rune, 0)
+	current := make([]rune, 0, len(s))
 	state_escaped := false
 
 	for _, c := range s {

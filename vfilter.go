@@ -641,11 +641,13 @@ func (self *_Select) processSingleRow(
 		// If the filtered expression returns a bool true,
 		// then pass the row to the output.
 		if expression != nil && scope.Bool(expression) {
+			materialized_row := MaterializedLazyRow(
+				ctx, transformed_row, new_scope)
 			select {
 			case <-ctx.Done():
 				return
-			case output_chan <- MaterializedLazyRow(
-				ctx, transformed_row, new_scope):
+
+			case output_chan <- materialized_row:
 			}
 		} else {
 			scope.Trace("Row rejected")
@@ -952,10 +954,15 @@ func (self *_SelectExpression) Transform(
 		for _, member := range scope.GetMembers(row) {
 			value, pres := scope.Associative(row, member)
 			if pres {
-				new_row.AddColumn(member,
-					func(ctx context.Context, scope types.Scope) Any {
-						return value
-					})
+				lazy_expr, ok := value.(types.LazyExpr)
+				if ok {
+					new_row.AddColumn(member, lazy_expr.ReduceWithScope)
+				} else {
+					new_row.AddColumn(member,
+						func(ctx context.Context, scope types.Scope) Any {
+							return value
+						})
+				}
 			}
 		}
 	}

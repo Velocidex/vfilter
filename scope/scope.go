@@ -280,9 +280,14 @@ func (self *Scope) Copy() types.Scope {
 	defer self.Unlock()
 
 	self.GetStats().IncScopeCopy()
+
+	// Fast make copy
+	var_copy := make([]types.Row, len(self.vars))
+	copy(var_copy, self.vars)
+
 	child_scope := &Scope{
 		dispatcher:  self.dispatcher,
-		vars:        append([]types.Row(nil), self.vars...),
+		vars:        var_copy,
 		stack_depth: self.stack_depth + 1,
 		children:    make(map[*Scope]*Scope),
 		parent:      self,
