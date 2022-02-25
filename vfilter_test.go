@@ -974,6 +974,60 @@ select foobar from no_such_result`},
 LET X <= (0,1,2,3,4,5,6,7)
 SELECT X[2:], X[2:4], X[:2], X[-1], X[-2], X[-2:], X[2:-1] FROM scope()
 `},
+	// Value2 is a method accesses as a field
+	{"Access object methods as properties.", `
+LET _ <= SELECT * FROM reset_objectwithmethods()
+
+-- Should increment Value2 count 1-2
+SELECT * FROM objectwithmethods()
+
+-- Should also increment Value2 count 3-4
+SELECT Value1, Value2 + "X" FROM objectwithmethods()
+
+-- Value2 is lazy so should **not** increment Value2 count
+SELECT Value1 FROM objectwithmethods()
+
+-- Value2 is evaluated lazily - no rows are emitted so Value2 is not called.
+SELECT Value2 + "X" FROM objectwithmethods()
+WHERE False
+
+-- Value2 is **not** evaluated in an if() clause when not needed
+SELECT if(condition=1, then=2, else=Value2)
+FROM objectwithmethods()
+
+-- Should resume value2 from previous query 5-6.
+-- Reusing Value2 in the WHERE clause should not re-evalute it as it is cached.
+SELECT Value2 FROM objectwithmethods()
+WHERE Value2 =~ "method"
+
+`},
+	{"Access object methods as properties", `
+LET _ <= SELECT * FROM reset_objectwithmethods()
+
+-- Access another field should not increment
+SELECT VarIsObjectWithMethods.Value1 FROM scope()
+
+-- Access method - should increment to 1
+SELECT VarIsObjectWithMethods.Value2 FROM scope()
+
+-- Access another field should not increment
+SELECT VarIsObjectWithMethods.Value1 FROM scope()
+
+-- Value2 is **not** evaluated in an if() clause when not needed
+SELECT if(condition=1, then=2, else=VarIsObjectWithMethods.Value2)
+FROM scope()
+
+-- Access method - should increment to 2
+SELECT VarIsObjectWithMethods.Value2 FROM scope()
+
+-- Value2 is evaluated in an if() clause when needed
+-- Each associative dereference re-evaluates the property - so these are 3, 4, 5
+SELECT if(condition=FALSE, then=2, else=VarIsObjectWithMethods.Value2) + "X",
+       VarIsObjectWithMethods.Value2 =~ "I am a method",
+       VarIsObjectWithMethods.Value2
+FROM scope()
+
+`},
 }
 
 type _RangeArgs struct {
@@ -982,63 +1036,90 @@ type _RangeArgs struct {
 }
 
 func makeTestScope() types.Scope {
-	result := makeScope().AppendPlugins(
-		plugins.GenericListPlugin{
-			PluginName: "test",
-			Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
-				var result []Row
-				for i := 0; i < 3; i++ {
-					result = append(result, ordereddict.NewDict().
-						Set("foo", i*2).
-						Set("bar", i))
-				}
-				return result
-			},
-		}, plugins.GenericListPlugin{
-			PluginName: "range",
-			Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
-				arg := &_RangeArgs{}
-				ExtractArgs(scope, args, arg)
-				var result []Row
-				for i := arg.Start; i <= arg.End; i++ {
-					result = append(result, ordereddict.NewDict().Set("value", i))
-				}
-				return result
-			},
-		}, plugins.GenericListPlugin{
-			PluginName: "dict",
-			Doc:        "Just echo back the args as a dict.",
-			Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
-				result := ordereddict.NewDict()
-				for _, k := range scope.GetMembers(args) {
-					v, _ := args.Get(k)
-					lazy_arg, ok := v.(types.LazyExpr)
-					if ok {
-						result.Set(k, lazy_arg.Reduce(ctx))
-					} else {
-						result.Set(k, v)
+	result := makeScope().
+		AppendVars(ordereddict.NewDict().
+			Set("VarIsObjectWithMethods", ObjectWithMethods{1})).
+		AppendPlugins(
+			plugins.GenericListPlugin{
+				PluginName: "test",
+				Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
+					var result []Row
+					for i := 0; i < 3; i++ {
+						result = append(result, ordereddict.NewDict().
+							Set("foo", i*2).
+							Set("bar", i))
 					}
-				}
+					return result
+				},
+			}, plugins.GenericListPlugin{
+				PluginName: "range",
+				Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
+					arg := &_RangeArgs{}
+					ExtractArgs(scope, args, arg)
+					var result []Row
+					for i := arg.Start; i <= arg.End; i++ {
+						result = append(result, ordereddict.NewDict().Set("value", i))
+					}
+					return result
+				},
+			}, plugins.GenericListPlugin{
+				PluginName: "dict",
+				Doc:        "Just echo back the args as a dict.",
+				Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
+					result := ordereddict.NewDict()
+					for _, k := range scope.GetMembers(args) {
+						v, _ := args.Get(k)
+						lazy_arg, ok := v.(types.LazyExpr)
+						if ok {
+							result.Set(k, lazy_arg.Reduce(ctx))
+						} else {
+							result.Set(k, v)
+						}
+					}
 
-				return []Row{result}
-			},
-		}, plugins.GenericListPlugin{
-			PluginName: "groupbytest",
-			Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
-				return []Row{
-					ordereddict.NewDict().Set("foo", 1).Set("bar", 5).
-						Set("baz", "a"),
-					ordereddict.NewDict().Set("foo", 2).Set("bar", 5).
-						Set("baz", "b"),
-					ordereddict.NewDict().Set("foo", 3).Set("bar", 2).
-						Set("baz", "c"),
-					ordereddict.NewDict().Set("foo", 4).Set("bar", 2).
-						Set("baz", "d"),
-				}
-			},
-		})
+					return []Row{result}
+				},
+			}, plugins.GenericListPlugin{
+				PluginName: "groupbytest",
+				Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
+					return []Row{
+						ordereddict.NewDict().Set("foo", 1).Set("bar", 5).
+							Set("baz", "a"),
+						ordereddict.NewDict().Set("foo", 2).Set("bar", 5).
+							Set("baz", "b"),
+						ordereddict.NewDict().Set("foo", 3).Set("bar", 2).
+							Set("baz", "c"),
+						ordereddict.NewDict().Set("foo", 4).Set("bar", 2).
+							Set("baz", "d"),
+					}
+				},
+			}, plugins.GenericListPlugin{
+				PluginName: "reset_objectwithmethods",
+				Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
+					ObjectWithMethodsCallCounter = 0
+					return []Row{}
+				},
+			}, plugins.GenericListPlugin{
+				PluginName: "objectwithmethods",
+				Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
+					return []Row{
+						&ObjectWithMethods{1},
+						&ObjectWithMethods{2},
+					}
+				}})
 	result.SetLogger(log.New(os.Stdout, "Log: ", log.Ldate|log.Ltime|log.Lshortfile))
 	return result
+}
+
+var ObjectWithMethodsCallCounter int
+
+type ObjectWithMethods struct {
+	Value1 int
+}
+
+func (self ObjectWithMethods) Value2() string {
+	ObjectWithMethodsCallCounter++
+	return fmt.Sprintf("I am a method, called %v", ObjectWithMethodsCallCounter)
 }
 
 // This checks that lazy queries are not evaluated unnecessarily. We
@@ -1115,6 +1196,9 @@ func TestMultiVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range multiVQLTest {
+		if false && i != 61 && i != 62 {
+			continue
+		}
 		scope := makeTestScope()
 		multi_vql, err := MultiParse(testCase.vql)
 		if err != nil {

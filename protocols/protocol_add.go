@@ -23,6 +23,9 @@ func (self AddDispatcher) Copy() AddDispatcher {
 }
 
 func (self AddDispatcher) Add(scope types.Scope, a types.Any, b types.Any) types.Any {
+	a = maybeReduce(a)
+	b = maybeReduce(b)
+
 	switch t := a.(type) {
 	case string:
 		b_str, ok := b.(string)

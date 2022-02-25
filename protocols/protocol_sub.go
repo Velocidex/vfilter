@@ -21,6 +21,9 @@ func (self SubDispatcher) Copy() SubDispatcher {
 }
 
 func (self SubDispatcher) Sub(scope types.Scope, a types.Any, b types.Any) types.Any {
+	a = maybeReduce(a)
+	b = maybeReduce(b)
+
 	switch t := a.(type) {
 	case types.Null, *types.Null, nil:
 		return &types.Null{}

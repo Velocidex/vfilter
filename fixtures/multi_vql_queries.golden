@@ -779,5 +779,84 @@
         6
       ]
     }
+  ],
+  "061/000 Access object methods as properties.: LET _\u003c=SELECT * FROM reset_objectwithmethods()": null,
+  "061/001 Access object methods as properties.: SELECT * FROM objectwithmethods()": [
+    {
+      "Value1": 1,
+      "Value2": "I am a method, called 1"
+    },
+    {
+      "Value1": 2,
+      "Value2": "I am a method, called 2"
+    }
+  ],
+  "061/002 Access object methods as properties.: SELECT Value1, Value2 + \"X\" FROM objectwithmethods()": [
+    {
+      "Value1": 1,
+      "Value2 + \"X\"": "I am a method, called 3X"
+    },
+    {
+      "Value1": 2,
+      "Value2 + \"X\"": "I am a method, called 4X"
+    }
+  ],
+  "061/003 Access object methods as properties.: SELECT Value1 FROM objectwithmethods()": [
+    {
+      "Value1": 1
+    },
+    {
+      "Value1": 2
+    }
+  ],
+  "061/004 Access object methods as properties.: SELECT Value2 + \"X\" FROM objectwithmethods() WHERE False": null,
+  "061/005 Access object methods as properties.: SELECT if(condition=1, then=2, else=Value2) FROM objectwithmethods()": [
+    {
+      "if(condition=1, then=2, else=Value2)": 2
+    },
+    {
+      "if(condition=1, then=2, else=Value2)": 2
+    }
+  ],
+  "061/006 Access object methods as properties.: SELECT Value2 FROM objectwithmethods() WHERE Value2 =~ \"method\"": [
+    {
+      "Value2": "I am a method, called 5"
+    },
+    {
+      "Value2": "I am a method, called 6"
+    }
+  ],
+  "062/000 Access object methods as properties: LET _\u003c=SELECT * FROM reset_objectwithmethods()": null,
+  "062/001 Access object methods as properties: SELECT VarIsObjectWithMethods.Value1 FROM scope()": [
+    {
+      "VarIsObjectWithMethods.Value1": 1
+    }
+  ],
+  "062/002 Access object methods as properties: SELECT VarIsObjectWithMethods.Value2 FROM scope()": [
+    {
+      "VarIsObjectWithMethods.Value2": "I am a method, called 1"
+    }
+  ],
+  "062/003 Access object methods as properties: SELECT VarIsObjectWithMethods.Value1 FROM scope()": [
+    {
+      "VarIsObjectWithMethods.Value1": 1
+    }
+  ],
+  "062/004 Access object methods as properties: SELECT if(condition=1, then=2, else=VarIsObjectWithMethods.Value2) FROM scope()": [
+    {
+      "if(condition=1, then=2, else=VarIsObjectWithMethods.Value2)": 2
+    }
+  ],
+  "062/005 Access object methods as properties: SELECT VarIsObjectWithMethods.Value2 FROM scope()": [
+    {
+      "VarIsObjectWithMethods.Value2": "I am a method, called 2"
+    }
+  ],
+  "062/006 Access object methods as properties: SELECT if(condition=FALSE, then=2, else=VarIsObjectWithMethods.Value2) + \"X\", VarIsObjectWithMethods.Value2 =~ \"I am a method\", VarIsObjectWithMethods.Value2 FROM scope()": [
+    {
+      "if(condition=FALSE, then=2, else=VarIsObjectWithMethods.Value2) + \"X\"": "I am a method, called 3X",
+      "VarIsObjectWithMethods.Value2 =~ \"I am a method\"": true,
+      "VarIsObjectWithMethods.Value2": "I am a method, called 5"
+    }
   ]
 }

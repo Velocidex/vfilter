@@ -23,6 +23,9 @@ func (self MembershipDispatcher) Copy() MembershipDispatcher {
 }
 
 func (self MembershipDispatcher) Membership(scope types.Scope, a types.Any, b types.Any) bool {
+	a = maybeReduce(a)
+	b = maybeReduce(b)
+
 	switch t := b.(type) {
 	case types.Null, *types.Null, nil:
 		return false
