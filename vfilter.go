@@ -954,15 +954,10 @@ func (self *_SelectExpression) Transform(
 		for _, member := range scope.GetMembers(row) {
 			value, pres := scope.Associative(row, member)
 			if pres {
-				lazy_expr, ok := value.(types.LazyExpr)
-				if ok {
-					new_row.AddColumn(member, lazy_expr.ReduceWithScope)
-				} else {
-					new_row.AddColumn(member,
-						func(ctx context.Context, scope types.Scope) Any {
-							return value
-						})
-				}
+				new_row.AddColumn(member,
+					func(ctx context.Context, scope types.Scope) Any {
+						return value
+					})
 			}
 		}
 	}

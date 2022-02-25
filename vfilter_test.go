@@ -13,6 +13,7 @@ import (
 	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/assert"
 	"www.velocidex.com/golang/vfilter/plugins"
+	"www.velocidex.com/golang/vfilter/protocols"
 	"www.velocidex.com/golang/vfilter/types"
 	"www.velocidex.com/golang/vfilter/utils"
 )
@@ -1038,7 +1039,9 @@ type _RangeArgs struct {
 func makeTestScope() types.Scope {
 	result := makeScope().
 		AppendVars(ordereddict.NewDict().
-			Set("VarIsObjectWithMethods", ObjectWithMethods{1})).
+			Set("VarIsObjectWithMethods", ObjectWithMethods{Value1: 1})).
+		AddProtocolImpl(protocols.NewLazyStructWrapper(
+			ObjectWithMethods{}, "Value1", "Value2", "Value3")).
 		AppendPlugins(
 			plugins.GenericListPlugin{
 				PluginName: "test",
@@ -1103,8 +1106,8 @@ func makeTestScope() types.Scope {
 				PluginName: "objectwithmethods",
 				Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
 					return []Row{
-						&ObjectWithMethods{1},
-						&ObjectWithMethods{2},
+						&ObjectWithMethods{Value1: 1},
+						&ObjectWithMethods{Value1: 2},
 					}
 				}})
 	result.SetLogger(log.New(os.Stdout, "Log: ", log.Ldate|log.Ltime|log.Lshortfile))
@@ -1114,12 +1117,17 @@ func makeTestScope() types.Scope {
 var ObjectWithMethodsCallCounter int
 
 type ObjectWithMethods struct {
-	Value1 int
+	Value1       int
+	IgnoredValue int
 }
 
 func (self ObjectWithMethods) Value2() string {
 	ObjectWithMethodsCallCounter++
 	return fmt.Sprintf("I am a method, called %v", ObjectWithMethodsCallCounter)
+}
+
+func (self ObjectWithMethods) InvisibleMethod() string {
+	return "Invisible"
 }
 
 // This checks that lazy queries are not evaluated unnecessarily. We
