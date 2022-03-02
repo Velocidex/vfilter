@@ -373,6 +373,10 @@ func BuildParser(v reflect.Value) (*Parser, error) {
 			field_parser.Parser = floatParser
 			continue
 
+		case reflect.Float32:
+			field_parser.Parser = floatParser
+			continue
+
 		case reflect.Int64:
 			field_parser.Parser = int64Parser
 			continue

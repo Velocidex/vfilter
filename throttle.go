@@ -3,14 +3,8 @@ package vfilter
 import (
 	"time"
 
-	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/types"
 )
-
-type Throttler interface {
-	ChargeOp()
-	Close()
-}
 
 type TimeThrottler struct {
 	ticker  *time.Ticker
@@ -33,7 +27,7 @@ func (self *TimeThrottler) Close() {
 	}
 }
 
-func NewTimeThrottler(rate float64) Throttler {
+func NewTimeThrottler(rate float64) types.Throttler {
 	// rate of 0 means no throttling.
 	if rate == 0 || rate > 100 {
 		rate = 100
@@ -53,20 +47,4 @@ func NewTimeThrottler(rate float64) Throttler {
 	}
 
 	return result
-}
-
-func InstallThrottler(scope types.Scope, throttler Throttler) {
-	// Ignore throttles faster than 100 ops per second.
-	scope.AppendVars(ordereddict.NewDict().Set("$throttle", throttler))
-	scope.AddDestructor(func() {
-		throttler.Close()
-	})
-}
-
-func ChargeOp(scope types.Scope) {
-	any_throttle, _ := scope.Resolve("$throttle")
-	throttle, ok := any_throttle.(Throttler)
-	if ok {
-		throttle.ChargeOp()
-	}
 }

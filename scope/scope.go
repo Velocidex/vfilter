@@ -97,6 +97,8 @@ type Scope struct {
 	// types.Any destructors attached to this scope.
 	destructors _destructors
 
+	throttler types.Throttler
+
 	id uint64
 }
 
@@ -125,6 +127,7 @@ func (self *Scope) NewScope() types.Scope {
 		},
 		children:   make(map[*Scope]*Scope),
 		dispatcher: self.dispatcher.Copy(),
+		throttler:  self.throttler,
 		id:         NextId(),
 	}
 
@@ -190,6 +193,19 @@ func (self *Scope) Keys() []string {
 
 func (self *Scope) Describe(type_map *types.TypeMap) *types.ScopeInformation {
 	return self.dispatcher.Describe(self, type_map)
+}
+
+func (self *Scope) SetThrottler(t types.Throttler) {
+	self.Lock()
+	self.throttler = t
+	self.Unlock()
+	self.AddDestructor(t.Close)
+}
+
+func (self *Scope) ChargeOp() {
+	if self.throttler != nil {
+		self.throttler.ChargeOp()
+	}
 }
 
 func (self *Scope) CheckForOverflow() bool {
@@ -291,6 +307,7 @@ func (self *Scope) Copy() types.Scope {
 		stack_depth: self.stack_depth + 1,
 		children:    make(map[*Scope]*Scope),
 		parent:      self,
+		throttler:   self.throttler,
 		id:          NextId(),
 	}
 

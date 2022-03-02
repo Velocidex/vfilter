@@ -1008,6 +1008,8 @@ func (self *_From) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 		defer close(output_chan)
 		for row := range input_chan {
 			scope.GetStats().IncRowsScanned()
+			scope.ChargeOp()
+
 			select {
 			case <-ctx.Done():
 				return

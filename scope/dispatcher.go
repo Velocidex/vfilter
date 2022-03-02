@@ -186,11 +186,12 @@ func (self *protocolDispatcher) Info(scope *Scope,
 
 func (self *protocolDispatcher) Log(format string, a ...interface{}) {
 	self.Lock()
-	defer self.Unlock()
+	logger := self.Logger
+	self.Unlock()
 
-	if self.Logger != nil {
+	if logger != nil {
 		msg := fmt.Sprintf(format, a...)
-		self.Logger.Print(msg)
+		logger.Print(msg)
 	}
 }
 
