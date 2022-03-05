@@ -77,6 +77,10 @@ type Scope interface {
 	Describe(type_map *TypeMap) *ScopeInformation
 	CheckForOverflow() bool
 
+	// Charge an op to the throttler.
+	ChargeOp()
+	SetThrottler(t Throttler)
+
 	// Destructors are called when the scope is Close(). If the
 	// scope is already closed adding the destructor may fail.
 	AddDestructor(fn func()) error

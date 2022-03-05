@@ -93,9 +93,6 @@ func GetResponseChannel(
 
 				value := RowToDict(ctx, scope, row)
 				rows = append(rows, value)
-
-				// Throttle if needed.
-				ChargeOp(scope)
 			}
 		}
 	}()
@@ -117,7 +114,7 @@ func OutputJSON(
 		result = append(result, value)
 
 		// Throttle if needed.
-		ChargeOp(scope)
+		scope.ChargeOp()
 	}
 
 	s, err := encoder(result)

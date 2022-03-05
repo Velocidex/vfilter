@@ -9,9 +9,9 @@ import (
 )
 
 type RangePluginArgs struct {
-	Start int64 `vfilter:"required,field=start,doc=Start index (0 based)"`
+	Start int64 `vfilter:"optional,field=start,doc=Start index (0 based - default 0)"`
 	End   int64 `vfilter:"required,field=end,doc=End index (0 based)"`
-	Step  int64 `vfilter:"required,field=step,doc=End index (0 based)"`
+	Step  int64 `vfilter:"optional,field=step,doc=Step (default 1)"`
 }
 
 type RangePlugin struct{}
