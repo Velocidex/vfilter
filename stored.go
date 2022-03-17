@@ -46,8 +46,25 @@ func NewStoredQuery(query *_Select, name string) *_StoredQuery {
 }
 
 func (self *_StoredQuery) Eval(ctx context.Context, scope types.Scope) <-chan Row {
-	new_scope := scope.Copy()
-	return self.query.Eval(ctx, new_scope)
+	output_chan := make(chan Row)
+
+	go func() {
+		defer close(output_chan)
+
+		// Evaluate the query in the caller's scope.
+		new_scope := scope.Copy()
+		defer new_scope.Close()
+
+		for row := range self.query.Eval(ctx, new_scope) {
+			select {
+			case <-ctx.Done():
+				return
+
+			case output_chan <- row:
+			}
+		}
+	}()
+	return output_chan
 }
 
 func (self *_StoredQuery) ToString(scope types.Scope) string {
@@ -62,24 +79,28 @@ func (self *_StoredQuery) Info(scope types.Scope, type_map *TypeMap) *PluginInfo
 
 func (self *_StoredQuery) Call(ctx context.Context,
 	scope types.Scope, args *ordereddict.Dict) <-chan Row {
-	self.checkCallingArgs(scope, args)
 
-	sub_scope := scope.Copy()
+	sub_scope := scope.NewScope()
+	sub_scope.ClearContext()
+	defer sub_scope.Close()
+
+	self.checkCallingArgs(sub_scope, args)
 
 	vars := ordereddict.NewDict()
 	for _, k := range args.Keys() {
 		v, _ := args.Get(k)
 		switch t := v.(type) {
+
 		case types.LazyExpr:
 			v = t.Reduce(ctx)
+
 		case types.StoredQuery:
-			v = types.Materialize(ctx, scope, t)
+			v = types.Materialize(ctx, sub_scope, t)
 		}
 		vars.Set(k, v)
 	}
 
 	sub_scope.AppendVars(vars)
-
 	return self.Eval(ctx, sub_scope)
 }
 

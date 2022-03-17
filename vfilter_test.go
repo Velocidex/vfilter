@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/Velocidex/ordereddict"
@@ -645,7 +646,7 @@ b={
 	{"If function and subselects",
 		"SELECT if(condition=1, then={ SELECT * FROM test() }) FROM scope()"},
 	{"If function should be lazy",
-		"SELECT if(condition=FALSE, then=panic(column=2, value=2)) from scope()"},
+		"SELECT if(condition=FALSE, then=panic(column=3, value=3)) from scope()"},
 	{"If function should be lazy",
 		"SELECT if(condition=TRUE, else=panic(column=7, value=7)) from scope()"},
 
@@ -800,11 +801,67 @@ LET Adder(X) = SELECT *, count() AS Count FROM range(start=10, end=10 + X, step=
 SELECT Adder(X=4), Adder(X=2) FROM scope()
 `},
 
+	{"Aggregate functions within a VQL function have their own state", `
+LET Adder(X) = SELECT *, count() AS Count FROM range(start=10, end=10 + X, step=1)
+
+SELECT * FROM foreach(row={ SELECT value FROM range(start=0, end=2, step=1)},
+query={
+   SELECT * FROM Adder(X=value)
+})
+`},
+
+	// A foreach query is not an isolated scope which mean it can
+	// refer to values outside its definition.
 	{"Aggregate functions: Sum and Count together", `
+LET MyValue <= "Hello"
+
 SELECT * FROM foreach(row=[2, 3, 4],
   query={
-    SELECT count() AS A, sum(item=_value) AS B FROM scope()
+    SELECT count() AS Count,
+       sum(item=_value) AS Sum,
+       MyValue
+    FROM scope()
 })`},
+
+	// When the subquery is defined as a function it is evaluated in
+	// an isolated scope - so count() and sum() start fresh each time,
+	// but it can not refer to external symbols.
+	{"Aggregate functions: Sum and Count in stored query definition", `
+LET MyValue <= "Hello"
+LET CountMe(Value) = SELECT count() AS Count,
+    Value,
+    sum(item=Value) AS Sum,
+    get(member="MyValue") AS MyValueShouldBeNULL
+    FROM scope()
+
+LET _value = 10
+
+SELECT * FROM foreach(row=[2, 3, 4],
+  query={
+    SELECT * FROM CountMe(Value=_value)
+})`},
+
+	// Calling a stored query as a parameter will evaluate it before
+	// passing to the foreach plugin. It will have access to any scope
+	// variables available in the foreach but **not** those provided
+	// by the row variables.
+
+	// In the below you can think of CountMe(Value=_value) to be
+	// expanded first with _value = 10 into an array of rows. That
+	// array is then passed as the query parameter to foreach.
+	{"Aggregate functions: Sum and Count in stored query definition", `
+LET MyValue <= "Hello"
+LET CountMe(Value) = SELECT count() AS Count,
+    Value,
+    sum(item=Value) AS Sum,
+    get(member="MyValue") AS MyValueShouldBeNULL
+    FROM scope()
+
+LET _value = 10
+
+-- CountMe is evaluated at point of definition to return a stored query.
+SELECT * FROM foreach(row=[2, 3, 4],
+  query=CountMe(Value=_value))`},
 
 	{"Aggregate functions: Sum all rows", `
 SELECT sum(item=_value) AS Total,
@@ -830,6 +887,42 @@ LET abc(a) = if(
   else={SELECT false AS Pass from scope()})
 
 SELECT abc(a=TRUE) AS Pass FROM scope()
+`},
+
+	{"If function with subqueries should return a lazy query", `
+LET _ <= SELECT * FROM reset_objectwithmethods()
+
+LET MyCounter(Length) =
+   SELECT * FROM foreach(row={
+    SELECT value
+    FROM range(start=0, end=Length, step=1)
+   }, query={
+      SELECT Value2 FROM objectwithmethods()
+      WHERE Value2
+   })
+
+-- The if plugin calls the if function directly here.
+-- In previous versions this would cause it to materialize
+-- the stored query. In current version the if() function
+-- returns the stored query directly so it is not materialized.
+SELECT * FROM if(condition=TRUE,
+then=if(condition=TRUE,
+  then=MyCounter(Length=1000)
+))
+LIMIT 3
+
+SELECT * FROM if(condition=TRUE,
+then=if(condition=TRUE,
+  then={
+   SELECT VarIsObjectWithMethods.Counter < 20,
+       Value2 =~ "called" FROM MyCounter(Length=100) }
+))
+LIMIT 3
+
+
+// Just prove we did not materialize the MyCounter() query
+SELECT Counter < 20 FROM objectwithmethods()
+LIMIT 1
 `},
 
 	{"If function with functions", `
@@ -894,7 +987,7 @@ LIMIT 1`},
 
 	{"Early breakout of foreach with stored query", `
 LET X =   SELECT count() AS Count FROM range(start=1, end=20)
-  WHERE panic(column=Count, value=5)    -- Should trigger panic if we reach 5
+  WHERE panic(column=Count, value=6)    -- Should trigger panic if we reach 6
 
 SELECT * FROM foreach(row=X,
 query={
@@ -904,7 +997,7 @@ LIMIT 1`},
 
 	{"Early breakout of foreach with stored query with parameters", `
 LET X(Y) =   SELECT Y, count() AS Count FROM range(start=1, end=20)
-  WHERE panic(column=Count, value=5)    -- Should trigger panic if we reach 5
+  WHERE panic(column=Count, value=7)    -- Should trigger panic if we reach 7
 
 SELECT * FROM foreach(row=X(Y=23),
 query={
@@ -1041,7 +1134,7 @@ func makeTestScope() types.Scope {
 		AppendVars(ordereddict.NewDict().
 			Set("VarIsObjectWithMethods", ObjectWithMethods{Value1: 1})).
 		AddProtocolImpl(protocols.NewLazyStructWrapper(
-			ObjectWithMethods{}, "Value1", "Value2", "Value3")).
+			ObjectWithMethods{}, "Value1", "Value2", "Value3", "Counter")).
 		AppendPlugins(
 			plugins.GenericListPlugin{
 				PluginName: "test",
@@ -1099,6 +1192,9 @@ func makeTestScope() types.Scope {
 			}, plugins.GenericListPlugin{
 				PluginName: "reset_objectwithmethods",
 				Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
+					ObjectWithMethodsCallCounter_mu.Lock()
+					defer ObjectWithMethodsCallCounter_mu.Unlock()
+
 					ObjectWithMethodsCallCounter = 0
 					return []Row{}
 				},
@@ -1114,14 +1210,27 @@ func makeTestScope() types.Scope {
 	return result
 }
 
-var ObjectWithMethodsCallCounter int
+var (
+	ObjectWithMethodsCallCounter_mu sync.Mutex
+	ObjectWithMethodsCallCounter    int
+)
 
 type ObjectWithMethods struct {
 	Value1       int
 	IgnoredValue int
 }
 
+func (self ObjectWithMethods) Counter() int {
+	ObjectWithMethodsCallCounter_mu.Lock()
+	defer ObjectWithMethodsCallCounter_mu.Unlock()
+
+	return ObjectWithMethodsCallCounter
+}
+
 func (self ObjectWithMethods) Value2() string {
+	ObjectWithMethodsCallCounter_mu.Lock()
+	defer ObjectWithMethodsCallCounter_mu.Unlock()
+
 	ObjectWithMethodsCallCounter++
 	return fmt.Sprintf("I am a method, called %v", ObjectWithMethodsCallCounter)
 }
@@ -1174,6 +1283,10 @@ func TestVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range vqlTests {
+		if false && i != 63 {
+			continue
+		}
+
 		scope := makeTestScope()
 
 		vql, err := Parse(testCase.vql)
@@ -1204,7 +1317,7 @@ func TestMultiVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range multiVQLTest {
-		if false && i != 61 && i != 62 {
+		if false && i != 44 && i != 390 {
 			continue
 		}
 		scope := makeTestScope()

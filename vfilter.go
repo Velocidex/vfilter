@@ -398,7 +398,8 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 
 	} else {
 		subscope := scope.Copy()
-		subscope.AppendVars(ordereddict.NewDict().Set("$Query", self.ToString(scope)))
+		subscope.AppendVars(
+			ordereddict.NewDict().Set("$Query", self.ToString(scope)))
 
 		go func() {
 			defer close(output_chan)
@@ -966,6 +967,7 @@ func (self *_SelectExpression) Transform(
 	// until the row is materialized.
 	new_scope := scope.Copy()
 	new_scope.AppendVars(row)
+	scope.AddDestructor(new_scope.Close)
 
 	for _, expr_ := range self.Expressions {
 		// A copy of the expression for the lambda capture.
@@ -1122,7 +1124,6 @@ func (self *_Plugin) evalSymbol(
 		// Stored Expression e.g. LET Foo(X) = X + 1
 		case types.StoredExpression:
 			subscope := scope.Copy()
-			subscope.ClearContext()
 			defer subscope.Close()
 
 			subscope.AppendVars(args)
@@ -1132,10 +1133,6 @@ func (self *_Plugin) evalSymbol(
 			// A plugin like item
 		case PluginGeneratorInterface:
 			scope.GetStats().IncPluginsCalled()
-
-			subscope := scope.Copy()
-			subscope.ClearContext()
-			defer subscope.Close()
 
 			return t.Call(ctx, scope, args)
 
@@ -1827,15 +1824,22 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 			// point. Otherwise pass the stored query
 			// through.
 			if self.Parameters != nil {
-				subscope := scope.Copy()
+
+				// When running a stored query as a function we need
+				// to use a brand new scope with its own context to
+				// make sure that aggregate functions inside the
+				// stored query start fresh.
+				subscope := scope.NewScope()
+				subscope.ClearContext()
 				defer subscope.Close()
 
 				if subscope.CheckForOverflow() {
 					return &Null{}
 				}
 
-				subscope.AppendVars(self.buildArgsFromParameters(
-					ctx, scope))
+				vars := self.buildArgsFromParameters(ctx, scope)
+				subscope.AppendVars(vars)
+
 				scope.GetStats().IncFunctionsCalled()
 
 				// Wrap the query with the captured scope.
@@ -1885,13 +1889,18 @@ func buildArgsFromParameters(
 	// When calling into a VQL stored function, we materialize all
 	// args.
 	for _, arg := range parameters {
+		// e.g. X=func(foo=Bar)
+		// This is evaluated at the point of definition.
 		if arg.Right != nil {
 			name := utils.Unquote_ident(arg.Left)
 			args.Set(name, arg.Right.Reduce(ctx, scope))
+
+			// e.g. X=[1,2,3,4]
 		} else if arg.Array != nil {
 			value := arg.Array.Reduce(ctx, scope)
 			args.Set(arg.Left, value)
 
+			// e.g. X={ SELECT * FROM ... }
 		} else if arg.SubSelect != nil {
 			args.Set(arg.Left, arg.SubSelect)
 		}
