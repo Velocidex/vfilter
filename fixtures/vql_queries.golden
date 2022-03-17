@@ -590,9 +590,9 @@
       ]
     }
   ],
-  "063 If function should be lazy: SELECT if(condition=FALSE, then=panic(column=2, value=2)) FROM scope()": [
+  "063 If function should be lazy: SELECT if(condition=FALSE, then=panic(column=3, value=3)) FROM scope()": [
     {
-      "if(condition=FALSE, then=panic(column=2, value=2))": null
+      "if(condition=FALSE, then=panic(column=3, value=3))": null
     }
   ],
   "064 If function should be lazy: SELECT if(condition=TRUE, else=panic(column=7, value=7)) FROM scope()": [

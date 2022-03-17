@@ -10,9 +10,9 @@ import (
 )
 
 type _IfFunctionArgs struct {
-	Condition types.Any      `vfilter:"required,field=condition"`
-	Then      types.LazyExpr `vfilter:"optional,field=then"`
-	Else      types.LazyExpr `vfilter:"optional,field=else"`
+	Condition types.Any     `vfilter:"required,field=condition"`
+	Then      types.LazyAny `vfilter:"optional,field=then"`
+	Else      types.LazyAny `vfilter:"optional,field=else"`
 }
 
 type _IfFunction struct{}
@@ -33,7 +33,7 @@ func (self _IfFunction) Call(
 	arg := &_IfFunctionArgs{}
 	err := arg_parser.ExtractArgs(scope, args, arg)
 	if err != nil {
-		scope.Log("if: %s", err.Error())
+		scope.Log("if: %v", err)
 		return types.Null{}
 	}
 
@@ -42,11 +42,43 @@ func (self _IfFunction) Call(
 			return &types.Null{}
 		}
 
-		return arg.Then.ReduceWithScope(ctx, scope)
+		lazy_expr, ok := arg.Then.(types.LazyExpr)
+		if ok {
+			arg.Then = lazy_expr.ReduceWithScope(ctx, scope)
+		}
+
+		switch t := arg.Then.(type) {
+		case types.StoredQuery:
+			return t
+
+		case types.LazyExpr:
+			exp := t.ReduceWithScope(ctx, scope)
+			s, ok := exp.(types.StoredQuery)
+			if ok {
+				return s
+			}
+
+		default:
+			return t
+		}
 	}
 	if utils.IsNil(arg.Else) {
 		return &types.Null{}
 	}
 
-	return arg.Else.ReduceWithScope(ctx, scope)
+	lazy_expr, ok := arg.Else.(types.LazyExpr)
+	if ok {
+		arg.Else = lazy_expr.ReduceWithScope(ctx, scope)
+	}
+
+	switch t := arg.Else.(type) {
+	case types.StoredQuery:
+		return t
+
+	case types.LazyExpr:
+		return t.ReduceWithScope(ctx, scope)
+
+	default:
+		return t
+	}
 }

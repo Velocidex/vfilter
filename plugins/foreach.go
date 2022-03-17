@@ -83,9 +83,9 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 					continue
 				}
 
-				// Evaluate the query on a new sub
-				// scope. The query can refer to rows
-				// returned by the "row" query.
+				// Evaluate the query on a new sub scope. The query
+				// can refer to rows returned by the "row" query -
+				// therefore it is **not** isolated.
 				child_scope := scope.Copy()
 				// child_scope is closed in the pool worker.
 

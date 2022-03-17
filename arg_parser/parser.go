@@ -14,10 +14,11 @@ import (
 )
 
 type tmpTypes struct {
-	any    types.Any
-	stored types.StoredQuery
-	lazy   types.LazyExpr
-	dict   *ordereddict.Dict
+	any     types.Any
+	stored  types.StoredQuery
+	lazy    types.LazyExpr
+	dict    *ordereddict.Dict
+	lazyAny types.LazyAny
 }
 
 var (
@@ -27,6 +28,7 @@ var (
 	storedQueryType = reflect.ValueOf(testType).Type().Field(1).Type
 	lazyExprType    = reflect.ValueOf(testType).Type().Field(2).Type
 	dictExprType    = reflect.ValueOf(testType).Type().Field(3).Type
+	lazyAnyType     = reflect.ValueOf(testType).Type().Field(4).Type
 
 	parser_mu      sync.Mutex
 	typeDispatcher = initDefaultTypeDispatcher()
@@ -114,6 +116,7 @@ func storedQueryParser(ctx context.Context, scope types.Scope,
 // materialize both.
 func anyParser(ctx context.Context, scope types.Scope,
 	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
+
 	lazy_arg, ok := arg.(types.LazyExpr)
 	if ok {
 		arg = lazy_arg.ReduceWithScope(ctx, scope)
@@ -122,6 +125,10 @@ func anyParser(ctx context.Context, scope types.Scope,
 	return arg, nil
 }
 
+func lazyAnyParser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
+	return arg, nil
+}
 func sliceParser(ctx context.Context, scope types.Scope,
 	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
 	lazy_arg, ok := arg.(types.LazyExpr)
@@ -401,6 +408,7 @@ func BuildParser(v reflect.Value) (*Parser, error) {
 func initDefaultTypeDispatcher() map[reflect.Type]ParserDipatcher {
 	result := make(map[reflect.Type]ParserDipatcher)
 	result[anyType] = anyParser
+	result[lazyAnyType] = lazyAnyParser
 	result[storedQueryType] = storedQueryParser
 	result[lazyExprType] = lazyExprParser
 	result[dictExprType] = dictParser
