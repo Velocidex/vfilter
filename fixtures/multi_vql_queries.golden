@@ -507,49 +507,49 @@
     }
   ],
   "039/000 Aggregate functions: Sum and Count in stored query definition: LET MyValue\u003c=\"Hello\"": null,
-  "039/001 Aggregate functions: Sum and Count in stored query definition: LET CountMe(Value)=SELECT count() AS Count, Value, sum(item=Value) AS Sum, get(member=\"MyValue\") AS MyValueShouldBeNULL FROM scope()": null,
+  "039/001 Aggregate functions: Sum and Count in stored query definition: LET CountMe(Value)=SELECT count() AS Count, Value, sum(item=Value) AS Sum, MyValue FROM scope()": null,
   "039/002 Aggregate functions: Sum and Count in stored query definition: LET _value=10": null,
   "039/003 Aggregate functions: Sum and Count in stored query definition: SELECT * FROM foreach(row= [2, 3, 4], query= { SELECT * FROM CountMe(Value=_value)})": [
     {
       "Count": 1,
       "Value": 2,
       "Sum": 2,
-      "MyValueShouldBeNULL": null
+      "MyValue": "Hello"
     },
     {
       "Count": 1,
       "Value": 3,
       "Sum": 3,
-      "MyValueShouldBeNULL": null
+      "MyValue": "Hello"
     },
     {
       "Count": 1,
       "Value": 4,
       "Sum": 4,
-      "MyValueShouldBeNULL": null
+      "MyValue": "Hello"
     }
   ],
   "040/000 Aggregate functions: Sum and Count in stored query definition: LET MyValue\u003c=\"Hello\"": null,
-  "040/001 Aggregate functions: Sum and Count in stored query definition: LET CountMe(Value)=SELECT count() AS Count, Value, sum(item=Value) AS Sum, get(member=\"MyValue\") AS MyValueShouldBeNULL FROM scope()": null,
+  "040/001 Aggregate functions: Sum and Count in stored query definition: LET CountMe(Value)=SELECT count() AS Count, Value, sum(item=Value) AS Sum, MyValue FROM scope()": null,
   "040/002 Aggregate functions: Sum and Count in stored query definition: LET _value=10": null,
   "040/003 Aggregate functions: Sum and Count in stored query definition: SELECT * FROM foreach(row= [2, 3, 4], query=CountMe(Value=_value))": [
     {
       "Count": 1,
       "Value": 10,
       "Sum": 10,
-      "MyValueShouldBeNULL": null
+      "MyValue": "Hello"
     },
     {
       "Count": 2,
       "Value": 10,
       "Sum": 20,
-      "MyValueShouldBeNULL": null
+      "MyValue": "Hello"
     },
     {
       "Count": 3,
       "Value": 10,
       "Sum": 30,
-      "MyValueShouldBeNULL": null
+      "MyValue": "Hello"
     }
   ],
   "041/000 Aggregate functions: Sum all rows: SELECT sum(item=_value) AS Total, sum(item=_value * 2) AS TotalDouble FROM foreach(row= [2, 3, 4]) GROUP BY 1": [
@@ -968,6 +968,14 @@
       "if(condition=FALSE, then=2, else=VarIsObjectWithMethods.Value2) + \"X\"": "I am a method, called 3X",
       "VarIsObjectWithMethods.Value2 =~ \"I am a method\"": true,
       "VarIsObjectWithMethods.Value2": "I am a method, called 5"
+    }
+  ],
+  "067/000 VQL Functions can access global scope: LET Foo=\"Hello\"": null,
+  "067/001 VQL Functions can access global scope: LET MyFunc(X)=SELECT X, Foo FROM scope()": null,
+  "067/002 VQL Functions can access global scope: SELECT * FROM MyFunc(X=1)": [
+    {
+      "X": 1,
+      "Foo": "Hello"
     }
   ]
 }

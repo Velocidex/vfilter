@@ -823,15 +823,16 @@ SELECT * FROM foreach(row=[2, 3, 4],
     FROM scope()
 })`},
 
-	// When the subquery is defined as a function it is evaluated in
-	// an isolated scope - so count() and sum() start fresh each time,
-	// but it can not refer to external symbols.
+	// When the subquery is defined as a function it is evaluated in a
+	// new scope with a new context - so count() and sum() start fresh
+	// each time. We can still refer to global items inside the
+	// function definition.
 	{"Aggregate functions: Sum and Count in stored query definition", `
 LET MyValue <= "Hello"
 LET CountMe(Value) = SELECT count() AS Count,
     Value,
     sum(item=Value) AS Sum,
-    get(member="MyValue") AS MyValueShouldBeNULL
+    MyValue
     FROM scope()
 
 LET _value = 10
@@ -854,7 +855,7 @@ LET MyValue <= "Hello"
 LET CountMe(Value) = SELECT count() AS Count,
     Value,
     sum(item=Value) AS Sum,
-    get(member="MyValue") AS MyValueShouldBeNULL
+    MyValue
     FROM scope()
 
 LET _value = 10
@@ -1122,6 +1123,11 @@ SELECT if(condition=FALSE, then=2, else=VarIsObjectWithMethods.Value2) + "X",
 FROM scope()
 
 `},
+	{"VQL Functions can access global scope", `
+LET Foo = "Hello"
+LET MyFunc(X) = SELECT X, Foo FROM scope()
+
+SELECT * FROM MyFunc(X=1)`},
 }
 
 type _RangeArgs struct {

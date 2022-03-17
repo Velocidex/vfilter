@@ -1829,7 +1829,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 				// to use a brand new scope with its own context to
 				// make sure that aggregate functions inside the
 				// stored query start fresh.
-				subscope := scope.NewScope()
+				subscope := scope.Copy()
 				subscope.ClearContext()
 				defer subscope.Close()
 
