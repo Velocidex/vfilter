@@ -146,12 +146,17 @@ func (self *Scope) ClearContext() {
 	self.Lock()
 	defer self.Unlock()
 
+	// The dispatcher is normally shared between all scopes and their
+	// children, however when setting a new context, we need to create
+	// a new dispatcher object to hold the new context.
+	self.dispatcher = self.dispatcher.Copy()
 	self.dispatcher.SetContext(ordereddict.NewDict())
-	self.vars = append(self.vars, ordereddict.NewDict().
-		Set("NULL", types.Null{}))
 }
 
 func (self *Scope) SetContext(name string, value types.Any) {
+	self.Lock()
+	defer self.Unlock()
+
 	self.dispatcher.SetContextValue(name, value)
 }
 

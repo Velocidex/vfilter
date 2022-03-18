@@ -80,7 +80,7 @@ func (self *_StoredQuery) Info(scope types.Scope, type_map *TypeMap) *PluginInfo
 func (self *_StoredQuery) Call(ctx context.Context,
 	scope types.Scope, args *ordereddict.Dict) <-chan Row {
 
-	sub_scope := scope.NewScope()
+	sub_scope := scope.Copy()
 	sub_scope.ClearContext()
 	defer sub_scope.Close()
 
