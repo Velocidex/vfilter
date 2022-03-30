@@ -51,6 +51,13 @@ func (self AddDispatcher) Add(scope types.Scope, a types.Any, b types.Any) types
 		}
 	}
 
+	for i, impl := range self.impl {
+		if impl.Applicable(a, b) {
+			scope.GetStats().IncProtocolSearch(i)
+			return impl.Add(scope, a, b)
+		}
+	}
+
 	// Handle array concatenation
 	if is_array(a) || is_array(b) {
 		a_slice := convertToSlice(a)
@@ -59,12 +66,6 @@ func (self AddDispatcher) Add(scope types.Scope, a types.Any, b types.Any) types
 		return append(a_slice, b_slice...)
 	}
 
-	for i, impl := range self.impl {
-		if impl.Applicable(a, b) {
-			scope.GetStats().IncProtocolSearch(i)
-			return impl.Add(scope, a, b)
-		}
-	}
 	scope.Trace("Protocol Add not found for %v (%T) and %v (%T)",
 		a, a, b, b)
 	return types.Null{}
