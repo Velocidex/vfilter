@@ -977,5 +977,14 @@
       "X": 1,
       "Foo": "Hello"
     }
+  ],
+  "068/000 Function returning array: SELECT func_foo(return=ArrayValue) FROM scope()": [
+    {
+      "func_foo(return=ArrayValue)": [
+        1,
+        2,
+        3
+      ]
+    }
   ]
 }

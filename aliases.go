@@ -3,6 +3,7 @@ package vfilter
 import (
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/arg_parser"
+	"www.velocidex.com/golang/vfilter/functions"
 	"www.velocidex.com/golang/vfilter/plugins"
 	"www.velocidex.com/golang/vfilter/scope"
 	"www.velocidex.com/golang/vfilter/types"
@@ -21,6 +22,7 @@ type PluginInfo = types.PluginInfo
 type PluginGeneratorInterface = types.PluginGeneratorInterface
 
 type GenericListPlugin = plugins.GenericListPlugin
+type GenericFunction = functions.GenericFunction
 
 type TypeMap = types.TypeMap
 

@@ -260,8 +260,11 @@ func (self TestFunction) Copy() types.FunctionInterface {
 
 func (self TestFunction) Call(ctx context.Context, scope types.Scope, args *ordereddict.Dict) Any {
 	if value, pres := args.Get("return"); pres {
-		lazy_value := value.(types.LazyExpr)
-		return lazy_value.Reduce(ctx)
+		lazy_value, ok := value.(types.LazyExpr)
+		if ok {
+			return lazy_value.Reduce(ctx)
+		}
+		return value
 	}
 	return self.return_value
 }
@@ -673,6 +676,8 @@ b={
 
 	{"Alternatives with the OR shortcut operator",
 		"SELECT get(member='Foo') || get(member='Bar') || 'Hello' FROM scope()"},
+	{"Whitespace in the query",
+		"SELECT * FROM\ntest()"},
 }
 
 var multiVQLTest = []vqlTest{
@@ -1128,6 +1133,10 @@ LET Foo = "Hello"
 LET MyFunc(X) = SELECT X, Foo FROM scope()
 
 SELECT * FROM MyFunc(X=1)`},
+	// Fix issue https://github.com/Velocidex/velociraptor/issues/1756
+	{"Function returning array", `
+SELECT func_foo(return=ArrayValue) FROM scope()
+`},
 }
 
 type _RangeArgs struct {
@@ -1138,6 +1147,7 @@ type _RangeArgs struct {
 func makeTestScope() types.Scope {
 	result := makeScope().
 		AppendVars(ordereddict.NewDict().
+			Set("ArrayValue", [3]int{1, 2, 3}).
 			Set("VarIsObjectWithMethods", ObjectWithMethods{Value1: 1})).
 		AddProtocolImpl(protocols.NewLazyStructWrapper(
 			ObjectWithMethods{}, "Value1", "Value2", "Value3", "Counter")).
