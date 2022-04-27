@@ -30,7 +30,7 @@ type GenericFunction struct {
 	ArgType types.Any
 }
 
-func (self GenericFunction) XCopy() types.FunctionInterface {
+func (self GenericFunction) Copy() types.FunctionInterface {
 	return self
 }
 
