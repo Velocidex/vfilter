@@ -186,6 +186,12 @@ func stringParser(ctx context.Context, scope types.Scope,
 	case fmt.Stringer:
 		return t.String(), nil
 
+		// Convert integer things to what they normally would look
+		// like as a string
+	case uint64, int64, uint32, int32, uint16,
+		int16, uint8, int8, float64, float32:
+		return fmt.Sprintf("%v", arg), nil
+
 	default:
 		return fmt.Sprintf("%s", arg), nil
 	}

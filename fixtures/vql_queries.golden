@@ -648,5 +648,19 @@
     {
       "get(member='Foo') || get(member='Bar') || 'Hello'": "Hello"
     }
+  ],
+  "074 Whitespace in the query: SELECT * FROM test()": [
+    {
+      "foo": 0,
+      "bar": 0
+    },
+    {
+      "foo": 2,
+      "bar": 1
+    },
+    {
+      "foo": 4,
+      "bar": 2
+    }
   ]
 }
