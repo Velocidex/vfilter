@@ -676,6 +676,10 @@ b={
 
 	{"Alternatives with the OR shortcut operator",
 		"SELECT get(member='Foo') || get(member='Bar') || 'Hello' FROM scope()"},
+
+	{"Alternatives with the OR shortcut operator false",
+		"SELECT NULL || '', NULL || FALSE, NULL || 'X', 'A' || 'B', 'A' || FALSE, 'A' || '' || 'B' FROM scope()"},
+
 	{"Whitespace in the query",
 		"SELECT * FROM\ntest()"},
 }

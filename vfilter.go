@@ -1391,26 +1391,28 @@ func (self *_OrExpression) IsAggregate(scope types.Scope) bool {
 }
 
 func (self *_OrExpression) Reduce(ctx context.Context, scope types.Scope) Any {
-	result := self.Left.Reduce(ctx, scope)
+	left := self.Left.Reduce(ctx, scope)
 	if self.Right == nil {
-		return result
+		return left
 	}
 
-	if scope.Bool(result) == true {
-		return result
+	if scope.Bool(left) == true {
+		return left
 	}
 
+	last := left
 	for _, term := range self.Right {
-		result = term.Term.Reduce(ctx, scope)
-		if scope.Bool(result) == true {
+		right := term.Term.Reduce(ctx, scope)
+		if scope.Bool(right) == true {
 			if term.Operator == "||" {
-				return result
+				return right
 			}
 			return true
 		}
+		last = right
 	}
 
-	return false
+	return last
 }
 
 func (self _OrExpression) ToString(scope types.Scope) string {
