@@ -649,7 +649,17 @@
       "get(member='Foo') || get(member='Bar') || 'Hello'": "Hello"
     }
   ],
-  "074 Whitespace in the query: SELECT * FROM test()": [
+  "074 Alternatives with the OR shortcut operator false: SELECT NULL || '', NULL || FALSE, NULL || 'X', 'A' || 'B', 'A' || FALSE, 'A' || '' || 'B' FROM scope()": [
+    {
+      "NULL || ''": "",
+      "NULL || FALSE": false,
+      "NULL || 'X'": "X",
+      "'A' || 'B'": "A",
+      "'A' || FALSE": "A",
+      "'A' || '' || 'B'": "A"
+    }
+  ],
+  "075 Whitespace in the query: SELECT * FROM test()": [
     {
       "foo": 0,
       "bar": 0
