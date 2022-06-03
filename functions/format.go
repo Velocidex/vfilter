@@ -23,7 +23,7 @@ func (self FormatFunction) Call(ctx context.Context,
 	arg := &FormatArgs{}
 	err := arg_parser.ExtractArgs(scope, args, arg)
 	if err != nil {
-		scope.Log("format: %s", err.Error())
+		scope.Log("format: %v", err)
 		return false
 	}
 
