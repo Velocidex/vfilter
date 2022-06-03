@@ -92,7 +92,7 @@ type Scope interface {
 func RecoverVQL(scope Scope) {
 	r := recover()
 	if r != nil {
-		scope.Log("PANIC: %v\n", r)
+		scope.Log("ERROR:PANIC: %v\n", r)
 		buffer := make([]byte, 4096)
 		n := runtime.Stack(buffer, false /* all */)
 		scope.Log("%s", buffer[:n])

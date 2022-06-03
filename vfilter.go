@@ -334,13 +334,13 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	// query and assign to the scope.
 	if len(self.Let) > 0 {
 		if self.Parameters != nil && self.LetOperator == "<=" {
-			scope.Log("Expression %v takes parameters but is "+
+			scope.Log("WARN:Expression %v takes parameters but is "+
 				"materialized! Did you mean to use '='? ", self.Let)
 		}
 
 		_, pres := scope.GetFunction(self.Let)
 		if pres {
-			scope.Log("LET expression is masking a built in function %v", self.Let)
+			scope.Log("WARN:LET expression is masking a built in function %v", self.Let)
 		}
 
 		name := utils.Unquote_ident(self.Let)
@@ -1054,10 +1054,10 @@ func (self *_Plugin) resolveSymbol(
 			// if Foo is not found but not if Foo is found but Bar is not found
 			if idx == 0 {
 				if len(components) > 1 {
-					scope.Log("While resolving %v Plugin %v not found. %s",
+					scope.Log("ERROR:While resolving %v Plugin %v not found. %s",
 						self.Name, components[0], scope.PrintVars())
 				} else {
-					scope.Log("Plugin %v not found. %s", self.Name, scope.PrintVars())
+					scope.Log("ERROR:Plugin %v not found. %s", self.Name, scope.PrintVars())
 				}
 			}
 
@@ -1092,7 +1092,7 @@ func (self *_Plugin) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 					"function instead?", self.Name)
 		}
 
-		scope.Log("%v", message)
+		scope.Log("ERROR:%v", message)
 		output_chan := make(chan Row)
 		close(output_chan)
 		return output_chan
@@ -1137,7 +1137,7 @@ func (self *_Plugin) evalSymbol(
 			return t.Call(ctx, scope, args)
 
 		default:
-			scope.Log("Symbol %v is not callable", name)
+			scope.Log("ERROR:Symbol %v is not callable", name)
 			close(output_chan)
 			return output_chan
 		}
@@ -1603,7 +1603,7 @@ func (self *_Value) maybeParseStrNumber(scope types.Scope) {
 			return
 		}
 
-		scope.Log("Unable to parse %s as a number.", *self.StrNumber)
+		scope.Log("ERROR:Unable to parse %s as a number.", *self.StrNumber)
 	}
 }
 
@@ -1770,10 +1770,10 @@ func (self *_SymbolRef) getFunction(scope types.Scope) (types.Any, bool) {
 			// if Foo is not found but not if Foo is found but Bar is not found
 			if idx == 0 {
 				if len(components) > 1 {
-					scope.Log("While resolving %v Symbol %v not found. %s",
+					scope.Log("ERROR:While resolving %v Symbol %v not found. %s",
 						self.Symbol, components[0], scope.PrintVars())
 				} else {
-					scope.Log("Symbol %v not found. %s", self.Symbol, scope.PrintVars())
+					scope.Log("ERROR:Symbol %v not found. %s", self.Symbol, scope.PrintVars())
 				}
 			}
 
@@ -1796,7 +1796,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 		switch t := value.(type) {
 		case FunctionInterface:
 			if !self.Called {
-				scope.Log("Symbol %v is a function but it is not being called.",
+				scope.Log("ERROR:Symbol %v is a function but it is not being called.",
 					self.Symbol)
 				return &Null{}
 			}
@@ -1853,7 +1853,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 		}
 
 		if self.Called {
-			scope.Log("Symbol %v is not a function but it is being called.",
+			scope.Log("ERROR:Symbol %v is not a function but it is being called.",
 				self.Symbol)
 			return &Null{}
 		}

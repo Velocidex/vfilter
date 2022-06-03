@@ -114,7 +114,7 @@ func (self *_StoredQuery) checkCallingArgs(scope types.Scope, args *ordereddict.
 	seen_map := make(map[string]bool)
 	for _, k := range args.Keys() {
 		if !utils.InString(&self.parameters, k) {
-			scope.Log("Extra unrecognized arg %v when calling %v",
+			scope.Log("ERROR:Extra unrecognized arg %v when calling %v",
 				k, self.name)
 		}
 		seen_map[k] = true
@@ -125,7 +125,7 @@ func (self *_StoredQuery) checkCallingArgs(scope types.Scope, args *ordereddict.
 		for _, k := range self.parameters {
 			_, pres := seen_map[k]
 			if !pres {
-				scope.Log("Missing arg %v when calling %v",
+				scope.Log("ERROR:Missing arg %v when calling %v",
 					k, self.name)
 			}
 		}
@@ -193,7 +193,7 @@ func (self *StoredExpression) checkCallingArgs(scope types.Scope, args *orderedd
 	seen_map := make(map[string]bool)
 	for _, k := range args.Keys() {
 		if !utils.InString(&self.parameters, k) {
-			scope.Log("Extra unrecognized arg %v when calling %v",
+			scope.Log("ERROR:Extra unrecognized arg %v when calling %v",
 				k, self.name)
 		}
 		seen_map[k] = true
@@ -204,7 +204,7 @@ func (self *StoredExpression) checkCallingArgs(scope types.Scope, args *orderedd
 		for _, k := range self.parameters {
 			_, pres := seen_map[k]
 			if !pres {
-				scope.Log("Missing arg %v when calling %v",
+				scope.Log("ERROR:Missing arg %v when calling %v",
 					k, self.name)
 			}
 		}
