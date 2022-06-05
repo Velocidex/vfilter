@@ -1078,6 +1078,10 @@ select foobar from no_such_result`},
 LET X <= (0,1,2,3,4,5,6,7)
 SELECT X[2:], X[2:4], X[:2], X[-1], X[-2], X[-2:], X[2:-1] FROM scope()
 `},
+	{"Slice Strings", `
+LET X = "Hello World"
+SELECT X[1:5], X[-5:], X[:5], X[5:2], X[5:5] FROM scope()
+`},
 	// Value2 is a method accesses as a field
 	{"Access object methods as properties.", `
 LET _ <= SELECT * FROM reset_objectwithmethods()

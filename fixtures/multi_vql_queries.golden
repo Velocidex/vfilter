@@ -889,8 +889,18 @@
       ]
     }
   ],
-  "065/000 Access object methods as properties.: LET _\u003c=SELECT * FROM reset_objectwithmethods()": null,
-  "065/001 Access object methods as properties.: SELECT * FROM objectwithmethods()": [
+  "065/000 Slice Strings: LET X=\"Hello World\"": null,
+  "065/001 Slice Strings: SELECT X[1 : 5], X[-5 : ], X[ : 5], X[5 : 2], X[5 : 5] FROM scope()": [
+    {
+      "X[1 : 5]": "ello",
+      "X[-5 : ]": "World",
+      "X[ : 5]": "Hello",
+      "X[5 : 2]": "",
+      "X[5 : 5]": ""
+    }
+  ],
+  "066/000 Access object methods as properties.: LET _\u003c=SELECT * FROM reset_objectwithmethods()": null,
+  "066/001 Access object methods as properties.: SELECT * FROM objectwithmethods()": [
     {
       "Value1": 1,
       "Value2": "I am a method, called 1",
@@ -902,7 +912,7 @@
       "Counter": 2
     }
   ],
-  "065/002 Access object methods as properties.: SELECT Value1, Value2 + \"X\" FROM objectwithmethods()": [
+  "066/002 Access object methods as properties.: SELECT Value1, Value2 + \"X\" FROM objectwithmethods()": [
     {
       "Value1": 1,
       "Value2 + \"X\"": "I am a method, called 3X"
@@ -912,7 +922,7 @@
       "Value2 + \"X\"": "I am a method, called 4X"
     }
   ],
-  "065/003 Access object methods as properties.: SELECT Value1 FROM objectwithmethods()": [
+  "066/003 Access object methods as properties.: SELECT Value1 FROM objectwithmethods()": [
     {
       "Value1": 1
     },
@@ -920,8 +930,8 @@
       "Value1": 2
     }
   ],
-  "065/004 Access object methods as properties.: SELECT Value2 + \"X\" FROM objectwithmethods() WHERE False": null,
-  "065/005 Access object methods as properties.: SELECT if(condition=1, then=2, else=Value2) FROM objectwithmethods()": [
+  "066/004 Access object methods as properties.: SELECT Value2 + \"X\" FROM objectwithmethods() WHERE False": null,
+  "066/005 Access object methods as properties.: SELECT if(condition=1, then=2, else=Value2) FROM objectwithmethods()": [
     {
       "if(condition=1, then=2, else=Value2)": 2
     },
@@ -929,7 +939,7 @@
       "if(condition=1, then=2, else=Value2)": 2
     }
   ],
-  "065/006 Access object methods as properties.: SELECT Value2 FROM objectwithmethods() WHERE Value2 =~ \"method\"": [
+  "066/006 Access object methods as properties.: SELECT Value2 FROM objectwithmethods() WHERE Value2 =~ \"method\"": [
     {
       "Value2": "I am a method, called 5"
     },
@@ -937,48 +947,48 @@
       "Value2": "I am a method, called 6"
     }
   ],
-  "066/000 Access object methods as properties: LET _\u003c=SELECT * FROM reset_objectwithmethods()": null,
-  "066/001 Access object methods as properties: SELECT VarIsObjectWithMethods.Value1 FROM scope()": [
+  "067/000 Access object methods as properties: LET _\u003c=SELECT * FROM reset_objectwithmethods()": null,
+  "067/001 Access object methods as properties: SELECT VarIsObjectWithMethods.Value1 FROM scope()": [
     {
       "VarIsObjectWithMethods.Value1": 1
     }
   ],
-  "066/002 Access object methods as properties: SELECT VarIsObjectWithMethods.Value2 FROM scope()": [
+  "067/002 Access object methods as properties: SELECT VarIsObjectWithMethods.Value2 FROM scope()": [
     {
       "VarIsObjectWithMethods.Value2": "I am a method, called 1"
     }
   ],
-  "066/003 Access object methods as properties: SELECT VarIsObjectWithMethods.Value1 FROM scope()": [
+  "067/003 Access object methods as properties: SELECT VarIsObjectWithMethods.Value1 FROM scope()": [
     {
       "VarIsObjectWithMethods.Value1": 1
     }
   ],
-  "066/004 Access object methods as properties: SELECT if(condition=1, then=2, else=VarIsObjectWithMethods.Value2) FROM scope()": [
+  "067/004 Access object methods as properties: SELECT if(condition=1, then=2, else=VarIsObjectWithMethods.Value2) FROM scope()": [
     {
       "if(condition=1, then=2, else=VarIsObjectWithMethods.Value2)": 2
     }
   ],
-  "066/005 Access object methods as properties: SELECT VarIsObjectWithMethods.Value2 FROM scope()": [
+  "067/005 Access object methods as properties: SELECT VarIsObjectWithMethods.Value2 FROM scope()": [
     {
       "VarIsObjectWithMethods.Value2": "I am a method, called 2"
     }
   ],
-  "066/006 Access object methods as properties: SELECT if(condition=FALSE, then=2, else=VarIsObjectWithMethods.Value2) + \"X\", VarIsObjectWithMethods.Value2 =~ \"I am a method\", VarIsObjectWithMethods.Value2 FROM scope()": [
+  "067/006 Access object methods as properties: SELECT if(condition=FALSE, then=2, else=VarIsObjectWithMethods.Value2) + \"X\", VarIsObjectWithMethods.Value2 =~ \"I am a method\", VarIsObjectWithMethods.Value2 FROM scope()": [
     {
       "if(condition=FALSE, then=2, else=VarIsObjectWithMethods.Value2) + \"X\"": "I am a method, called 3X",
       "VarIsObjectWithMethods.Value2 =~ \"I am a method\"": true,
       "VarIsObjectWithMethods.Value2": "I am a method, called 5"
     }
   ],
-  "067/000 VQL Functions can access global scope: LET Foo=\"Hello\"": null,
-  "067/001 VQL Functions can access global scope: LET MyFunc(X)=SELECT X, Foo FROM scope()": null,
-  "067/002 VQL Functions can access global scope: SELECT * FROM MyFunc(X=1)": [
+  "068/000 VQL Functions can access global scope: LET Foo=\"Hello\"": null,
+  "068/001 VQL Functions can access global scope: LET MyFunc(X)=SELECT X, Foo FROM scope()": null,
+  "068/002 VQL Functions can access global scope: SELECT * FROM MyFunc(X=1)": [
     {
       "X": 1,
       "Foo": "Hello"
     }
   ],
-  "068/000 Function returning array: SELECT func_foo(return=ArrayValue) FROM scope()": [
+  "069/000 Function returning array: SELECT func_foo(return=ArrayValue) FROM scope()": [
     {
       "func_foo(return=ArrayValue)": [
         1,
