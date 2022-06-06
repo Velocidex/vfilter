@@ -185,33 +185,20 @@ func (self DefaultAssociative) Associative(scope types.Scope, a types.Any, b typ
 		}
 
 		a_value := reflect.Indirect(reflect.ValueOf(a))
+		if a_value.Type().Kind() == reflect.String {
+			value_runes := []rune(a_value.String())
+			array_length := int64(len(value_runes))
+			start_range, end_range := getRanges(field_name, array_length)
+			if end_range <= start_range {
+				return "", true
+			}
+
+			return string(value_runes[int(start_range):int(end_range)]), true
+		}
+
 		if a_value.Type().Kind() == reflect.Slice {
 			array_length := int64(a_value.Len())
-
-			var start_range, end_range int64
-			if field_name[0] != nil {
-				start_range = *field_name[0]
-			}
-			if start_range < 0 {
-				start_range = array_length + start_range
-			}
-			if start_range < 0 {
-				start_range = 0
-			}
-
-			if field_name[1] != nil {
-				end_range = *field_name[1]
-			} else {
-				end_range = array_length
-			}
-
-			if end_range < 0 {
-				end_range = array_length + end_range
-			}
-			if end_range < 0 {
-				end_range = 0
-			}
-
+			start_range, end_range := getRanges(field_name, array_length)
 			if end_range <= start_range {
 				return []types.Any{}, true
 			}
