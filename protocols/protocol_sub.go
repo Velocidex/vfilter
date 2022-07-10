@@ -42,7 +42,7 @@ func (self SubDispatcher) Sub(scope types.Scope, a types.Any, b types.Any) types
 	case float64:
 		a_float, ok := utils.ToFloat(a)
 		if ok {
-			return t - a_float
+			return a_float - t
 		}
 	}
 
