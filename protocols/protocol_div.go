@@ -47,7 +47,7 @@ func (self DivDispatcher) Div(scope types.Scope, a types.Any, b types.Any) types
 			if a_float == 0 {
 				return &types.Null{}
 			}
-			return t / a_float
+			return a_float / t
 		}
 	}
 
