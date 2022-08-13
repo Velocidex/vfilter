@@ -667,10 +667,12 @@ type _Plugin struct {
 }
 
 type _Args struct {
-	Left      string            `@Ident "=" `
-	SubSelect *_Select          `( "{" @@ "}" | `
-	Array     *_CommaExpression ` "[" @@ "]" | `
-	Right     *_AndExpression   ` @@ )`
+	Left            string            `@Ident "=" `
+	SubSelect       *_Select          `( "{" @@ "}" | `
+	ArrayOpenBrace  string            ` @"[" `
+	Array           *_CommaExpression ` @@? `
+	ArrayCloseBrace string            `@"]" | `
+	Right           *_AndExpression   ` @@ )`
 }
 
 type _SelectExpression struct {
@@ -1202,6 +1204,8 @@ func (self *_Args) ToString(scope types.Scope) string {
 		return self.Left + "= { " + self.SubSelect.ToString(scope) + "}"
 	} else if self.Array != nil {
 		return self.Left + "= [" + self.Array.ToString(scope) + "]"
+	} else if self.ArrayOpenBrace != "" {
+		return self.Left + "= []"
 	}
 	return ""
 }
@@ -1897,14 +1901,17 @@ func buildArgsFromParameters(
 			name := utils.Unquote_ident(arg.Left)
 			args.Set(name, arg.Right.Reduce(ctx, scope))
 
+			// e.g. X={ SELECT * FROM ... }
+		} else if arg.SubSelect != nil {
+			args.Set(arg.Left, arg.SubSelect)
+
 			// e.g. X=[1,2,3,4]
 		} else if arg.Array != nil {
 			value := arg.Array.Reduce(ctx, scope)
 			args.Set(arg.Left, value)
 
-			// e.g. X={ SELECT * FROM ... }
-		} else if arg.SubSelect != nil {
-			args.Set(arg.Left, arg.SubSelect)
+		} else if arg.ArrayOpenBrace != "" {
+			args.Set(arg.Left, []Row{})
 		}
 	}
 
@@ -1932,6 +1939,9 @@ func (self *_SymbolRef) callFunction(
 		} else if arg.Array != nil {
 			value := arg.Array.Reduce(ctx, scope)
 			args.Set(arg.Left, value)
+
+		} else if arg.ArrayOpenBrace != "" {
+			args.Set(arg.Left, []Row{})
 
 		} else if arg.SubSelect != nil {
 			args.Set(arg.Left, arg.SubSelect)
