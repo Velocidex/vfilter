@@ -552,7 +552,12 @@
       ]
     }
   ],
-  "059 Array concatenation with Null: SELECT (1, 2) + if(condition=0, then=(3, 4)) AS Field FROM scope()": [
+  "059 Array empty with if: SELECT if(condition=1, then= []) AS Field FROM scope()": [
+    {
+      "Field": []
+    }
+  ],
+  "060 Array concatenation with Null: SELECT (1, 2) + if(condition=0, then=(3, 4)) AS Field FROM scope()": [
     {
       "Field": [
         1,
@@ -561,18 +566,18 @@
       ]
     }
   ],
-  "060 Spurious line feeds and tabs: SELECT 1 + 2 AS FooBar FROM scope() WHERE FooBar \u003e 1 AND TRUE": [
+  "061 Spurious line feeds and tabs: SELECT 1 + 2 AS FooBar FROM scope() WHERE FooBar \u003e 1 AND TRUE": [
     {
       "FooBar": 3
     }
   ],
-  "061 If function and comparison expression: SELECT if(condition=1 + 1 = 2, then=2, else=3), if(condition=1 + 2 = 2, then=2, else=3) FROM scope()": [
+  "062 If function and comparison expression: SELECT if(condition=1 + 1 = 2, then=2, else=3), if(condition=1 + 2 = 2, then=2, else=3) FROM scope()": [
     {
       "if(condition=1 + 1 = 2, then=2, else=3)": 2,
       "if(condition=1 + 2 = 2, then=2, else=3)": 3
     }
   ],
-  "062 If function and subselects: SELECT if(condition=1, then= { SELECT * FROM test()}) FROM scope()": [
+  "063 If function and subselects: SELECT if(condition=1, then= { SELECT * FROM test()}) FROM scope()": [
     {
       "if(condition=1, then= { SELECT * FROM test()})": [
         {
@@ -590,17 +595,17 @@
       ]
     }
   ],
-  "063 If function should be lazy: SELECT if(condition=FALSE, then=panic(column=3, value=3)) FROM scope()": [
+  "064 If function should be lazy: SELECT if(condition=FALSE, then=panic(column=3, value=3)) FROM scope()": [
     {
       "if(condition=FALSE, then=panic(column=3, value=3))": null
     }
   ],
-  "064 If function should be lazy: SELECT if(condition=TRUE, else=panic(column=7, value=7)) FROM scope()": [
+  "065 If function should be lazy: SELECT if(condition=TRUE, else=panic(column=7, value=7)) FROM scope()": [
     {
       "if(condition=TRUE, else=panic(column=7, value=7))": null
     }
   ],
-  "065 If function should be lazy with sub query: SELECT if(condition=TRUE, then= { SELECT * FROM test() LIMIT 1 }) FROM scope()": [
+  "066 If function should be lazy with sub query: SELECT if(condition=TRUE, then= { SELECT * FROM test() LIMIT 1 }) FROM scope()": [
     {
       "if(condition=TRUE, then= { SELECT * FROM test() LIMIT 1 })": [
         {
@@ -610,23 +615,23 @@
       ]
     }
   ],
-  "066 If function should be lazy with sub query: SELECT if(condition=FALSE, then= { SELECT panic(column=8, value=8) FROM test()}) FROM scope()": [
+  "067 If function should be lazy with sub query: SELECT if(condition=FALSE, then= { SELECT panic(column=8, value=8) FROM test()}) FROM scope()": [
     {
       "if(condition=FALSE, then= { SELECT panic(column=8, value=8) FROM test()})": null
     }
   ],
-  "067 If function should be lazy: SELECT if(condition=TRUE, else= { SELECT panic(column=9, value=9) FROM test()}) FROM scope()": [
+  "068 If function should be lazy: SELECT if(condition=TRUE, else= { SELECT panic(column=9, value=9) FROM test()}) FROM scope()": [
     {
       "if(condition=TRUE, else= { SELECT panic(column=9, value=9) FROM test()})": null
     }
   ],
-  "068 If function should be lazy WRT stored query 1/2: LET bomb=SELECT panic(column=1, value=1) FROM scope()": null,
-  "069 If function should be lazy WRT stored query 2/2: SELECT if(condition=FALSE, then=bomb) FROM scope()": [
+  "069 If function should be lazy WRT stored query 1/2: LET bomb=SELECT panic(column=1, value=1) FROM scope()": null,
+  "070 If function should be lazy WRT stored query 2/2: SELECT if(condition=FALSE, then=bomb) FROM scope()": [
     {
       "if(condition=FALSE, then=bomb)": null
     }
   ],
-  "070 If plugin and arrays: SELECT * FROM if(condition=1, then= [dict(Foo=1), dict(Foo=2)])": [
+  "071 If plugin and arrays: SELECT * FROM if(condition=1, then= [dict(Foo=1), dict(Foo=2)])": [
     {
       "Foo": 1
     },
@@ -634,22 +639,22 @@
       "Foo": 2
     }
   ],
-  "071 If plugin and dict: SELECT * FROM if(condition=1, then=dict(Foo=2))": [
+  "072 If plugin and dict: SELECT * FROM if(condition=1, then=dict(Foo=2))": [
     {
       "Foo": 2
     }
   ],
-  "072 Columns with space in them: SELECT foo AS `column with space` FROM dict(foo='hello world')": [
+  "073 Columns with space in them: SELECT foo AS `column with space` FROM dict(foo='hello world')": [
     {
       "column with space": "hello world"
     }
   ],
-  "073 Alternatives with the OR shortcut operator: SELECT get(member='Foo') || get(member='Bar') || 'Hello' FROM scope()": [
+  "074 Alternatives with the OR shortcut operator: SELECT get(member='Foo') || get(member='Bar') || 'Hello' FROM scope()": [
     {
       "get(member='Foo') || get(member='Bar') || 'Hello'": "Hello"
     }
   ],
-  "074 Alternatives with the OR shortcut operator false: SELECT NULL || '', NULL || FALSE, NULL || 'X', 'A' || 'B', 'A' || FALSE, 'A' || '' || 'B' FROM scope()": [
+  "075 Alternatives with the OR shortcut operator false: SELECT NULL || '', NULL || FALSE, NULL || 'X', 'A' || 'B', 'A' || FALSE, 'A' || '' || 'B' FROM scope()": [
     {
       "NULL || ''": "",
       "NULL || FALSE": false,
@@ -659,7 +664,7 @@
       "'A' || '' || 'B'": "A"
     }
   ],
-  "075 Whitespace in the query: SELECT * FROM test()": [
+  "076 Whitespace in the query: SELECT * FROM test()": [
     {
       "foo": 0,
       "bar": 0

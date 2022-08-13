@@ -659,6 +659,8 @@ b={
 		"SELECT (1,2) + 4 FROM scope()"},
 	{"Array concatenation with if",
 		"SELECT (1,2) + if(condition=1, then=(3,4)) AS Field FROM scope()"},
+	{"Array empty with if",
+		"SELECT if(condition=1, then=[]) AS Field FROM scope()"},
 	{"Array concatenation with Null",
 		"SELECT (1,2) + if(condition=0, then=(3,4)) AS Field FROM scope()"},
 	{"Spurious line feeds and tabs",
@@ -1326,7 +1328,7 @@ func TestVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range vqlTests {
-		if false && i != 63 {
+		if false && i != 59 {
 			continue
 		}
 
