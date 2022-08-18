@@ -49,6 +49,7 @@ func (self _IfFunction) Call(
 
 		switch t := arg.Then.(type) {
 		case types.StoredQuery:
+			// If Function with subqueries should return a lazy subquery
 			return t
 
 		case types.LazyExpr:
@@ -73,6 +74,7 @@ func (self _IfFunction) Call(
 
 	switch t := arg.Else.(type) {
 	case types.StoredQuery:
+		// If Function with subqueries should return a lazy subquery
 		return t
 
 	case types.LazyExpr:

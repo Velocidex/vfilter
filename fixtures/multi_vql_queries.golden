@@ -996,5 +996,25 @@
         3
       ]
     }
+  ],
+  "070/000 If function with stored query: LET FooBar=SELECT \"A\" FROM scope()": null,
+  "070/001 If function with stored query: LET B=SELECT if(condition=TRUE, then=FooBar) AS Item FROM scope()": null,
+  "070/002 If function with stored query: SELECT B, FooBar FROM scope()": [
+    {
+      "B": [
+        {
+          "Item": [
+            {
+              "\"A\"": "A"
+            }
+          ]
+        }
+      ],
+      "FooBar": [
+        {
+          "\"A\"": "A"
+        }
+      ]
+    }
   ]
 }
