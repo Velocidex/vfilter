@@ -1166,6 +1166,13 @@ SELECT * FROM MyFunc(X=1)`},
 	{"Function returning array", `
 SELECT func_foo(return=ArrayValue) FROM scope()
 `},
+
+	{"If function with stored query", `
+LET FooBar = SELECT "A" FROM scope()
+LET B = SELECT if(condition=TRUE, then=FooBar) AS Item
+FROM scope()
+SELECT B, FooBar FROM scope()
+`},
 }
 
 type _RangeArgs struct {

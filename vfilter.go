@@ -983,7 +983,16 @@ func (self *_SelectExpression) Transform(
 			// any scope but needs to resolve members in
 			// the scope it was created from.
 			func(ctx context.Context, scope types.Scope) Any {
-				return expr.Reduce(ctx, new_scope)
+				item := expr.Reduce(ctx, new_scope)
+				switch t := item.(type) {
+
+				// if we end up with a stored query in a column value
+				// we expand it since all columns should be
+				// materialized.
+				case types.StoredQuery:
+					return types.Materialize(ctx, new_scope, t)
+				}
+				return item
 			})
 	}
 
