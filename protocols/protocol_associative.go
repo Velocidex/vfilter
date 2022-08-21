@@ -154,9 +154,14 @@ func (self DefaultAssociative) Associative(scope types.Scope, a types.Any, b typ
 	idx, ok := utils.ToInt64(b)
 	if ok {
 		a_value := reflect.Indirect(reflect.ValueOf(a))
-		if a_value.Type().Kind() != reflect.Slice {
+
+		// Handle string especially
+		switch a_value.Type().Kind() {
+		case reflect.String, reflect.Slice:
+		default:
 			return &types.Null{}, false
 		}
+
 		array_length := int64(a_value.Len())
 
 		// Negative index refers to the end of the slice.

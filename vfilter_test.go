@@ -236,6 +236,12 @@ var execTestsSerialization = []execTest{
 	{"dict(x=(my_list_obj.my_list[3]).Foo + 'a')",
 		ordereddict.NewDict().Set("x", "Bara")},
 
+	// Support index of strings
+	{"'Hello'[1]", 101},
+	{"'Hello'[-1]", 111},
+	{"'Hello'[:3]", "Hel"},
+	{"'Hello'[-3:]", "llo"},
+
 	// Rgexp operator
 	{"'Hello' =~ '.'", true},
 
