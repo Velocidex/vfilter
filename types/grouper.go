@@ -13,15 +13,19 @@ import (
 // grouper.
 type GroupbyActor interface {
 	// Just receive new rows. Return EOF when no more rows exist. Returns
-	// 1. The next row to group
-	// 2. The group by bin index
-	// 3. The scope over which the query is materialized.
-	// 4. An error (Usually EOF if the stream is exhausted).
+	// 1. The next trasformed row to group.
+	// 2. The original untransformed row (that can from the plugin).
+	// 3. The group by bin index
+	// 4. The scope over which the query is materialized.
+	// 5. An error (Usually EOF if the stream is exhausted).
 	//
 	// Note that rows returned here are Lazy and are not
 	// materialized. The grouper will materialize the row after
 	// installing the correct bin context in the scope.
-	GetNextRow(ctx context.Context, scope Scope) (LazyRow, string, Scope, error)
+	GetNextRow(ctx context.Context, scope Scope) (LazyRow, Row, string, Scope, error)
+
+	// Transform a raw row with the column selectors
+	Transform(ctx context.Context, scope Scope, row Row) (LazyRow, func())
 
 	// Materialize the row on the scope provided in the previous
 	// call. The scope should contains the correct bin context

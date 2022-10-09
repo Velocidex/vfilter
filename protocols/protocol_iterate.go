@@ -66,7 +66,11 @@ func (self IterateDispatcher) Iterate(
 		defer close(output_chan)
 
 		if !types.IsNullObject(a) {
-			output_chan <- ordereddict.NewDict().Set("_value", a)
+			select {
+			case <-ctx.Done():
+				return
+			case output_chan <- ordereddict.NewDict().Set("_value", a):
+			}
 		}
 	}()
 
@@ -99,12 +103,16 @@ func _SliceIterator(ctx context.Context, scope types.Scope, a types.Any) <-chan 
 					continue
 				}
 
-				_, ok := value.(*ordereddict.Dict)
-				if ok {
-					output_chan <- value
-				} else {
-					output_chan <- ordereddict.NewDict().
+				item, ok := value.(*ordereddict.Dict)
+				if !ok {
+					item = ordereddict.NewDict().
 						Set("_value", value)
+				}
+
+				select {
+				case <-ctx.Done():
+					return
+				case output_chan <- item:
 				}
 			}
 		}

@@ -99,7 +99,11 @@ func (self *DestructorPlugin) Call(
 		})
 
 		for i := int64(0); i < arg.Rows; i++ {
-			output_chan <- ordereddict.NewDict().Set("Count", i)
+			select {
+			case <-ctx.Done():
+				return
+			case output_chan <- ordereddict.NewDict().Set("Count", i):
+			}
 			time.Sleep(50 * time.Millisecond)
 		}
 	}()
