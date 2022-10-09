@@ -38,7 +38,7 @@ func (self *DefaultGrouper) Group(
 		// Append this row to a bin based on a unique
 		// value of the group by column.
 		for {
-			row, bin_idx, new_scope, err := actor.GetNextRow(ctx, scope)
+			row, _, bin_idx, new_scope, err := actor.GetNextRow(ctx, scope)
 			if err != nil {
 				break
 			}
@@ -78,7 +78,12 @@ func (self *DefaultGrouper) Group(
 			aggregate_ctx_any, _ := bins.Get(key)
 			aggregate_ctx, ok := aggregate_ctx_any.(*AggregateContext)
 			if ok {
-				output_chan <- aggregate_ctx.row
+				select {
+				case <-ctx.Done():
+					return
+
+				case output_chan <- aggregate_ctx.row:
+				}
 			}
 		}
 	}()

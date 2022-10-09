@@ -129,6 +129,6 @@ func (self _FlattenPluginImpl) Info(scope types.Scope, type_map *types.TypeMap) 
 		Doc: "Flatten the columns in query. If any column repeats " +
 			"then we repeat the entire row once for each item.",
 
-		ArgType: type_map.AddType(scope, &_FlattenPluginImpl{}),
+		ArgType: type_map.AddType(scope, &_FlattenPluginImplArgs{}),
 	}
 }

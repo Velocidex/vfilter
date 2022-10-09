@@ -17,31 +17,35 @@ type GroupbyActor struct {
 	scope      types.Scope
 }
 
+func (self *GroupbyActor) Transform(ctx context.Context,
+	scope types.Scope, row types.Row) (types.LazyRow, func()) {
+	return self.delegate.SelectExpression.Transform(ctx, scope, row)
+}
+
 // Pull the next row off the query possibly filtering it.
 func (self *GroupbyActor) GetNextRow(ctx context.Context, scope types.Scope) (
-	types.LazyRow, string, types.Scope, error) {
-	for row := range self.row_source {
-		transformed_row, closer := self.delegate.SelectExpression.Transform(
-			ctx, self.scope, row)
-		defer closer()
+	types.LazyRow, types.Row, string, types.Scope, error) {
 
-		// Create a new scope over
-		// which we can evaluate the
-		// filter clause.
+	for row := range self.row_source {
+		// Create a new scope over which we can evaluate the filter
+		// clause.
 		new_scope := self.scope.Copy()
 		defer new_scope.Close()
 
-		// Order matters - transformed
-		// row (from column
-		// specifiers) may mask
-		// original row (from plugin).
+		transformed_row, closer := self.delegate.SelectExpression.Transform(
+			ctx, new_scope, row)
+		defer closer()
+
+		// Order matters - transformed row (from column specifiers)
+		// may mask original row (from plugin).
 		new_scope.AppendVars(row)
 		new_scope.AppendVars(transformed_row)
 
 		if self.delegate.Where != nil {
 			expression := self.delegate.Where.Reduce(ctx, new_scope)
-			// If the filtered expression returns
-			// a bool false, then skip the row.
+
+			// If the filtered expression returns a bool false, then
+			// skip the row.
 			if expression == nil || !scope.Bool(expression) {
 				scope.Trace("During Groupby: Row rejected")
 				continue
@@ -51,10 +55,10 @@ func (self *GroupbyActor) GetNextRow(ctx context.Context, scope types.Scope) (
 		gb_element := self.delegate.GroupBy.Reduce(ctx, new_scope)
 
 		// Emit a single row.
-		return transformed_row, fmt.Sprintf("%v", gb_element), new_scope, nil
+		return transformed_row, row, fmt.Sprintf("%v", gb_element), new_scope, nil
 	}
 
-	return nil, "", nil, io.EOF
+	return nil, nil, "", nil, io.EOF
 }
 
 func (self *GroupbyActor) MaterializeRow(ctx context.Context,
