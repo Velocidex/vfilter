@@ -149,7 +149,7 @@ func (self *Scope) ClearContext() {
 	// The dispatcher is normally shared between all scopes and their
 	// children, however when setting a new context, we need to create
 	// a new dispatcher object to hold the new context.
-	self.dispatcher = self.dispatcher.Copy()
+	self.dispatcher = self.dispatcher.WithNewContext()
 	self.dispatcher.SetContext(ordereddict.NewDict())
 }
 
