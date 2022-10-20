@@ -113,12 +113,47 @@ func (self *protocolDispatcher) Describe(scope *Scope, type_map *types.TypeMap) 
 	return result
 }
 
-func (self *protocolDispatcher) Copy() *protocolDispatcher {
+func (self *protocolDispatcher) WithNewContext() *protocolDispatcher {
 	return &protocolDispatcher{
 		Stats:       &types.Stats{},
 		context:     ordereddict.NewDict(),
 		functions:   self.functions,
 		plugins:     self.plugins,
+		bool:        self.bool,
+		eq:          self.eq,
+		lt:          self.lt,
+		gt:          self.gt,
+		add:         self.add,
+		sub:         self.sub,
+		mul:         self.mul,
+		div:         self.div,
+		membership:  self.membership,
+		associative: self.associative,
+		regex:       self.regex,
+		iterator:    self.iterator,
+		Sorter:      self.Sorter,
+		Grouper:     self.Grouper,
+		Logger:      self.Logger,
+		Tracer:      self.Tracer,
+	}
+}
+
+func (self *protocolDispatcher) Copy() *protocolDispatcher {
+	function_copy := make(map[string]types.FunctionInterface)
+	for k, v := range self.functions {
+		function_copy[k] = v
+	}
+
+	plugins_copy := make(map[string]types.PluginGeneratorInterface)
+	for k, v := range self.plugins {
+		plugins_copy[k] = v
+	}
+
+	return &protocolDispatcher{
+		Stats:       &types.Stats{},
+		context:     ordereddict.NewDict(),
+		functions:   function_copy,
+		plugins:     plugins_copy,
 		bool:        self.bool.Copy(),
 		eq:          self.eq.Copy(),
 		lt:          self.lt.Copy(),
