@@ -376,6 +376,10 @@ func (self *Scope) Log(format string, a ...interface{}) {
 	self.dispatcher.Log(format, a...)
 }
 
+func (self *Scope) Error(format string, a ...interface{}) {
+	self.dispatcher.Log("ERROR: " + format, a...)
+}
+
 func (self *Scope) Trace(format string, a ...interface{}) {
 	self.dispatcher.Trace(format, a...)
 }
