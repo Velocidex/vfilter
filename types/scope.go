@@ -67,7 +67,11 @@ type Scope interface {
 	GetLogger() *log.Logger
 	GetStats() *Stats
 
+	// Log levels
 	Log(format string, a ...interface{})
+	Error(format string, a ...interface{})
+	Warn(format string, a ...interface{})
+	Debug(format string, a ...interface{})
 	Trace(format string, a ...interface{})
 
 	// Introspection
