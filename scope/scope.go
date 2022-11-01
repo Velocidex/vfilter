@@ -377,11 +377,19 @@ func (self *Scope) Log(format string, a ...interface{}) {
 }
 
 func (self *Scope) Error(format string, a ...interface{}) {
-	self.dispatcher.Log("ERROR: " + format, a...)
+	self.dispatcher.Log("ERROR:"+format, a...)
+}
+
+func (self *Scope) Debug(format string, a ...interface{}) {
+	self.dispatcher.Log("DEBUG:"+format, a...)
+}
+
+func (self *Scope) Warn(format string, a ...interface{}) {
+	self.dispatcher.Log("WARN:"+format, a...)
 }
 
 func (self *Scope) Trace(format string, a ...interface{}) {
-	self.dispatcher.Trace(format, a...)
+	self.dispatcher.Trace("TRACE:"+format, a...)
 }
 
 func (self *Scope) Sort(
