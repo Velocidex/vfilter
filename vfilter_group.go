@@ -2,7 +2,6 @@ package vfilter
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/Velocidex/ordereddict"
@@ -52,10 +51,13 @@ func (self *GroupbyActor) GetNextRow(ctx context.Context, scope types.Scope) (
 			}
 		}
 
-		gb_element := self.delegate.GroupBy.Reduce(ctx, new_scope)
+		// Materialize the group by value as much as possible - we
+		// dont want a lazy item here.
+		gb_element := types.ToString(ctx, new_scope,
+			self.delegate.GroupBy.Reduce(ctx, new_scope))
 
 		// Emit a single row.
-		return transformed_row, row, fmt.Sprintf("%v", gb_element), new_scope, nil
+		return transformed_row, row, gb_element, new_scope, nil
 	}
 
 	return nil, nil, "", nil, io.EOF

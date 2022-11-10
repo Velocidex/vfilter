@@ -81,6 +81,7 @@ func IsArray(a interface{}) bool {
 	return rt.Kind() == reflect.Slice || rt.Kind() == reflect.Array
 }
 
+// Try very hard to convert to a string
 func ToString(x interface{}) (string, bool) {
 	switch t := x.(type) {
 	case string:

@@ -26,6 +26,10 @@ type Memberer interface {
 	Members() []string
 }
 
+type Materializer interface {
+	Materialize(ctx context.Context, scope Scope) Any
+}
+
 // A LazyExpr has a reduce method that allows it to be materialized.
 type LazyExpr interface {
 	// Reduce with the scope captured at point of definition.
