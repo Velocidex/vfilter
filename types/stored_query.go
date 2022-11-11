@@ -24,7 +24,7 @@ func Materialize(ctx context.Context, scope Scope, stored_query StoredQuery) []R
 
 		if !warned && len(result) > 10000 {
 			scope.Log("WARN:During Materialize of StoredQuery %s: Expand larger than 10,000 rows!",
-				ToString(stored_query, scope))
+				ToString(ctx, scope, stored_query))
 			warned = true
 		}
 	}

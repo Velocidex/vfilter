@@ -226,10 +226,10 @@ func normalize_value(ctx context.Context, scope Scope, value types.Any, depth in
 	case func() types.Any:
 		return normalize_value(ctx, scope, t(), depth+1)
 
-	case Materializer:
+	case types.Materializer:
 		return t.Materialize(ctx, scope)
 
-	case Memberer:
+	case types.Memberer:
 		result := ordereddict.NewDict()
 		for _, member := range t.Members() {
 			value, pres := scope.Associative(t, member)

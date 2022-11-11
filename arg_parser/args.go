@@ -244,7 +244,3 @@ func (self *lazyExpressionWrapper) ReduceWithScope(ctx context.Context, scope ty
 func (self *lazyExpressionWrapper) Reduce(ctx context.Context) types.Any {
 	return self.value
 }
-
-type StringProtocol interface {
-	ToString() string
-}
