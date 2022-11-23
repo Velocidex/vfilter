@@ -50,6 +50,8 @@ type Visitor struct {
 	// The max width of any of the lines in this visitor
 	max_width int
 	max_line  string
+
+	has_comments bool
 }
 
 func NewVisitor(scope types.Scope, options FormatOptions) *Visitor {
@@ -171,6 +173,15 @@ func (self *Visitor) Visit(node interface{}) {
 			self.push(*t)
 		}
 
+	case *_Comment:
+		self.visitComment(t)
+
+	case []*_Comment:
+		for _, c := range t {
+			self.Visit(c)
+			self.line_break()
+		}
+
 	case *VQL:
 		self.visitVQL(t)
 
@@ -244,6 +255,18 @@ func (self *Visitor) visitStoredExpression(node *StoredExpression) {
 	self.Visit(node.Expr)
 }
 
+func (self *Visitor) visitComment(node *_Comment) {
+	if node.Comment != nil {
+		self.push(*node.Comment)
+	}
+	if node.VQLComment != nil {
+		self.push(*node.VQLComment)
+	}
+	if node.MultiLine != nil {
+		self.push(*node.MultiLine)
+	}
+}
+
 func (self *Visitor) visitLambda(node *Lambda) {
 	self.Visit(node.Parameters)
 	self.push(" => ")
@@ -262,6 +285,8 @@ func (self *Visitor) visitParameterList(node *_ParameterList) {
 func (self *Visitor) visitAliasedExpression(node *_AliasedExpression) {
 	node.mu.Lock()
 	defer node.mu.Unlock()
+
+	self.Visit(node.Comments)
 
 	if node.Expression != nil {
 		self.Visit(node.Expression)
@@ -290,6 +315,7 @@ func (self *Visitor) visitSymbolRef(node *_SymbolRef) {
 	node.mu.Lock()
 	defer node.mu.Unlock()
 
+	self.Visit(node.Comments)
 	self.push(node.Symbol)
 	if !node.Called && node.Parameters == nil {
 		return
@@ -361,10 +387,12 @@ func (self *Visitor) visitAndExpression(node *_AndExpression) {
 }
 
 func (self *Visitor) visitOrExpression(node *_OrExpression) {
+	self.Visit(node.Comments)
 	self.Visit(node.Left)
 
 	for _, right := range node.Right {
 		self.push(" ", right.Operator, " ")
+		self.Visit(right.Term.Comments)
 		self.Visit(right.Term)
 	}
 }
@@ -384,6 +412,7 @@ func (self *Visitor) visitConditionOperand(node *_ConditionOperand) {
 }
 
 func (self *Visitor) visitAdditionExpression(node *_AdditionExpression) {
+	self.Visit(node.Comments)
 	self.Visit(node.Left)
 	for _, right := range node.Right {
 		self.push(" ", right.Operator, " ")
@@ -392,6 +421,7 @@ func (self *Visitor) visitAdditionExpression(node *_AdditionExpression) {
 }
 
 func (self *Visitor) visitMultiplicationExpression(node *_MultiplicationExpression) {
+	self.Visit(node.Comments)
 	self.Visit(node.Left)
 	if len(node.Right) == 0 {
 		return
@@ -405,6 +435,8 @@ func (self *Visitor) visitMultiplicationExpression(node *_MultiplicationExpressi
 
 func (self *Visitor) visitValue(node *_Value) {
 	node.mu.Lock()
+
+	self.Visit(node.Comments)
 	node.maybeParseStrNumber(self.scope)
 
 	factor := 1.0
@@ -476,9 +508,13 @@ func (self *Visitor) visitValue(node *_Value) {
 }
 
 func (self *Visitor) visitCommaExpression(node *_CommaExpression) {
+	self.Visit(node.Comments)
 	self.Visit(node.Left)
 	for _, right := range node.Right {
 		self.push(",", " ")
+
+		self.Visit(right.Comments)
+		self.Visit(right.Comment2)
 		if right.Term != nil {
 			self.Visit(right.Term)
 		}
@@ -486,6 +522,7 @@ func (self *Visitor) visitCommaExpression(node *_CommaExpression) {
 }
 
 func (self *Visitor) visitMemberExpression(node *_MemberExpression) {
+	self.Visit(node.Comments)
 	self.Visit(node.Left)
 
 	for _, right := range node.Right {
@@ -517,6 +554,16 @@ func (self *Visitor) visitMemberExpression(node *_MemberExpression) {
 func (self *Visitor) visitArgs(node *_Args) {
 	if self.pos > self.opts.IndentWidthThreshold {
 		self.line_break()
+	}
+
+	if node.Comments != nil {
+		self.has_comments = true
+
+		// If we are not breaking lines we dont adds the comment at
+		// all.
+		if self.opts.BreakLines {
+			self.Visit(node.Comments)
+		}
 	}
 
 	if node.Right != nil {
@@ -659,6 +706,8 @@ func (self *Visitor) visitSelectExpression(node *_SelectExpression) {
 }
 
 func (self *Visitor) visitSelect(node *_Select) {
+	self.Visit(node.Comments)
+
 	self.push("SELECT ")
 	self.push_indent()
 
@@ -720,6 +769,8 @@ func (self *Visitor) pop() {
 }
 
 func (self *Visitor) visitVQL(node *VQL) {
+	self.Visit(node.Comments)
+
 	if node.Let != "" {
 		operator := " = "
 		if node.LetOperator != "" {
@@ -793,7 +844,14 @@ func doesArgListFitInOneLine(self *Visitor, args []*_Args) (*Visitor, int, bool)
 	result.push(")")
 
 	// Check if the width exceeds the recommended size
-	does_it_fit := result.max_width < self.opts.MaxWidthThreshold &&
+	does_it_fit := !result.has_comments &&
+		result.max_width < self.opts.MaxWidthThreshold &&
 		len(result.line_breaks) == len(self.line_breaks)
+
+	// Comments need to take the entire line.
+	if result.has_comments {
+		longest_arg = self.opts.MaxWidthThreshold
+	}
+
 	return result, longest_arg, does_it_fit
 }
