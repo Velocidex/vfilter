@@ -47,6 +47,11 @@ SELECT * FROM info(
  Bar =2
 )
 `},
+	{"Comment above LET", `
+// This is a comment
+-- Another type of comment
+LET X = SELECT * FROM info()
+`},
 
 	{"Comment above SELECT", `
 // This is a comment
