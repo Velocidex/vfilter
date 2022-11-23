@@ -15,7 +15,7 @@
     "Func Close  2",
     "Plugin Close  1"
   ],
-  "003 Nested foreach - destructor in query clause: SELECT * FROM foreach(row= { SELECT * FROM destructor(name='rows_query', rows=2)}, query= { SELECT destructor(name='iterator_func') FROM scope()}) - markers": [
+  "003 Nested foreach - destructor in query clause: SELECT * FROM foreach(row={ SELECT * FROM destructor(name='rows_query', rows=2) }, query={ SELECT destructor(name='iterator_func') FROM scope() }) - markers": [
     "Plugin Open rows_query 1",
     "Func Open iterator_func 1",
     "Func Close iterator_func 1",
@@ -24,12 +24,12 @@
     "Plugin Close rows_query 1"
   ],
   "004 Lazy function: SELECT destructor(name='lazy_func') AS X FROM scope() WHERE FALSE - markers": [],
-  "005 Lazy stored function: LET lazy(x)=destructor(name='lazy_func')SELECT lazy(x=1) FROM scope() WHERE FALSE - markers": [],
-  "006 Lazy stored function evaluated: LET lazy(x)=destructor(name='lazy_func')SELECT lazy(x=1) AS X FROM scope() WHERE X AND FALSE - markers": [
+  "005 Lazy stored function: LET lazy(x) = destructor(name='lazy_func')SELECT lazy(x=1) FROM scope() WHERE FALSE - markers": [],
+  "006 Lazy stored function evaluated: LET lazy(x) = destructor(name='lazy_func')SELECT lazy(x=1) AS X FROM scope() WHERE X  AND FALSE - markers": [
     "Func Open lazy_func 1",
     "Func Close lazy_func 1"
   ],
-  "007 Lazy stored query: LET lazy(x)=SELECT * FROM destructor(name='stored_query', rows=2)SELECT X FROM lazy(x=1) WHERE FALSE - markers": [
+  "007 Lazy stored query: LET lazy(x) = SELECT * FROM destructor(name='stored_query', rows=2)SELECT X FROM lazy(x=1) WHERE FALSE - markers": [
     "Plugin Open stored_query 1",
     "Plugin Close stored_query 1"
   ],

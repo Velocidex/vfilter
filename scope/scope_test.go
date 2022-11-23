@@ -203,7 +203,7 @@ func TestDestructors(t *testing.T) {
 			for row := range vql.Eval(ctx, scope) {
 				output = append(output, vfilter.RowToDict(ctx, scope, row))
 			}
-			query += vql.ToString(scope)
+			query += vfilter.FormatToString(scope, vql)
 		}
 		// Close the scope to force destructors to be called.
 		scope.Close()

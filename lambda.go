@@ -2,7 +2,6 @@ package vfilter
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/Velocidex/ordereddict"
 	"github.com/alecthomas/participle"
@@ -30,11 +29,6 @@ func (self *Lambda) GetParameters() []string {
 	}
 
 	return result
-}
-
-func (self *Lambda) ToString(scope types.Scope) string {
-	return fmt.Sprintf("%v => %v", self.Parameters.ToString(scope),
-		self.Expression.ToString(scope))
 }
 
 func (self *Lambda) Reduce(ctx context.Context, scope types.Scope, parameters []Any) Any {

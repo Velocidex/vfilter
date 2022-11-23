@@ -22,11 +22,12 @@ func (self *_StoredQuery) Marshal(
 
 	var query string
 	if self.parameters == nil {
-		query = fmt.Sprintf("LET `%v` = %s", self.name, self.query.ToString(scope))
+		query = fmt.Sprintf("LET `%v` = %s", self.name,
+			FormatToString(scope, self.query))
 	} else {
 		query = fmt.Sprintf("LET `%v`(%s) = %s", self.name,
 			strings.Join(self.parameters, ", "),
-			self.query.ToString(scope))
+			FormatToString(scope, self.query))
 	}
 
 	query_str, err := json.Marshal(query)
@@ -42,11 +43,11 @@ func (self *StoredExpression) Marshal(
 	var query string
 	if self.parameters == nil {
 		query = fmt.Sprintf("LET `%v` = %s", self.name,
-			self.Expr.ToString(scope))
+			FormatToString(scope, self.Expr))
 	} else {
 		query = fmt.Sprintf("LET `%v`(%s) = %s", self.name,
 			strings.Join(self.parameters, ", "),
-			self.Expr.ToString(scope))
+			FormatToString(scope, self.Expr))
 	}
 
 	query_str, err := json.Marshal(query)

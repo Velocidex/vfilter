@@ -268,7 +268,7 @@ func TestArgParsing(t *testing.T) {
 			}
 
 			result.Set(fmt.Sprintf("%03d/%03d %s: %s", i, idx, testCase.name,
-				vql.ToString(scope)), output)
+				vfilter.FormatToString(scope, vql)), output)
 		}
 	}
 

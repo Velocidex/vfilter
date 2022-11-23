@@ -128,10 +128,6 @@ func NewLazyExpr(ctx context.Context,
 	}
 }
 
-func (self *LazyExprImpl) ToString() string {
-	return self.Expr.ToString(self.scope)
-}
-
 func (self *LazyExprImpl) ReduceWithScope(
 	ctx context.Context, scope types.Scope) types.Any {
 	var result types.Any
