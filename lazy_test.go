@@ -160,7 +160,7 @@ func TestLazy(t *testing.T) {
 			for row := range vql.Eval(ctx, scope) {
 				output = append(output, RowToDict(ctx, scope, row))
 			}
-			query += vql.ToString(scope)
+			query += FormatToString(scope, vql)
 		}
 		// Close the scope to force destructors to be called.
 		scope.Close()

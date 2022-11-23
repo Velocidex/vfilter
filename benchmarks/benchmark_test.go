@@ -37,7 +37,7 @@ func runBenchmark(b *testing.B, query string) {
 		}
 
 		result.Set(fmt.Sprintf("%03d %s: %s", idx, query,
-			vql.ToString(scope)), output)
+			vfilter.FormatToString(scope, vql)), output)
 	}
 }
 

@@ -112,7 +112,7 @@
       "ConCat": "EnvironmentDataparam"
     }
   ],
-  "012 subselects: SELECT param FROM dict(param= { SELECT * FROM range(start=3, end=5)})": [
+  "012 subselects: SELECT param FROM dict(param={ SELECT * FROM range(start=3, end=5) })": [
     {
       "param": [
         {
@@ -132,7 +132,7 @@
       "Value": null
     }
   ],
-  "014 subselects addition: SELECT q1.value + q2.value AS Sum FROM dict(q1= { SELECT * FROM range(start=3, end=5)}, q2= { SELECT * FROM range(start=10, end=14)})": [
+  "014 subselects addition: SELECT q1.value + q2.value AS Sum FROM dict(q1={ SELECT * FROM range(start=3, end=5) }, q2={ SELECT * FROM range(start=10, end=14) })": [
     {
       "Sum": [
         3,
@@ -180,7 +180,7 @@
       "subquery": 2
     }
   ],
-  "019 Foreach plugin: SELECT * FROM foreach(row= { SELECT * FROM test()}, query= { SELECT bar, foo, value FROM range(start=bar, end=foo)})": [
+  "019 Foreach plugin: SELECT * FROM foreach(row={ SELECT * FROM test() }, query={ SELECT bar, foo, value FROM range(start=bar, end=foo) })": [
     {
       "bar": 0,
       "foo": 0,
@@ -212,7 +212,7 @@
       "value": 4
     }
   ],
-  "020 Foreach plugin with array: SELECT * FROM foreach(row= [dict(bar=1, foo=2), dict(foo=1, bar=2)], query= { SELECT bar, foo FROM scope()})": [
+  "020 Foreach plugin with array: SELECT * FROM foreach(row=[dict(bar=1, foo=2), dict(foo=1, bar=2)], query={ SELECT bar, foo FROM scope() })": [
     {
       "bar": 1,
       "foo": 2
@@ -222,13 +222,13 @@
       "foo": 1
     }
   ],
-  "021 Foreach plugin with single object: SELECT * FROM foreach(row=dict(bar=1, foo=2), query= { SELECT bar, foo FROM scope()})": [
+  "021 Foreach plugin with single object: SELECT * FROM foreach(row=dict(bar=1, foo=2), query={ SELECT bar, foo FROM scope() })": [
     {
       "bar": 1,
       "foo": 2
     }
   ],
-  "022 Foreach fully materializes row before passing to query : SELECT Evaluated FROM foreach(row= { SELECT value, set_env(column=\"Evaluated\", value=TRUE) FROM range(start=1, end=10)}, query= { SELECT value FROM scope()}) LIMIT 1 ": [
+  "022 Foreach fully materializes row before passing to query : SELECT Evaluated FROM foreach(row={ SELECT value, set_env(column=\"Evaluated\", value=TRUE) FROM range(start=1, end=10) }, query={ SELECT value FROM scope() }) LIMIT 1 ": [
     {
       "Evaluated": true
     }
@@ -238,7 +238,7 @@
       "_value": "hello"
     }
   ],
-  "024 Foreach with non row elements: SELECT * FROM foreach(row=1, query= [1, 2, 3, 4])": [
+  "024 Foreach with non row elements: SELECT * FROM foreach(row=1, query=[1, 2, 3, 4])": [
     {
       "_value": 1
     },
@@ -252,7 +252,7 @@
       "_value": 4
     }
   ],
-  "025 Foreach with non row elements: SELECT * FROM foreach(row= [1, 2, 3], query= { SELECT _value FROM scope()})": [
+  "025 Foreach with non row elements: SELECT * FROM foreach(row=[1, 2, 3], query={ SELECT _value FROM scope() })": [
     {
       "_value": 1
     },
@@ -268,7 +268,7 @@
       "X": 1
     }
   ],
-  "027 Foreach with no query - array of objects: SELECT * FROM foreach(row= [dict(X=1), dict(X=2)])": [
+  "027 Foreach with no query - array of objects: SELECT * FROM foreach(row=[dict(X=1), dict(X=2)])": [
     {
       "X": 1
     },
@@ -276,13 +276,13 @@
       "X": 2
     }
   ],
-  "028 Foreach with no query - select with column: SELECT * FROM foreach(row= { SELECT dict(X=1) AS X FROM scope()}, column='X')": [
+  "028 Foreach with no query - select with column: SELECT * FROM foreach(row={ SELECT dict(X=1) AS X FROM scope() }, column='X')": [
     {
       "X": 1
     }
   ],
   "029 Foreach with no query - with null: SELECT * FROM foreach(row=NULL)": null,
-  "030 Foreach with no query - with null in array: SELECT * FROM foreach(row= [NULL, NULL, dict(X=1)])": [
+  "030 Foreach with no query - with null in array: SELECT * FROM foreach(row=[NULL, NULL, dict(X=1)])": [
     {
       "X": 1
     }
@@ -346,7 +346,7 @@
       "bar": 0
     }
   ],
-  "039 Not combined with AND: SELECT * FROM test() WHERE 1 and NOT foo = 2": [
+  "039 Not combined with AND: SELECT * FROM test() WHERE 1  and NOT foo = 2": [
     {
       "foo": 0,
       "bar": 0
@@ -356,7 +356,7 @@
       "bar": 2
     }
   ],
-  "040 Not combined with AND 2: SELECT * FROM test() WHERE 0 and NOT foo = 2": null,
+  "040 Not combined with AND 2: SELECT * FROM test() WHERE 0  and NOT foo = 2": null,
   "041 Not combined with OR: SELECT * FROM test() WHERE 1 or NOT foo = 20": [
     {
       "foo": 0,
@@ -487,7 +487,7 @@
       ]
     }
   ],
-  "051 Groupby evaluates each row twice: SELECT * FROM chain(a= { SELECT count() FROM scope()}, b= { SELECT count(), count(items=bar), bar FROM groupbytest() GROUP BY bar})": [
+  "051 Groupby evaluates each row twice: SELECT * FROM chain(a={ SELECT count() FROM scope() }, b={ SELECT count(), count(items=bar), bar FROM groupbytest() GROUP BY bar })": [
     {
       "count()": 1
     },
@@ -518,7 +518,7 @@
       "format(format='%x', args=\"\\x01\\x02\\xf0\\xf1\")": "0102f0f1"
     }
   ],
-  "055 Test get(): SELECT get(item= [dict(foo=3), 2, 3, 4], member='0.foo') AS Foo FROM scope()": [
+  "055 Test get(): SELECT get(item=[dict(foo=3), 2, 3, 4], member='0.foo') AS Foo FROM scope()": [
     {
       "Foo": 3
     }
@@ -552,7 +552,7 @@
       ]
     }
   ],
-  "059 Array empty with if: SELECT if(condition=1, then= []) AS Field FROM scope()": [
+  "059 Array empty with if: SELECT if(condition=1, then=[]) AS Field FROM scope()": [
     {
       "Field": []
     }
@@ -566,7 +566,7 @@
       ]
     }
   ],
-  "061 Spurious line feeds and tabs: SELECT 1 + 2 AS FooBar FROM scope() WHERE FooBar \u003e 1 AND TRUE": [
+  "061 Spurious line feeds and tabs: SELECT 1 + 2 AS FooBar FROM scope() WHERE FooBar \u003e 1  AND TRUE": [
     {
       "FooBar": 3
     }
@@ -577,9 +577,9 @@
       "if(condition=1 + 2 = 2, then=2, else=3)": 3
     }
   ],
-  "063 If function and subselects: SELECT if(condition=1, then= { SELECT * FROM test()}) FROM scope()": [
+  "063 If function and subselects: SELECT if(condition=1, then={ SELECT * FROM test() }) FROM scope()": [
     {
-      "if(condition=1, then= { SELECT * FROM test()})": [
+      "if(condition=1, then={ SELECT * FROM test() })": [
         {
           "foo": 0,
           "bar": 0
@@ -605,9 +605,9 @@
       "if(condition=TRUE, else=panic(column=7, value=7))": null
     }
   ],
-  "066 If function should be lazy with sub query: SELECT if(condition=TRUE, then= { SELECT * FROM test() LIMIT 1 }) FROM scope()": [
+  "066 If function should be lazy with sub query: SELECT if(condition=TRUE, then={ SELECT * FROM test() LIMIT 1  }) FROM scope()": [
     {
-      "if(condition=TRUE, then= { SELECT * FROM test() LIMIT 1 })": [
+      "if(condition=TRUE, then={ SELECT * FROM test() LIMIT 1  })": [
         {
           "foo": 0,
           "bar": 0
@@ -615,23 +615,23 @@
       ]
     }
   ],
-  "067 If function should be lazy with sub query: SELECT if(condition=FALSE, then= { SELECT panic(column=8, value=8) FROM test()}) FROM scope()": [
+  "067 If function should be lazy with sub query: SELECT if(condition=FALSE, then={ SELECT panic(column=8, value=8) FROM test() }) FROM scope()": [
     {
-      "if(condition=FALSE, then= { SELECT panic(column=8, value=8) FROM test()})": null
+      "if(condition=FALSE, then={ SELECT panic(column=8, value=8) FROM test() })": null
     }
   ],
-  "068 If function should be lazy: SELECT if(condition=TRUE, else= { SELECT panic(column=9, value=9) FROM test()}) FROM scope()": [
+  "068 If function should be lazy: SELECT if(condition=TRUE, else={ SELECT panic(column=9, value=9) FROM test() }) FROM scope()": [
     {
-      "if(condition=TRUE, else= { SELECT panic(column=9, value=9) FROM test()})": null
+      "if(condition=TRUE, else={ SELECT panic(column=9, value=9) FROM test() })": null
     }
   ],
-  "069 If function should be lazy WRT stored query 1/2: LET bomb=SELECT panic(column=1, value=1) FROM scope()": null,
+  "069 If function should be lazy WRT stored query 1/2: LET bomb = SELECT panic(column=1, value=1) FROM scope()": null,
   "070 If function should be lazy WRT stored query 2/2: SELECT if(condition=FALSE, then=bomb) FROM scope()": [
     {
       "if(condition=FALSE, then=bomb)": null
     }
   ],
-  "071 If plugin and arrays: SELECT * FROM if(condition=1, then= [dict(Foo=1), dict(Foo=2)])": [
+  "071 If plugin and arrays: SELECT * FROM if(condition=1, then=[dict(Foo=1), dict(Foo=2)])": [
     {
       "Foo": 1
     },

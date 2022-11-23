@@ -296,15 +296,6 @@ type _ParameterList struct {
 	Right *_ParameterListTerm `{ @@ }`
 }
 
-func (self *_ParameterList) ToString(scope types.Scope) string {
-	result := self.Left
-
-	if self.Right != nil {
-		result += ", " + self.Right.Term.ToString(scope)
-	}
-	return result
-}
-
 type _ParameterListTerm struct {
 	Operator string          `@","`
 	Term     *_ParameterList ` @@ `
@@ -399,7 +390,7 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	} else {
 		subscope := scope.Copy()
 		subscope.AppendVars(
-			ordereddict.NewDict().Set("$Query", self.ToString(scope)))
+			ordereddict.NewDict().Set("$Query", FormatToString(scope, self)))
 
 		go func() {
 			defer close(output_chan)
@@ -442,32 +433,6 @@ func (self *VQL) getParameters() []string {
 	return result
 }
 
-// Encodes the query into a string again.
-func (self *VQL) ToString(scope types.Scope) string {
-	if self.Let != "" {
-		operator := " = "
-		if self.LetOperator != "" {
-			operator = self.LetOperator
-		}
-
-		parameters := ""
-		if self.Parameters != nil {
-			parameters = "(" +
-				strings.Join(self.getParameters(), ",") +
-				")"
-		}
-
-		if self.Expression != nil {
-			return "LET " + self.Let + parameters +
-				operator + self.Expression.ToString(scope)
-		}
-		return "LET " + self.Let + parameters +
-			operator + self.StoredQuery.ToString(scope)
-	}
-
-	return self.Query.ToString(scope)
-}
-
 type _Select struct {
 	SelectExpression *_SelectExpression `SELECT @@`
 	From             *_From             `FROM @@`
@@ -476,42 +441,6 @@ type _Select struct {
 	OrderBy          *string            `[ ORDERBY @Ident `
 	OrderByDesc      *bool              ` [ @DESC ] ]`
 	Limit            *int64             `[ LIMIT @Number ]`
-}
-
-func (self *_Select) ToString(scope types.Scope) string {
-	result := "SELECT "
-	if self.SelectExpression != nil {
-		result += self.SelectExpression.ToString(scope)
-	}
-
-	if self.From != nil {
-		result += " FROM "
-		result += self.From.ToString(scope)
-
-	}
-
-	if self.Where != nil {
-		result += " WHERE " + self.Where.ToString(scope)
-	}
-
-	if self.GroupBy != nil {
-		result += " GROUP BY " + self.GroupBy.ToString(scope)
-	}
-
-	if self.OrderBy != nil {
-		result += " ORDER BY " + *self.OrderBy
-
-		if self.OrderByDesc != nil && *self.OrderByDesc {
-			result += " DESC "
-		}
-	}
-
-	if self.Limit != nil {
-		result += fmt.Sprintf(
-			" LIMIT %d ", int(*self.Limit))
-	}
-
-	return result
 }
 
 func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
@@ -704,7 +633,7 @@ func (self *_AliasedExpression) GetName(scope types.Scope) string {
 		name := utils.Unquote_ident(self.As)
 		column_name = &name
 	} else {
-		name := utils.Unquote_ident(self.ToString(scope))
+		name := utils.Unquote_ident(FormatToString(scope, self))
 		column_name = &name
 	}
 
@@ -759,35 +688,6 @@ func (self *_AliasedExpression) Reduce(ctx context.Context, scope types.Scope) A
 	}
 
 	return nil
-}
-
-func (self *_AliasedExpression) ToString(scope types.Scope) string {
-	self.mu.Lock()
-	defer self.mu.Unlock()
-
-	if self.cache != nil {
-		return *self.cache
-	}
-
-	if self.Expression != nil {
-		result := self.Expression.ToString(scope)
-		if self.As != "" {
-			result += " AS " + self.As
-		}
-		self.cache = &result
-		return result
-
-	} else if self.SubSelect != nil {
-		result := self.SubSelect.ToString(scope)
-		result = "{ " + result + " }"
-		if self.As != "" {
-			result += " AS " + self.As
-		}
-		self.cache = &result
-		return result
-	} else {
-		return ""
-	}
 }
 
 // Expressions separated by addition or subtraction.
@@ -999,18 +899,6 @@ func (self *_SelectExpression) Transform(
 	return new_row, new_scope.Close
 }
 
-func (self *_SelectExpression) ToString(scope types.Scope) string {
-	var substrings []string
-	if self.All {
-		substrings = append(substrings, "*")
-	}
-	for _, item := range self.Expressions {
-		substrings = append(substrings, item.ToString(scope))
-	}
-
-	return strings.Join(substrings, ", ")
-}
-
 // The From expression runs the Plugin and then filters each row
 // according to the Where clause.
 func (self *_From) Eval(ctx context.Context, scope types.Scope) <-chan Row {
@@ -1033,11 +921,6 @@ func (self *_From) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	}()
 
 	return output_chan
-}
-
-func (self *_From) ToString(scope types.Scope) string {
-	result := self.Plugin.ToString(scope)
-	return result
 }
 
 // Fetch the object that references a function
@@ -1192,33 +1075,6 @@ func (self *_Plugin) evalSymbol(
 	return output_chan
 }
 
-func (self *_Plugin) ToString(scope types.Scope) string {
-	result := self.Name
-	if self.Call {
-		var substrings []string
-		for _, arg := range self.Args {
-			substrings = append(substrings, arg.ToString(scope))
-		}
-
-		result += "(" + strings.Join(substrings, ", ") + ")"
-	}
-
-	return result
-}
-
-func (self *_Args) ToString(scope types.Scope) string {
-	if self.Right != nil {
-		return self.Left + "=" + self.Right.ToString(scope)
-	} else if self.SubSelect != nil {
-		return self.Left + "= { " + self.SubSelect.ToString(scope) + "}"
-	} else if self.Array != nil {
-		return self.Left + "= [" + self.Array.ToString(scope) + "]"
-	} else if self.ArrayOpenBrace != "" {
-		return self.Left + "= []"
-	}
-	return ""
-}
-
 func (self *_MemberExpression) IsAggregate(scope types.Scope) bool {
 	if self.Left != nil && self.Left.IsAggregate(scope) {
 		return true
@@ -1270,33 +1126,6 @@ func (self *_MemberExpression) Reduce(ctx context.Context, scope types.Scope) An
 	return lhs
 }
 
-func (self *_MemberExpression) ToString(scope types.Scope) string {
-	result := self.Left.ToString(scope)
-
-	for _, right := range self.Right {
-		if right.Range != nil {
-			range_start := ""
-			if right.Index != nil {
-				range_start = right.Index.ToString(scope)
-			}
-
-			range_end := ""
-			if right.RangeEnd != nil {
-				range_end = right.RangeEnd.ToString(scope)
-			}
-
-			result += fmt.Sprintf("[%s : %s]", range_start, range_end)
-
-		} else if right.Index != nil {
-			result += fmt.Sprintf("[%s]", right.Index.ToString(scope))
-		} else {
-			result += fmt.Sprintf(".%s", *right.Term)
-		}
-	}
-
-	return result
-}
-
 func (self *_CommaExpression) IsAggregate(scope types.Scope) bool {
 	if self.Left != nil && self.Left.IsAggregate(scope) {
 		return true
@@ -1334,19 +1163,6 @@ func (self *_CommaExpression) Reduce(ctx context.Context, scope types.Scope) Any
 	return result
 }
 
-func (self _CommaExpression) ToString(scope types.Scope) string {
-	result := []string{self.Left.ToString(scope)}
-
-	for _, right := range self.Right {
-		if right.Term == nil {
-			result = append(result, "")
-		} else {
-			result = append(result, right.Term.ToString(scope))
-		}
-	}
-	return strings.Join(result, ", ")
-}
-
 func (self *_AndExpression) IsAggregate(scope types.Scope) bool {
 	if self.Left.IsAggregate(scope) {
 		return true
@@ -1378,16 +1194,6 @@ func (self *_AndExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	}
 
 	return true
-}
-
-func (self _AndExpression) ToString(scope types.Scope) string {
-	result := []string{self.Left.ToString(scope)}
-
-	for _, right := range self.Right {
-		result = append(result, right.Operator)
-		result = append(result, right.Term.ToString(scope))
-	}
-	return strings.Join(result, " ")
 }
 
 func (self *_OrExpression) IsAggregate(scope types.Scope) bool {
@@ -1428,16 +1234,6 @@ func (self *_OrExpression) Reduce(ctx context.Context, scope types.Scope) Any {
 	return last
 }
 
-func (self _OrExpression) ToString(scope types.Scope) string {
-	result := []string{self.Left.ToString(scope)}
-
-	for _, right := range self.Right {
-		result = append(result, right.Operator)
-		result = append(result, right.Term.ToString(scope))
-	}
-	return strings.Join(result, " ")
-}
-
 func (self _AdditionExpression) IsAggregate(scope types.Scope) bool {
 	if self.Left != nil && self.Left.IsAggregate(scope) {
 		return true
@@ -1463,15 +1259,6 @@ func (self *_AdditionExpression) Reduce(ctx context.Context, scope types.Scope) 
 		}
 	}
 
-	return result
-}
-
-func (self _AdditionExpression) ToString(scope types.Scope) string {
-	result := self.Left.ToString(scope)
-
-	for _, right := range self.Right {
-		result += " " + right.Operator + " " + right.Term.ToString(scope)
-	}
 	return result
 }
 
@@ -1532,21 +1319,6 @@ func (self *_ConditionOperand) Reduce(ctx context.Context, scope types.Scope) An
 	return result
 }
 
-func (self _ConditionOperand) ToString(scope types.Scope) string {
-	if self.Not != nil {
-		return "NOT " + self.Not.ToString(scope)
-	}
-
-	result := self.Left.ToString(scope)
-
-	if self.Right != nil {
-		result += " " + self.Right.Operator + " " +
-			self.Right.Right.ToString(scope)
-	}
-
-	return result
-}
-
 func (self _MultiplicationExpression) IsAggregate(scope types.Scope) bool {
 	if self.Left != nil && self.Left.IsAggregate(scope) {
 		return true
@@ -1572,15 +1344,6 @@ func (self *_MultiplicationExpression) Reduce(ctx context.Context, scope types.S
 		}
 	}
 
-	return result
-}
-
-func (self _MultiplicationExpression) ToString(scope types.Scope) string {
-	result := self.Left.ToString(scope)
-
-	for _, right := range self.Right {
-		result += " " + right.Operator + " " + right.Factor.ToString(scope)
-	}
 	return result
 }
 
@@ -1670,75 +1433,6 @@ func (self *_Value) Reduce(ctx context.Context, scope types.Scope) Any {
 	res := self.cache
 	self.mu.Unlock()
 	return res
-}
-
-func (self *_Value) ToString(scope types.Scope) string {
-	self.mu.Lock()
-	self.maybeParseStrNumber(scope)
-
-	factor := 1.0
-	if self.Negated {
-		factor = -1.0
-	}
-
-	symbolref := self.SymbolRef
-	if symbolref != nil {
-		self.mu.Unlock()
-		return symbolref.ToString(scope)
-
-	}
-
-	subexpression := self.Subexpression
-	if subexpression != nil {
-		self.mu.Unlock()
-		return "(" + subexpression.ToString(scope) + ")"
-
-	}
-
-	if self.String != nil {
-		res := *self.String
-		self.mu.Unlock()
-		return res
-
-	}
-
-	if self.Int != nil {
-		factor := int64(1)
-		if self.Negated {
-			factor = -1
-		}
-
-		res := strconv.FormatInt(factor**self.Int, 10)
-		self.mu.Unlock()
-		return res
-
-	}
-
-	if self.Float != nil {
-		result := strconv.FormatFloat(factor**self.Float, 'f', -1, 64)
-		if !strings.Contains(result, ".") {
-			result = result + ".0"
-		}
-
-		self.mu.Unlock()
-		return result
-
-	}
-
-	if self.Boolean != nil {
-		res := *self.Boolean
-		self.mu.Unlock()
-		return res
-
-	}
-
-	if self.Null {
-		self.mu.Unlock()
-		return "NULL"
-	}
-
-	self.mu.Unlock()
-	return "FALSE"
 }
 
 func (self *_SymbolRef) IsAggregate(scope types.Scope) bool {
@@ -1989,23 +1683,6 @@ func (self *_SymbolRef) callFunction(
 	}
 
 	return result
-}
-
-func (self *_SymbolRef) ToString(scope types.Scope) string {
-	self.mu.Lock()
-	defer self.mu.Unlock()
-
-	symbol := self.Symbol
-	if !self.Called && self.Parameters == nil {
-		return symbol
-	}
-
-	var substrings []string
-	for _, arg := range self.Parameters {
-		substrings = append(substrings, arg.ToString(scope))
-	}
-
-	return symbol + "(" + strings.Join(substrings, ", ") + ")"
 }
 
 func GetIntScope(scope_int types.Scope) *scope.Scope {

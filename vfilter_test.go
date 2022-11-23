@@ -467,7 +467,7 @@ func TestSerializaition(t *testing.T) {
 			t.Fatalf("Failed to parse %v: %v", test.clause, err)
 		}
 
-		vql_string := vql.ToString(scope)
+		vql_string := FormatToString(scope, vql)
 		parsed_vql, err := Parse(vql_string)
 		if err != nil {
 			utils.Debug(vql)
@@ -475,7 +475,7 @@ func TestSerializaition(t *testing.T) {
 				vql_string, err, test.clause)
 		}
 
-		parsed_vql.ToString(scope)
+		FormatToString(scope, parsed_vql)
 
 		diff := cmp.Diff(parsed_vql, vql, compareOptions)
 		if diff != "" {
@@ -501,7 +501,6 @@ var vqlTests = []vqlTest{
 	// which should shadow it.
 	{"aliases with shadowed var", "select env_var as EnvVar, foo as FooColumn from test()"},
 	{"aliases with non-shadowed var", "select foo as FooColumn from range(start=1, end=2)"},
-
 	{"condition on aliases", "select foo as FooColumn from test() where FooColumn = 2"},
 	{"condition on aliases with not", "select foo as FooColumn from test() where NOT FooColumn = 2"},
 	{"condition on non aliases", "select foo as FooColumn from test() where foo = 4"},
@@ -1359,7 +1358,7 @@ func TestVQLQueries(t *testing.T) {
 		}
 
 		result.Set(fmt.Sprintf("%03d %s: %s", i, testCase.name,
-			vql.ToString(scope)), output)
+			FormatToString(scope, vql)), output)
 	}
 
 	g := goldie.New(
@@ -1393,7 +1392,7 @@ func TestMultiVQLQueries(t *testing.T) {
 			}
 
 			result.Set(fmt.Sprintf("%03d/%03d %s: %s", i, idx, testCase.name,
-				vql.ToString(scope)), output)
+				FormatToString(scope, vql)), output)
 		}
 	}
 
@@ -1417,14 +1416,14 @@ func TestVQLSerializaition(t *testing.T) {
 			t.Fatalf("Failed to parse %v: %v", test.vql, err)
 		}
 
-		vql_string := vql.ToString(scope)
+		vql_string := FormatToString(scope, vql)
 
 		parsed_vql, err := Parse(vql_string)
 		if err != nil {
 			t.Fatalf("Failed to parse stringified VQL %v: %v (%v)",
 				vql_string, err, test.vql)
 		}
-		parsed_vql.ToString(scope)
+		FormatToString(scope, parsed_vql)
 
 		diff := cmp.Diff(parsed_vql, vql, compareOptions)
 		if diff != "" {
