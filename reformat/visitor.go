@@ -7,7 +7,7 @@ import (
 
 func ReFormatVQL(scope types.Scope, query string,
 	options vfilter.FormatOptions) (string, error) {
-	vql, err := vfilter.MultiParse(query)
+	vql, err := vfilter.MultiParseWithComments(query)
 	if err != nil {
 		return "", err
 	}

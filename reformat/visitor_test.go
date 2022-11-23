@@ -18,6 +18,41 @@ type reformatTestCase struct {
 }
 
 var reformatTests = []reformatTestCase{
+	{"MultiLine Comment", `
+/*
+   This is a multiline comment
+*/
+SELECT Foo FROM plugin()
+`},
+
+	{"Comment on columns", `
+SELECT Foo,
+       -- This is a comment on Bar
+       Bar
+FROM plugin()
+`},
+
+	{"Comment in a comma list", `
+    LET LocalDeviceMajor <= (
+       253,
+       7,   -- loop
+       8,   -- sd
+    )
+`},
+
+	{"Comment above plugin arg", `
+SELECT * FROM info(
+     -- This is a comment for Foo
+     Foo = 1,
+ Bar =2
+)
+`},
+
+	{"Comment above SELECT", `
+// This is a comment
+-- Another type of comment
+SELECT * FROM info()
+`},
 	{"Comma Expression", `select * from plugin() where dict(foo=[1,])`},
 	{"Comma Expression 2", `select * from plugin() where (1, 2, 3, 4)`},
 	{"Group by with many columns", `SELECT min(item=EventTime) AS EarliestTime

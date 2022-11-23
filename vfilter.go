@@ -192,7 +192,41 @@ var (
 		participle.Upper("IN", "DESC"),
 		participle.Elide("Comment", "MLineComment", "VQLComment"),
 	)
+
+	multiVQLParserWithComments = participle.MustBuild(
+		&MultiVQL{},
+		participle.Lexer(vqlLexer),
+		participle.Upper("IN", "DESC"),
+	)
 )
+
+func reportError(err error, t *lexer.Error, expression string) error {
+	end := t.Tok.Pos.Offset + 10
+	if end >= len(expression) {
+		end = len(expression) - 1
+	}
+	if end < 0 {
+		end = 0
+	}
+
+	start := t.Tok.Pos.Offset - 10
+	if start < 0 {
+		start = 0
+	}
+
+	pos := t.Tok.Pos.Offset
+	if pos >= len(expression) {
+		pos = len(expression) - 1
+	}
+
+	if pos < 0 {
+		pos = 0
+	}
+
+	return errors.Wrap(
+		err,
+		expression[start:pos]+"|"+expression[pos:end])
+}
 
 // Parse the VQL expression. Returns a VQL object which may be
 // evaluated.
@@ -201,33 +235,8 @@ func Parse(expression string) (*VQL, error) {
 	err := vqlParser.ParseString(expression, vql)
 	switch t := err.(type) {
 	case *lexer.Error:
-		end := t.Tok.Pos.Offset + 10
-		if end >= len(expression) {
-			end = len(expression) - 1
-		}
-		if end < 0 {
-			end = 0
-		}
-
-		start := t.Tok.Pos.Offset - 10
-		if start < 0 {
-			start = 0
-		}
-
-		pos := t.Tok.Pos.Offset
-		if pos >= len(expression) {
-			pos = len(expression) - 1
-		}
-
-		if pos < 0 {
-			pos = 0
-		}
-
-		return vql, errors.Wrap(
-			err,
-			expression[start:pos]+"|"+expression[pos:end])
+		return vql, reportError(err, t, expression)
 	default:
-
 		return vql, err
 	}
 }
@@ -238,31 +247,23 @@ func MultiParse(expression string) ([]*VQL, error) {
 	err := multiVQLParser.ParseString(expression, vql)
 	switch t := err.(type) {
 	case *lexer.Error:
-		end := t.Tok.Pos.Offset + 10
-		if end >= len(expression) {
-			end = len(expression) - 1
-		}
-		if end < 0 {
-			end = 0
-		}
+		return nil, reportError(err, t, expression)
 
-		start := t.Tok.Pos.Offset - 10
-		if start < 0 {
-			start = 0
-		}
+	default:
+		return vql.GetStatements(), err
+	}
+}
 
-		pos := t.Tok.Pos.Offset
-		if pos >= len(expression) {
-			pos = len(expression) - 1
-		}
+// Parse a string into multiple VQL statements.
+func MultiParseWithComments(expression string) ([]*VQL, error) {
+	vql := &MultiVQL{}
+	err := multiVQLParserWithComments.ParseString(expression, vql)
+	switch t := err.(type) {
+	case *lexer.Error:
+		utils.Debug(t)
 
-		if pos < 0 {
-			pos = 0
-		}
+		return nil, reportError(err, t, expression)
 
-		return nil, errors.Wrap(
-			err,
-			expression[start:pos]+"|"+expression[pos:end])
 	default:
 		return vql.GetStatements(), err
 	}
@@ -281,19 +282,27 @@ func (self *MultiVQL) GetStatements() []*VQL {
 	return result
 }
 
+type _Comment struct {
+	VQLComment *string `( @VQLComment | `
+	Comment    *string `@Comment | `
+	MultiLine  *string `@MLineComment )`
+}
+
 // An opaque object representing the VQL expression.
 type VQL struct {
-	Let         string          `( LET  @Ident `
+	Let         string          `LET  @Ident `
 	Parameters  *_ParameterList `{ "(" @@ ")" }`
 	LetOperator string          ` ( @"=" | @"<=" ) `
 	StoredQuery *_Select        ` ( @@ |  `
 	Expression  *_AndExpression ` @@ ) |`
-	Query       *_Select        `  @@ )  `
+	Query       *_Select        ` @@  `
+	Comments    []*_Comment     ` { @@ }  `
 }
 
 type _ParameterList struct {
-	Left  string              ` @Ident `
-	Right *_ParameterListTerm `{ @@ }`
+	Comments []*_Comment         ` [ @@ ] `
+	Left     string              ` @Ident `
+	Right    *_ParameterListTerm `{ @@ }`
 }
 
 type _ParameterListTerm struct {
@@ -434,6 +443,7 @@ func (self *VQL) getParameters() []string {
 }
 
 type _Select struct {
+	Comments         []*_Comment        ` { @@ } `
 	SelectExpression *_SelectExpression `SELECT @@`
 	From             *_From             `FROM @@`
 	Where            *_CommaExpression  `[ WHERE @@ ]`
@@ -596,12 +606,13 @@ type _Plugin struct {
 }
 
 type _Args struct {
+	Comments        []*_Comment       `[ @@ ] `
 	Left            string            `@Ident "=" `
 	SubSelect       *_Select          `( "{" @@ "}" | `
 	ArrayOpenBrace  string            ` @"[" `
 	Array           *_CommaExpression ` @@? `
 	ArrayCloseBrace string            `@"]" | `
-	Right           *_AndExpression   ` @@ )`
+	Right           *_AndExpression   ` @@ ) `
 }
 
 type _SelectExpression struct {
@@ -610,6 +621,7 @@ type _SelectExpression struct {
 }
 
 type _AliasedExpression struct {
+	Comments   []*_Comment     ` { @@ } `
 	SubSelect  *_Select        `( "{" @@ "}" |`
 	Expression *_AndExpression ` @@ )`
 
@@ -692,8 +704,9 @@ func (self *_AliasedExpression) Reduce(ctx context.Context, scope types.Scope) A
 
 // Expressions separated by addition or subtraction.
 type _AdditionExpression struct {
-	Left  *_MultiplicationExpression `@@`
-	Right []*_OpAddTerm              `{ @@ }`
+	Comments []*_Comment                ` [ @@ ] `
+	Left     *_MultiplicationExpression `@@`
+	Right    []*_OpAddTerm              `{ @@ }`
 }
 
 type _OpAddTerm struct {
@@ -703,8 +716,9 @@ type _OpAddTerm struct {
 
 // Expressions separated by multiplication or division.
 type _MultiplicationExpression struct {
-	Left  *_MemberExpression `@@`
-	Right []*_OpFactor       `{ @@ }`
+	Comments []*_Comment        ` [ @@ ] `
+	Left     *_MemberExpression `@@`
+	Right    []*_OpFactor       `{ @@ }`
 }
 
 type _OpFactor struct {
@@ -715,8 +729,9 @@ type _OpFactor struct {
 // Expression for membership access (dot operator).
 // e.g. x.y.z
 type _MemberExpression struct {
-	Left  *_Value              `@@`
-	Right []*_OpMembershipTerm `[{ @@ }] `
+	Comments []*_Comment          ` [ @@ ] `
+	Left     *_Value              `@@`
+	Right    []*_OpMembershipTerm `[{ @@ }] `
 }
 
 type _OpMembershipTerm struct {
@@ -744,19 +759,23 @@ type _SliceRange struct {
 // Comma separated expressions create a list.
 // e.g. 1, 2, 3 -> (1, 2, 3)
 type _CommaExpression struct {
-	Left  *_AndExpression `@@`
-	Right []*_OpArrayTerm `{ @@ }`
+	Comments []*_Comment     ` [ @@ ] `
+	Left     *_AndExpression `@@`
+	Right    []*_OpArrayTerm `{ @@ }`
 }
 
 type _OpArrayTerm struct {
+	Comments []*_Comment     ` [ @@ ] `
 	Operator string          `@","`
+	Comment2 []*_Comment     ` [ @@ ] `
 	Term     *_AndExpression `{ @@ }`
 }
 
 // Expressions separated by AND.
 type _AndExpression struct {
-	Left  *_OrExpression `(@@`
-	Right []*_OpAndTerm  `{ @@ })`
+	Comments []*_Comment    ` [ @@ ] `
+	Left     *_OrExpression `( @@ `
+	Right    []*_OpAndTerm  `{ @@ })`
 }
 
 type _OpAndTerm struct {
@@ -766,8 +785,9 @@ type _OpAndTerm struct {
 
 // Expressions separated by OR
 type _OrExpression struct {
-	Left  *_ConditionOperand `@@`
-	Right []*_OpOrTerm       `{ @@ }`
+	Comments []*_Comment        ` [ @@ ] `
+	Left     *_ConditionOperand `@@`
+	Right    []*_OpOrTerm       `{ @@ }`
 }
 
 type _OpOrTerm struct {
@@ -777,9 +797,10 @@ type _OpOrTerm struct {
 
 // Conditional expressions imply comparison.
 type _ConditionOperand struct {
-	Not   *_ConditionOperand   `(NOT @@ | `
-	Left  *_AdditionExpression `@@)`
-	Right *_OpComparison       `{ @@ }`
+	Comments []*_Comment          ` [ @@ ] `
+	Not      *_ConditionOperand   `(NOT @@ | `
+	Left     *_AdditionExpression `@@)`
+	Right    *_OpComparison       `{ @@ }`
 }
 
 type _OpComparison struct {
@@ -788,6 +809,7 @@ type _OpComparison struct {
 }
 
 type _Term struct {
+	Comments      []*_Comment       ` [ @@ ] `
 	Select        *_Select          `| @@`
 	SymbolRef     *_SymbolRef       `| @@`
 	Value         *_Value           `| @@`
@@ -795,15 +817,17 @@ type _Term struct {
 }
 
 type _SymbolRef struct {
-	Symbol     string   `@Ident { @"." @Ident }`
-	Called     bool     `{ @"(" `
-	Parameters []*_Args ` [ @@ { "," @@ } ] ")" } `
+	Comments   []*_Comment ` [ @@ ] `
+	Symbol     string      `@Ident { @"." @Ident }`
+	Called     bool        `{ @"(" `
+	Parameters []*_Args    ` [ @@ { "," @@ } ] ")" } `
 
 	mu       sync.Mutex
 	function FunctionInterface
 }
 
 type _Value struct {
+	Comments      []*_Comment       ` [ @@ ] `
 	Negated       bool              `[ "-" | "+" ]`
 	SymbolRef     *_SymbolRef       `( @@ `
 	Subexpression *_CommaExpression `| "(" @@ ")"`
