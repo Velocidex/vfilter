@@ -31,6 +31,14 @@ FROM info(
 
 
 
+Comment above LET:
+// This is a comment
+-- Another type of comment
+LET X = SELECT *
+  FROM info()
+
+
+
 Comment above SELECT:
 // This is a comment
 -- Another type of comment

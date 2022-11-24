@@ -270,11 +270,14 @@ func MultiParseWithComments(expression string) ([]*VQL, error) {
 }
 
 type MultiVQL struct {
-	VQL1 *VQL      ` @@ `
-	VQL2 *MultiVQL ` { @@ } `
+	Comments []*_Comment `{ @@ } `
+	VQL1     *VQL        ` @@ `
+	VQL2     *MultiVQL   ` { @@ } `
 }
 
 func (self *MultiVQL) GetStatements() []*VQL {
+	self.VQL1.Comments = self.Comments
+
 	result := []*VQL{self.VQL1}
 	if self.VQL2 != nil {
 		return append(result, self.VQL2.GetStatements()...)
@@ -296,7 +299,7 @@ type VQL struct {
 	StoredQuery *_Select        ` ( @@ |  `
 	Expression  *_AndExpression ` @@ ) |`
 	Query       *_Select        ` @@  `
-	Comments    []*_Comment     ` { @@ }  `
+	Comments    []*_Comment
 }
 
 type _ParameterList struct {
