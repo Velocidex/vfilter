@@ -289,10 +289,31 @@ func (self *Visitor) visitAliasedExpression(node *_AliasedExpression) {
 	self.Visit(node.Comments)
 
 	if node.Expression != nil {
-		self.Visit(node.Expression)
+		visitor, longest_line, does_it_fit := doesNodeFitInOneLine(self, node.Expression)
+
 		if node.As != "" {
+			// Make sure we have enough room for the AS clause
+			if does_it_fit && longest_line+3+len(node.As) < self.opts.MaxWidthThreshold {
+				self.merge(visitor)
+				self.push(" AS ", node.As)
+				return
+			}
+			self.line_break()
+
+			self.Visit(node.Expression)
 			self.push(" AS ", node.As)
+			return
 		}
+
+		// No AS Clause
+		if does_it_fit {
+			self.merge(visitor)
+			return
+		}
+		self.line_break()
+
+		self.Visit(node.Expression)
+		return
 
 	} else if node.SubSelect != nil {
 		self.push("{", " ")
@@ -331,7 +352,8 @@ func (self *Visitor) visitSymbolRef(node *_SymbolRef) {
 
 	// See if we can fit the arg list in one line
 	if !self.pluginUsesLineMode(node.Symbol) {
-		visitor, longest_arg_, ok := doesArgListFitInOneLine(self, node.Parameters)
+		visitor, longest_arg_, ok := doesArgListFitInOneLine(
+			self, node.Parameters)
 		if ok {
 			self.merge(visitor)
 			return
@@ -344,7 +366,8 @@ func (self *Visitor) visitSymbolRef(node *_SymbolRef) {
 
 	// The width will be quite wide so we try to fit it a bit better
 	// on a new line by indenting 2 spots from the start of the block.
-	if self.pluginUsesLineMode(node.Symbol) {
+	if self.opts.ArgsOnNewLine ||
+		self.pluginUsesLineMode(node.Symbol) {
 		self.indent_in()
 		self.line_break()
 
@@ -643,8 +666,8 @@ func (self *Visitor) visitPlugin(node *_Plugin) {
 			// * What is the length of each arg if formatted on its own?
 			//
 			// We do this by trying to format the args into a single
-			// line with a new visitor. This is effectively as
-			// lookahead.
+			// line with a new visitor. This is effectively a
+			// lookahead/backtracking algorithm.
 			visitor, longest_arg_, ok := doesArgListFitInOneLine(
 				self, node.Args)
 			if ok {
@@ -817,18 +840,19 @@ func FormatToString(scope types.Scope, node interface{}) string {
 	return visitor.ToString()
 }
 
-func doesArgListFitInOneLine(self *Visitor, args []*_Args) (*Visitor, int, bool) {
-	longest_arg := 0
+func doesArgListFitInOneLine(self *Visitor, args []*_Args) (
+	result *Visitor, longest_arg int, does_it_fit bool) {
 
-	// It is not going to fix on the line at all
+	// It is not going to fit on the line at all
 	if self.pos > self.opts.MaxWidthThreshold {
-		return self, 0, false
+		return self, self.pos, false
 	}
 
 	// make a copy of the visitor and try to write all the args on it.
-	result := self.copy()
+	result = self.copy()
 	result.opts.BreakLines = false
 
+	// Write all the args on the one line
 	result.push("(")
 	for idx, arg := range args {
 		start := result.pos
@@ -844,7 +868,7 @@ func doesArgListFitInOneLine(self *Visitor, args []*_Args) (*Visitor, int, bool)
 	result.push(")")
 
 	// Check if the width exceeds the recommended size
-	does_it_fit := !result.has_comments &&
+	does_it_fit = !result.has_comments &&
 		result.max_width < self.opts.MaxWidthThreshold &&
 		len(result.line_breaks) == len(self.line_breaks)
 
@@ -854,4 +878,29 @@ func doesArgListFitInOneLine(self *Visitor, args []*_Args) (*Visitor, int, bool)
 	}
 
 	return result, longest_arg, does_it_fit
+}
+
+func doesNodeFitInOneLine(self *Visitor, node interface{}) (
+	result *Visitor, longest_line int, does_it_fit bool) {
+
+	if self.pos > self.opts.MaxWidthThreshold {
+		return self, self.pos, false
+	}
+
+	// make a copy of the visitor and try to write all the args on it.
+	result = self.copy()
+	result.opts.BreakLines = false
+	result.opts.ArgsOnNewLine = false
+	result.Visit(node)
+
+	does_it_fit = !result.has_comments &&
+		result.max_width < self.opts.MaxWidthThreshold &&
+		len(result.line_breaks) == len(self.line_breaks)
+
+	// Comments need to take the entire line.
+	if result.has_comments {
+		result.max_width = self.opts.MaxWidthThreshold
+	}
+
+	return result, result.max_width, does_it_fit
 }

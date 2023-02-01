@@ -18,6 +18,12 @@ type reformatTestCase struct {
 }
 
 var reformatTests = []reformatTestCase{
+	{"Plugin args with very long second arg", `
+
+SELECT *, upload_directory(accessor="collector",
+                           file=RootPathSpec + "hello world " + _Components) AS UploadedFile
+FROM ALLUploads
+`},
 	{"MultiLine Comment", `
 /*
    This is a multiline comment
@@ -93,6 +99,10 @@ func TestVQLQueries(t *testing.T) {
 	golden := ""
 
 	for _, testCase := range reformatTests {
+		if false && testCase.name != "Comma Expression" {
+			continue
+		}
+
 		vql, err := ReFormatVQL(
 			scope, testCase.vql, vfilter.DefaultFormatOptions)
 		assert.NoError(t, err)
