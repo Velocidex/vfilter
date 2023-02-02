@@ -1,6 +1,8 @@
 package protocols
 
 import (
+	"strings"
+
 	"www.velocidex.com/golang/vfilter/types"
 	"www.velocidex.com/golang/vfilter/utils"
 )
@@ -27,6 +29,12 @@ func (self MulDispatcher) Mul(scope types.Scope, a types.Any, b types.Any) types
 	switch t := a.(type) {
 	case types.Null, *types.Null, nil:
 		return &types.Null{}
+
+	case string:
+		b_int, ok := utils.ToInt64(b)
+		if ok {
+			return strings.Repeat(t, int(b_int))
+		}
 
 	case float64:
 		b_float, ok := utils.ToFloat(b)

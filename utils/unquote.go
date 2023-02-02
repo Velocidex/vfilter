@@ -108,6 +108,10 @@ outer:
 
 // Unquote a ` delimited string.
 func Unquote_ident(s string) string {
+	if s == "" {
+		return ""
+	}
+
 	quote := s[0]
 	if quote != '`' {
 		return s

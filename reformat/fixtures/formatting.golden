@@ -1,3 +1,12 @@
+Plugin args with very long second arg:
+SELECT *,
+       upload_directory(
+         accessor="collector",
+         file=RootPathSpec + "hello world " + _Components) AS UploadedFile
+FROM ALLUploads
+
+
+
 MultiLine Comment:
 /*
    This is a multiline comment

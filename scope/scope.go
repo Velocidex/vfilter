@@ -509,6 +509,10 @@ func NewScope() *Scope {
 	return result
 }
 
+func (self *Scope) String() string {
+	return "<Scope>"
+}
+
 func (self *Scope) SetSorter(sorter types.Sorter) {
 	self.dispatcher.SetSorter(sorter)
 }
