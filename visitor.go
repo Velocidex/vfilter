@@ -12,7 +12,8 @@ import (
 
 var (
 	ToStringOptions = FormatOptions{
-		BreakLines: false,
+		BreakLines:        false,
+		MaxWidthThreshold: 1000000,
 	}
 
 	DefaultFormatOptions = FormatOptions{
@@ -883,6 +884,7 @@ func doesArgListFitInOneLine(self *Visitor, args []*_Args) (
 func doesNodeFitInOneLine(self *Visitor, node interface{}) (
 	result *Visitor, longest_line int, does_it_fit bool) {
 
+	// We already overflow it can not fit.
 	if self.pos > self.opts.MaxWidthThreshold {
 		return self, self.pos, false
 	}
