@@ -66,6 +66,12 @@ func (self InMemoryMatrializer) Associative(scope types.Scope, a types.Any, b ty
 	return scope.Associative(a_materializer.rows, b)
 }
 
+// We are already materialized so just return the data.
+func (self *InMemoryMatrializer) Materialize(
+	ctx context.Context, scope types.Scope) types.Any {
+	return self.rows
+}
+
 // Support JSON Marshal protocol
 func (self *InMemoryMatrializer) MarshalJSON() ([]byte, error) {
 	return json.Marshal(self.rows)
