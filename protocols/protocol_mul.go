@@ -76,6 +76,6 @@ func (self MulDispatcher) Mul(scope types.Scope, a types.Any, b types.Any) types
 
 func (self *MulDispatcher) AddImpl(elements ...MulProtocol) {
 	for _, impl := range elements {
-		self.impl = append(self.impl, impl)
+		self.impl = append([]MulProtocol{impl}, self.impl...)
 	}
 }

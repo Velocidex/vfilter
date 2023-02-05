@@ -88,7 +88,7 @@ func (self EqDispatcher) Eq(scope types.Scope, a types.Any, b types.Any) bool {
 
 func (self *EqDispatcher) AddImpl(elements ...EqProtocol) {
 	for _, impl := range elements {
-		self.impl = append(self.impl, impl)
+		self.impl = append([]EqProtocol{impl}, self.impl...)
 	}
 }
 

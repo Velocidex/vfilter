@@ -86,6 +86,6 @@ func toTime(a types.Any) (*time.Time, bool) {
 
 func (self *LtDispatcher) AddImpl(elements ...LtProtocol) {
 	for _, impl := range elements {
-		self.impl = append(self.impl, impl)
+		self.impl = append([]LtProtocol{impl}, self.impl...)
 	}
 }

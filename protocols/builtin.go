@@ -1,6 +1,8 @@
 package protocols
 
-import "www.velocidex.com/golang/vfilter/types"
+import (
+	"www.velocidex.com/golang/vfilter/types"
+)
 
 func GetBuiltinTypes() []types.Any {
 	return []types.Any{

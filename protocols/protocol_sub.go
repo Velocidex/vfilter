@@ -68,6 +68,6 @@ func (self SubDispatcher) Sub(scope types.Scope, a types.Any, b types.Any) types
 
 func (self *SubDispatcher) AddImpl(elements ...SubProtocol) {
 	for _, impl := range elements {
-		self.impl = append(self.impl, impl)
+		self.impl = append([]SubProtocol{impl}, self.impl...)
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/grouper"
+	"www.velocidex.com/golang/vfilter/materializer"
 	"www.velocidex.com/golang/vfilter/protocols"
 	sorter "www.velocidex.com/golang/vfilter/sort"
 	"www.velocidex.com/golang/vfilter/types"
@@ -40,8 +41,9 @@ type protocolDispatcher struct {
 	iterator    protocols.IterateDispatcher
 
 	// Sorters allow VQL to sort result sets.
-	Sorter  types.Sorter
-	Grouper types.Grouper
+	Sorter       types.Sorter
+	Grouper      types.Grouper
+	Materializer types.ScopeMaterializer
 
 	Logger *log.Logger
 
@@ -67,6 +69,12 @@ func (self *protocolDispatcher) SetSorter(sorter types.Sorter) {
 func (self *protocolDispatcher) SetGrouper(grouper types.Grouper) {
 	self.Lock()
 	self.Grouper = grouper
+	self.Unlock()
+}
+
+func (self *protocolDispatcher) SetMaterializer(materializer types.ScopeMaterializer) {
+	self.Lock()
+	self.Materializer = materializer
 	self.Unlock()
 }
 
@@ -115,26 +123,27 @@ func (self *protocolDispatcher) Describe(scope *Scope, type_map *types.TypeMap) 
 
 func (self *protocolDispatcher) WithNewContext() *protocolDispatcher {
 	return &protocolDispatcher{
-		Stats:       &types.Stats{},
-		context:     ordereddict.NewDict(),
-		functions:   self.functions,
-		plugins:     self.plugins,
-		bool:        self.bool,
-		eq:          self.eq,
-		lt:          self.lt,
-		gt:          self.gt,
-		add:         self.add,
-		sub:         self.sub,
-		mul:         self.mul,
-		div:         self.div,
-		membership:  self.membership,
-		associative: self.associative,
-		regex:       self.regex,
-		iterator:    self.iterator,
-		Sorter:      self.Sorter,
-		Grouper:     self.Grouper,
-		Logger:      self.Logger,
-		Tracer:      self.Tracer,
+		Stats:        &types.Stats{},
+		context:      ordereddict.NewDict(),
+		functions:    self.functions,
+		plugins:      self.plugins,
+		bool:         self.bool,
+		eq:           self.eq,
+		lt:           self.lt,
+		gt:           self.gt,
+		add:          self.add,
+		sub:          self.sub,
+		mul:          self.mul,
+		div:          self.div,
+		membership:   self.membership,
+		associative:  self.associative,
+		regex:        self.regex,
+		iterator:     self.iterator,
+		Sorter:       self.Sorter,
+		Grouper:      self.Grouper,
+		Materializer: self.Materializer,
+		Logger:       self.Logger,
+		Tracer:       self.Tracer,
 	}
 }
 
@@ -150,26 +159,27 @@ func (self *protocolDispatcher) Copy() *protocolDispatcher {
 	}
 
 	return &protocolDispatcher{
-		Stats:       &types.Stats{},
-		context:     ordereddict.NewDict(),
-		functions:   function_copy,
-		plugins:     plugins_copy,
-		bool:        self.bool.Copy(),
-		eq:          self.eq.Copy(),
-		lt:          self.lt.Copy(),
-		gt:          self.gt.Copy(),
-		add:         self.add.Copy(),
-		sub:         self.sub.Copy(),
-		mul:         self.mul.Copy(),
-		div:         self.div.Copy(),
-		membership:  self.membership.Copy(),
-		associative: self.associative.Copy(),
-		regex:       self.regex.Copy(),
-		iterator:    self.iterator.Copy(),
-		Sorter:      self.Sorter,
-		Grouper:     self.Grouper,
-		Logger:      self.Logger,
-		Tracer:      self.Tracer,
+		Stats:        &types.Stats{},
+		context:      ordereddict.NewDict(),
+		functions:    function_copy,
+		plugins:      plugins_copy,
+		bool:         self.bool.Copy(),
+		eq:           self.eq.Copy(),
+		lt:           self.lt.Copy(),
+		gt:           self.gt.Copy(),
+		add:          self.add.Copy(),
+		sub:          self.sub.Copy(),
+		mul:          self.mul.Copy(),
+		div:          self.div.Copy(),
+		membership:   self.membership.Copy(),
+		associative:  self.associative.Copy(),
+		regex:        self.regex.Copy(),
+		iterator:     self.iterator.Copy(),
+		Sorter:       self.Sorter,
+		Grouper:      self.Grouper,
+		Materializer: self.Materializer,
+		Logger:       self.Logger,
+		Tracer:       self.Tracer,
 	}
 }
 
@@ -303,11 +313,12 @@ func (self *protocolDispatcher) GetSimilarPlugins(name string) []string {
 
 func newprotocolDispatcher() *protocolDispatcher {
 	return &protocolDispatcher{
-		Sorter:    &sorter.DefaultSorter{},
-		Grouper:   &grouper.DefaultGrouper{},
-		functions: make(map[string]types.FunctionInterface),
-		plugins:   make(map[string]types.PluginGeneratorInterface),
-		context:   ordereddict.NewDict(),
-		Stats:     &types.Stats{},
+		Sorter:       &sorter.DefaultSorter{},
+		Grouper:      &grouper.DefaultGrouper{},
+		Materializer: &materializer.DefaultMaterializer{},
+		functions:    make(map[string]types.FunctionInterface),
+		plugins:      make(map[string]types.PluginGeneratorInterface),
+		context:      ordereddict.NewDict(),
+		Stats:        &types.Stats{},
 	}
 }

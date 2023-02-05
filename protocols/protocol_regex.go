@@ -62,7 +62,7 @@ func (self RegexDispatcher) Match(scope types.Scope, pattern types.Any, target t
 
 func (self *RegexDispatcher) AddImpl(elements ...RegexProtocol) {
 	for _, impl := range elements {
-		self.impl = append(self.impl, impl)
+		self.impl = append([]RegexProtocol{impl}, self.impl...)
 	}
 }
 

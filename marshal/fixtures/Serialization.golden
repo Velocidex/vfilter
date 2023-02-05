@@ -25,7 +25,7 @@
       "vars": {
         "X": {
           "type": "JSON",
-          "comment": "Default encoding from []types.Row",
+          "comment": "Default encoding from *materializer.InMemoryMatrializer",
           "data": [
             {
               "_value": 0,

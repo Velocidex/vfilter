@@ -71,6 +71,6 @@ func (self MembershipDispatcher) Membership(scope types.Scope, a types.Any, b ty
 
 func (self *MembershipDispatcher) AddImpl(elements ...MembershipProtocol) {
 	for _, impl := range elements {
-		self.impl = append(self.impl, impl)
+		self.impl = append([]MembershipProtocol{impl}, self.impl...)
 	}
 }

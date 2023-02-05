@@ -1374,7 +1374,7 @@ func TestMultiVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range multiVQLTest {
-		if false && i != 44 && i != 390 {
+		if false && i != 58 {
 			continue
 		}
 		scope := makeTestScope()

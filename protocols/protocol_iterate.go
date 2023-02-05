@@ -79,7 +79,7 @@ func (self IterateDispatcher) Iterate(
 
 func (self *IterateDispatcher) AddImpl(elements ...IterateProtocol) {
 	for _, impl := range elements {
-		self.impl = append(self.impl, impl)
+		self.impl = append([]IterateProtocol{impl}, self.impl...)
 	}
 }
 

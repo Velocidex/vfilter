@@ -20,6 +20,9 @@ func ToString(ctx context.Context,
 	case LazyExpr:
 		return ToString(ctx, scope, t.Reduce(ctx))
 
+	case Materializer:
+		return ToString(ctx, scope, t.Materialize(ctx, scope))
+
 		// Materialize stored queries into an array.
 	case StoredQuery:
 		return ToString(ctx, scope, Materialize(ctx, scope, t))
@@ -28,9 +31,6 @@ func ToString(ctx context.Context,
 		// call it lazily if it is here.
 	case func() Any:
 		return ToString(ctx, scope, t())
-
-	case Materializer:
-		return ToString(ctx, scope, t.Materialize(ctx, scope))
 
 	case StringProtocol:
 		return t.ToString(scope)

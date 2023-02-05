@@ -367,6 +367,7 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 
 				// If we are materializing here,
 				// reduce it now.
+
 			case "<=":
 				// It may yield a stored query - in
 				// that case we materialize it in
@@ -374,7 +375,7 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 				value := expr.Reduce(ctx, scope)
 				stored_query, ok := value.(types.StoredQuery)
 				if ok {
-					value = types.Materialize(ctx, scope, stored_query)
+					value = scope.Materialize(ctx, name, stored_query)
 				}
 				scope.AppendVars(ordereddict.NewDict().Set(name, value))
 			}
@@ -392,8 +393,10 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 
 			scope.AppendVars(ordereddict.NewDict().Set(name, stored_query))
 		case "<=":
+			// Delegate to the scope's materializer to actually
+			// materialize this query.
 			scope.AppendVars(ordereddict.NewDict().Set(
-				name, types.Materialize(ctx, scope, self.StoredQuery)))
+				name, scope.Materialize(ctx, name, self.StoredQuery)))
 		}
 
 		close(output_chan)
@@ -901,9 +904,9 @@ func (self *_SelectExpression) Transform(
 	for _, expr_ := range self.Expressions {
 		// A copy of the expression for the lambda capture.
 		expr := expr_
-
+		name := expr.GetName(scope)
 		new_row.AddColumn(
-			expr.GetName(scope),
+			name,
 
 			// Use the new scope rather than the callers
 			// scope since the lazy row may be accessed in
@@ -913,11 +916,14 @@ func (self *_SelectExpression) Transform(
 				item := expr.Reduce(ctx, new_scope)
 				switch t := item.(type) {
 
+				case types.Materializer:
+					return t.Materialize(ctx, new_scope)
+
 				// if we end up with a stored query in a column value
 				// we expand it since all columns should be
 				// materialized.
 				case types.StoredQuery:
-					return types.Materialize(ctx, new_scope, t)
+					return new_scope.Materialize(ctx, name, t)
 				}
 				return item
 			})

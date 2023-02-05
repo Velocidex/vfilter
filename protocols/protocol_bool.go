@@ -77,7 +77,7 @@ func (self BoolDispatcher) Bool(ctx context.Context, scope types.Scope, a types.
 
 func (self *BoolDispatcher) AddImpl(elements ...BoolProtocol) {
 	for _, impl := range elements {
-		self.impl = append(self.impl, impl)
+		self.impl = append([]BoolProtocol{impl}, self.impl...)
 	}
 }
 
