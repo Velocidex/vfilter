@@ -90,6 +90,9 @@ func (self *_StoredQuery) Call(ctx context.Context,
 		case types.LazyExpr:
 			v = t.Reduce(ctx)
 
+		case types.Materializer:
+			v = t.Materialize(ctx, sub_scope)
+
 		case types.StoredQuery:
 			v = types.Materialize(ctx, sub_scope, t)
 		}

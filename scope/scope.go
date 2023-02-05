@@ -13,6 +13,7 @@ import (
 
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/functions"
+	"www.velocidex.com/golang/vfilter/materializer"
 	"www.velocidex.com/golang/vfilter/plugins"
 	"www.velocidex.com/golang/vfilter/protocols"
 	"www.velocidex.com/golang/vfilter/types"
@@ -289,6 +290,11 @@ func (self *Scope) Iterate(ctx context.Context, a types.Any) <-chan types.Row {
 	return self.dispatcher.iterator.Iterate(ctx, self, a)
 }
 
+func (self *Scope) Materialize(ctx context.Context,
+	name string, query types.StoredQuery) types.StoredQuery {
+	return self.dispatcher.Materializer.Materialize(ctx, self, name, query)
+}
+
 func (self *Scope) StackDepth() int {
 	self.Lock()
 	defer self.Unlock()
@@ -506,6 +512,8 @@ func NewScope() *Scope {
 		ordereddict.NewDict().
 			Set("NULL", types.Null{}))
 
+	dispatcher.AddProtocolImpl(materializer.InMemoryMatrializer{})
+
 	return result
 }
 
@@ -519,6 +527,10 @@ func (self *Scope) SetSorter(sorter types.Sorter) {
 
 func (self *Scope) SetGrouper(grouper types.Grouper) {
 	self.dispatcher.SetGrouper(grouper)
+}
+
+func (self *Scope) SetMaterializer(materializer types.ScopeMaterializer) {
+	self.dispatcher.SetMaterializer(materializer)
 }
 
 // Fetch the field from the scope variables.

@@ -138,6 +138,10 @@ func (self *LazyExprImpl) ReduceWithScope(
 	}
 
 	switch t := result.(type) {
+
+	case types.Materializer:
+		return t.Materialize(ctx, scope)
+
 	// StoredQuery objects are first class objects that can be
 	// passed around into function args.
 	case StoredQuery:

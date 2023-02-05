@@ -72,6 +72,6 @@ func (self GtDispatcher) Gt(scope types.Scope, a types.Any, b types.Any) bool {
 
 func (self *GtDispatcher) AddImpl(elements ...GtProtocol) {
 	for _, impl := range elements {
-		self.impl = append(self.impl, impl)
+		self.impl = append([]GtProtocol{impl}, self.impl...)
 	}
 }

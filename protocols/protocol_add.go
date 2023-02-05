@@ -73,7 +73,7 @@ func (self AddDispatcher) Add(scope types.Scope, a types.Any, b types.Any) types
 
 func (self *AddDispatcher) AddImpl(elements ...AddProtocol) {
 	for _, impl := range elements {
-		self.impl = append(self.impl, impl)
+		self.impl = append([]AddProtocol{impl}, self.impl...)
 	}
 }
 

@@ -128,9 +128,12 @@ func (self *AssociativeDispatcher) GetMembers(
 	return DefaultAssociative{}.GetMembers(scope, a)
 }
 
+// When adding external protocols they need to be considered before
+// any built in protocols so they are able to override the built
+// ins. Therefore add them to the front of the protocols array.
 func (self *AssociativeDispatcher) AddImpl(elements ...AssociativeProtocol) {
 	for _, impl := range elements {
-		self.impl = append(self.impl, impl)
+		self.impl = append([]AssociativeProtocol{impl}, self.impl...)
 	}
 }
 

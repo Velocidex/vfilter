@@ -78,6 +78,6 @@ func (self DivDispatcher) Div(scope types.Scope, a types.Any, b types.Any) types
 
 func (self *DivDispatcher) AddImpl(elements ...DivProtocol) {
 	for _, impl := range elements {
-		self.impl = append(self.impl, impl)
+		self.impl = append([]DivProtocol{impl}, self.impl...)
 	}
 }

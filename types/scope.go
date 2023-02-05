@@ -8,6 +8,15 @@ import (
 	"github.com/Velocidex/ordereddict"
 )
 
+// A ScopeMaterializer handles VQL Let Materialize operators (<=). The
+// returned object will be added to the scope and can be accessed in
+// subsequent queries. This allows users of vfilter the ability to
+// customize the implementation of materialized queries.
+type ScopeMaterializer interface {
+	Materialize(ctx context.Context, scope Scope,
+		name string, query StoredQuery) StoredQuery
+}
+
 // A scope is passed inside the evaluation context.  Although this is
 // an interface, there is currently only a single implementation
 // (scope.Scope). The interface exposes the public methods.
@@ -43,6 +52,8 @@ type Scope interface {
 	Membership(a Any, b Any) bool
 	Associative(a Any, b Any) (Any, bool)
 	GetMembers(a Any) []string
+	Materialize(ctx context.Context,
+		name string, query StoredQuery) StoredQuery
 
 	Match(a Any, b Any) bool
 	Iterate(ctx context.Context, a Any) <-chan Row
@@ -55,6 +66,7 @@ type Scope interface {
 	// Program a custom sorter
 	SetSorter(sorter Sorter)
 	SetGrouper(grouper Grouper)
+	SetMaterializer(materializer ScopeMaterializer)
 
 	// We can program the scope's protocols
 	AddProtocolImpl(implementations ...Any) Scope
