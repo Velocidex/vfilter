@@ -1108,6 +1108,13 @@ SELECT X[2:], X[2:4], X[:2], X[-1], X[-2], X[-2:], X[2:-1] FROM scope()
 LET X = "Hello World"
 SELECT X[1:5], X[-5:], X[:5], X[5:2], X[5:5] FROM scope()
 `},
+
+	{"Slice Strings Binary", `
+LET X = "\x00\xff\xfe\xfc\xd0\x01"
+SELECT X[1], X[2], format(format="%02x", args=X[2:5]), X[5:2], X[2:2]
+FROM scope()
+`},
+
 	// Value2 is a method accesses as a field
 	{"Access object methods as properties.", `
 LET _ <= SELECT * FROM reset_objectwithmethods()
