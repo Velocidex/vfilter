@@ -226,7 +226,7 @@ type storedQueryWrapperLazyExpression struct {
 
 func (self *storedQueryWrapperLazyExpression) ReduceWithScope(
 	ctx context.Context, scope types.Scope) types.Any {
-	return types.Materialize(ctx, scope, self.query)
+	return scope.Materialize(ctx, "", self.query)
 }
 
 func (self *storedQueryWrapperLazyExpression) Reduce(ctx context.Context) types.Any {

@@ -899,8 +899,18 @@
       "X[5:5]": ""
     }
   ],
-  "066/000 Access object methods as properties.: LET _ \u003c= SELECT * FROM reset_objectwithmethods()": null,
-  "066/001 Access object methods as properties.: SELECT * FROM objectwithmethods()": [
+  "066/000 Slice Strings Binary: LET X = \"\\x00\\xff\\xfe\\xfc\\xd0\\x01\"": null,
+  "066/001 Slice Strings Binary: SELECT X[1], X[2], format(format=\"%02x\", args=X[2:5]), X[5:2], X[2:2] FROM scope()": [
+    {
+      "X[1]": 255,
+      "X[2]": 254,
+      "format(format=\"%02x\", args=X[2:5])": "fefcd0",
+      "X[5:2]": "",
+      "X[2:2]": ""
+    }
+  ],
+  "067/000 Access object methods as properties.: LET _ \u003c= SELECT * FROM reset_objectwithmethods()": null,
+  "067/001 Access object methods as properties.: SELECT * FROM objectwithmethods()": [
     {
       "Value1": 1,
       "Value2": "I am a method, called 1",
@@ -912,7 +922,7 @@
       "Counter": 2
     }
   ],
-  "066/002 Access object methods as properties.: SELECT Value1, Value2 + \"X\" FROM objectwithmethods()": [
+  "067/002 Access object methods as properties.: SELECT Value1, Value2 + \"X\" FROM objectwithmethods()": [
     {
       "Value1": 1,
       "Value2 + \"X\"": "I am a method, called 3X"
@@ -922,7 +932,7 @@
       "Value2 + \"X\"": "I am a method, called 4X"
     }
   ],
-  "066/003 Access object methods as properties.: SELECT Value1 FROM objectwithmethods()": [
+  "067/003 Access object methods as properties.: SELECT Value1 FROM objectwithmethods()": [
     {
       "Value1": 1
     },
@@ -930,8 +940,8 @@
       "Value1": 2
     }
   ],
-  "066/004 Access object methods as properties.: SELECT Value2 + \"X\" FROM objectwithmethods() WHERE False": null,
-  "066/005 Access object methods as properties.: SELECT if(condition=1, then=2, else=Value2) FROM objectwithmethods()": [
+  "067/004 Access object methods as properties.: SELECT Value2 + \"X\" FROM objectwithmethods() WHERE False": null,
+  "067/005 Access object methods as properties.: SELECT if(condition=1, then=2, else=Value2) FROM objectwithmethods()": [
     {
       "if(condition=1, then=2, else=Value2)": 2
     },
@@ -939,7 +949,7 @@
       "if(condition=1, then=2, else=Value2)": 2
     }
   ],
-  "066/006 Access object methods as properties.: SELECT Value2 FROM objectwithmethods() WHERE Value2 =~ \"method\"": [
+  "067/006 Access object methods as properties.: SELECT Value2 FROM objectwithmethods() WHERE Value2 =~ \"method\"": [
     {
       "Value2": "I am a method, called 5"
     },
@@ -947,48 +957,48 @@
       "Value2": "I am a method, called 6"
     }
   ],
-  "067/000 Access object methods as properties: LET _ \u003c= SELECT * FROM reset_objectwithmethods()": null,
-  "067/001 Access object methods as properties: SELECT VarIsObjectWithMethods.Value1 FROM scope()": [
+  "068/000 Access object methods as properties: LET _ \u003c= SELECT * FROM reset_objectwithmethods()": null,
+  "068/001 Access object methods as properties: SELECT VarIsObjectWithMethods.Value1 FROM scope()": [
     {
       "VarIsObjectWithMethods.Value1": 1
     }
   ],
-  "067/002 Access object methods as properties: SELECT VarIsObjectWithMethods.Value2 FROM scope()": [
+  "068/002 Access object methods as properties: SELECT VarIsObjectWithMethods.Value2 FROM scope()": [
     {
       "VarIsObjectWithMethods.Value2": "I am a method, called 1"
     }
   ],
-  "067/003 Access object methods as properties: SELECT VarIsObjectWithMethods.Value1 FROM scope()": [
+  "068/003 Access object methods as properties: SELECT VarIsObjectWithMethods.Value1 FROM scope()": [
     {
       "VarIsObjectWithMethods.Value1": 1
     }
   ],
-  "067/004 Access object methods as properties: SELECT if(condition=1, then=2, else=VarIsObjectWithMethods.Value2) FROM scope()": [
+  "068/004 Access object methods as properties: SELECT if(condition=1, then=2, else=VarIsObjectWithMethods.Value2) FROM scope()": [
     {
       "if(condition=1, then=2, else=VarIsObjectWithMethods.Value2)": 2
     }
   ],
-  "067/005 Access object methods as properties: SELECT VarIsObjectWithMethods.Value2 FROM scope()": [
+  "068/005 Access object methods as properties: SELECT VarIsObjectWithMethods.Value2 FROM scope()": [
     {
       "VarIsObjectWithMethods.Value2": "I am a method, called 2"
     }
   ],
-  "067/006 Access object methods as properties: SELECT if(condition=FALSE, then=2, else=VarIsObjectWithMethods.Value2) + \"X\", VarIsObjectWithMethods.Value2 =~ \"I am a method\", VarIsObjectWithMethods.Value2 FROM scope()": [
+  "068/006 Access object methods as properties: SELECT if(condition=FALSE, then=2, else=VarIsObjectWithMethods.Value2) + \"X\", VarIsObjectWithMethods.Value2 =~ \"I am a method\", VarIsObjectWithMethods.Value2 FROM scope()": [
     {
       "if(condition=FALSE, then=2, else=VarIsObjectWithMethods.Value2) + \"X\"": "I am a method, called 3X",
       "VarIsObjectWithMethods.Value2 =~ \"I am a method\"": true,
       "VarIsObjectWithMethods.Value2": "I am a method, called 5"
     }
   ],
-  "068/000 VQL Functions can access global scope: LET Foo = \"Hello\"": null,
-  "068/001 VQL Functions can access global scope: LET MyFunc(X) = SELECT X, Foo FROM scope()": null,
-  "068/002 VQL Functions can access global scope: SELECT * FROM MyFunc(X=1)": [
+  "069/000 VQL Functions can access global scope: LET Foo = \"Hello\"": null,
+  "069/001 VQL Functions can access global scope: LET MyFunc(X) = SELECT X, Foo FROM scope()": null,
+  "069/002 VQL Functions can access global scope: SELECT * FROM MyFunc(X=1)": [
     {
       "X": 1,
       "Foo": "Hello"
     }
   ],
-  "069/000 Function returning array: SELECT func_foo(return=ArrayValue) FROM scope()": [
+  "070/000 Function returning array: SELECT func_foo(return=ArrayValue) FROM scope()": [
     {
       "func_foo(return=ArrayValue)": [
         1,
@@ -997,9 +1007,9 @@
       ]
     }
   ],
-  "070/000 If function with stored query: LET FooBar = SELECT \"A\" FROM scope()": null,
-  "070/001 If function with stored query: LET B = SELECT if(condition=TRUE, then=FooBar) AS Item FROM scope()": null,
-  "070/002 If function with stored query: SELECT B, FooBar FROM scope()": [
+  "071/000 If function with stored query: LET FooBar = SELECT \"A\" FROM scope()": null,
+  "071/001 If function with stored query: LET B = SELECT if(condition=TRUE, then=FooBar) AS Item FROM scope()": null,
+  "071/002 If function with stored query: SELECT B, FooBar FROM scope()": [
     {
       "B": [
         {
