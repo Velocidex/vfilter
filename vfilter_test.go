@@ -248,10 +248,10 @@ var execTestsSerialization = []execTest{
 	// . matches anything including the empty string (it is optimized away).
 	{"'' =~ '.'", true},
 	{"'Hello' =~ 'he[lo]+'", true},
-
-	// Non strings do not match
-	{"NULL =~ '.'", false},
-	{"1 =~ '.'", false},
+	// Null also matches "." because it is optimized away.
+	{"NULL =~ '.'", true},
+	{"NULL =~ '.*'", true},
+	{"NULL =~ ''", true},
 
 	// Arrays match any element
 	{"('Hello', 'World') =~ 'he'", true},

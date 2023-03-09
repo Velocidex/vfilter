@@ -27,12 +27,16 @@ func (self RegexDispatcher) Match(scope types.Scope, pattern types.Any, target t
 
 	pattern_str, ok := pattern.(string)
 	if ok {
+		// Shortcut the match all operator - ignore LHS and just
+		// return TRUE. This allows a default regex to be provided
+		// which just skips all matches transparently.
+		switch pattern_str {
+		case ".", ".*", "":
+			return true
+		}
+
 		switch t := target.(type) {
 		case string:
-			// Shortcut the match all operator.
-			if pattern_str == "." {
-				return true
-			}
 			return Match(scope, pattern_str, t)
 		}
 
