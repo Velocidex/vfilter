@@ -169,6 +169,9 @@ func (self *Visitor) Visit(node interface{}) {
 			self.line_break()
 		}
 
+	case *_StoredQuery:
+		self.Visit(t.query)
+
 	case *string:
 		if t != nil {
 			self.push(*t)
