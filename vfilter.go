@@ -154,6 +154,7 @@ var (
 			`|(?P<MLineComment>^/[*].*?[*]/$)` + // C Style comment.
 			`|(?P<VQLComment>^--.*?$)` + // SQL style one line comment.
 			`|(?P<Comment>^//.*?$)` + // C++ style one line comment.
+			`|(?ims)(?P<EXPLAIN>\bEXPLAIN\b)` +
 			`|(?ims)(?P<SELECT>\bSELECT\b)` +
 			`|(?ims)(?P<WHERE>\bWHERE\b)` +
 			`|(?ims)(?P<AND>\bAND\b)` +
@@ -322,6 +323,8 @@ func (self *VQL) Type() string {
 		return "LAZY_LET"
 	} else if self.LetOperator == "<=" {
 		return "MATERIALIZED_LET"
+	} else if self.Query != nil && self.Query.Explain != nil {
+		return "EXPLAIN"
 	} else if self.Query != nil {
 		return "SELECT"
 	}
@@ -450,6 +453,7 @@ func (self *VQL) getParameters() []string {
 
 type _Select struct {
 	Comments         []*_Comment        ` { @@ } `
+	Explain          *bool              ` { @EXPLAIN }`
 	SelectExpression *_SelectExpression `SELECT @@`
 	From             *_From             `FROM @@`
 	Where            *_CommaExpression  `[ WHERE @@ ]`
@@ -460,6 +464,15 @@ type _Select struct {
 }
 
 func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
+	// If the EXPLAIN keyword was used, enabled explaining for this
+	// scope and its children.
+	if self.Explain != nil {
+		scope.EnableExplain()
+	}
+
+	// Start query evaluation
+	scope.Explainer().StartQuery(self)
+
 	if self.GroupBy != nil {
 		return self.EvalGroupBy(ctx, scope)
 	}
@@ -545,6 +558,8 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 				if !ok {
 					return
 				}
+				scope.Explainer().PluginOutput(
+					self.From.Plugin, row)
 				self.processSingleRow(ctx, scope, row, output_chan)
 			}
 		}
@@ -563,11 +578,14 @@ func (self *_Select) processSingleRow(
 	defer closer()
 
 	if self.Where == nil {
+		materialized_row := MaterializedLazyRow(
+			ctx, transformed_row, subscope)
+
 		select {
 		case <-ctx.Done():
 			return
-		case output_chan <- MaterializedLazyRow(
-			ctx, transformed_row, subscope):
+		case output_chan <- materialized_row:
+			scope.Explainer().SelectOutput(materialized_row)
 		}
 	} else {
 		// If there is a filter clause, we need to filter the
@@ -594,18 +612,19 @@ func (self *_Select) processSingleRow(
 				return
 
 			case output_chan <- materialized_row:
+				scope.Explainer().SelectOutput(materialized_row)
 			}
 		} else {
-			scope.Trace("Row rejected")
+			scope.Explainer().RejectRow(self.Where)
 		}
 	}
 }
 
 type _From struct {
-	Plugin _Plugin ` @@ `
+	Plugin Plugin ` @@ `
 }
 
-type _Plugin struct {
+type Plugin struct {
 	Name string   `@Ident { @"." @Ident } `
 	Call bool     `[ @"("`
 	Args []*_Args ` [ @@  { "," @@ } ] ")" ]`
@@ -957,7 +976,7 @@ func (self *_From) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 }
 
 // Fetch the object that references a function
-func (self *_Plugin) resolveSymbol(
+func (self *Plugin) resolveSymbol(
 	ctx context.Context, scope types.Scope,
 	components []string) (
 	types.Any, bool) {
@@ -997,7 +1016,7 @@ func (self *_Plugin) resolveSymbol(
 	return result, true
 }
 
-func (self *_Plugin) Eval(ctx context.Context, scope types.Scope) <-chan Row {
+func (self *Plugin) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 
 	components := utils.SplitIdent(self.Name)
 	symbol, pres := self.resolveSymbol(ctx, scope, components)
@@ -1033,7 +1052,7 @@ func (self *_Plugin) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	return self.evalSymbol(ctx, scope, symbol, self.Name, nil)
 }
 
-func (self *_Plugin) evalSymbol(
+func (self *Plugin) evalSymbol(
 	ctx context.Context, scope types.Scope,
 	symbol types.Any, name string, args *ordereddict.Dict) <-chan Row {
 

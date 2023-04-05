@@ -84,6 +84,7 @@ FROM Artifact.Windows.EventLogs.EvtxHunter(EvtxGlob='''%SystemRoot%\System32\Win
 	{"Foreach", "SELECT * FROM foreach(row={SELECT * FROM clients() LIMIT 5}, query={SELECT client_info(client_id=client_id) FROM glob(globs=AGlob)})"},
 	{"Subquery", "SELECT {SELECT * FROM info()} AS Foo, Bar FROM scope()"},
 	{"Simple Statement", "SELECT A AS First, B AS Second, C, D FROM info(arg=1, arg2=3) WHERE 1 ORDER BY C LIMIT 1"},
+	{"Explain statements", "EXPLAIN SELECT 'A' FROM scope()"},
 }
 
 func makeTestScope() types.Scope {
@@ -98,8 +99,8 @@ func TestVQLQueries(t *testing.T) {
 	scope := makeTestScope()
 	golden := ""
 
-	for _, testCase := range reformatTests {
-		if false && testCase.name != "Comma Expression" {
+	for idx, testCase := range reformatTests {
+		if false && idx != 24 {
 			continue
 		}
 
@@ -107,7 +108,7 @@ func TestVQLQueries(t *testing.T) {
 			scope, testCase.vql, vfilter.DefaultFormatOptions)
 		assert.NoError(t, err)
 
-		golden += fmt.Sprintf("%v:\n%v\n\n", testCase.name, vql)
+		golden += fmt.Sprintf("%d %v:\n%v\n\n", idx, testCase.name, vql)
 	}
 
 	g := goldie.New(

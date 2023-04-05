@@ -44,6 +44,7 @@ type protocolDispatcher struct {
 	Sorter       types.Sorter
 	Grouper      types.Grouper
 	Materializer types.ScopeMaterializer
+	explainer    types.Explainer
 
 	Logger *log.Logger
 
@@ -76,6 +77,23 @@ func (self *protocolDispatcher) SetMaterializer(materializer types.ScopeMaterial
 	self.Lock()
 	self.Materializer = materializer
 	self.Unlock()
+}
+
+func (self *protocolDispatcher) SetExplainer(explainer types.Explainer) {
+	self.Lock()
+	self.explainer = explainer
+	self.Unlock()
+}
+
+func (self *protocolDispatcher) Explainer() types.Explainer {
+	self.Lock()
+	res := self.explainer
+	self.Unlock()
+
+	if res == nil {
+		return NULL_EXPLAINER
+	}
+	return res
 }
 
 func (self *protocolDispatcher) SetContextValue(name string, value types.Any) {
@@ -178,6 +196,7 @@ func (self *protocolDispatcher) Copy() *protocolDispatcher {
 		Sorter:       self.Sorter,
 		Grouper:      self.Grouper,
 		Materializer: self.Materializer,
+		explainer:    self.explainer,
 		Logger:       self.Logger,
 		Tracer:       self.Tracer,
 	}

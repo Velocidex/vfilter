@@ -95,6 +95,9 @@ type Scope struct {
 	children map[*Scope]*Scope
 	parent   *Scope
 
+	// If enabled we explain this scope and its children
+	enable_explainer bool
+
 	// types.Any destructors attached to this scope.
 	destructors _destructors
 
@@ -313,13 +316,14 @@ func (self *Scope) Copy() types.Scope {
 	copy(var_copy, self.vars)
 
 	child_scope := &Scope{
-		dispatcher:  self.dispatcher,
-		vars:        var_copy,
-		stack_depth: self.stack_depth + 1,
-		children:    make(map[*Scope]*Scope),
-		parent:      self,
-		throttler:   self.throttler,
-		id:          NextId(),
+		dispatcher:       self.dispatcher,
+		vars:             var_copy,
+		stack_depth:      self.stack_depth + 1,
+		children:         make(map[*Scope]*Scope),
+		parent:           self,
+		enable_explainer: self.enable_explainer,
+		throttler:        self.throttler,
+		id:               NextId(),
 	}
 
 	// Remember our children.
@@ -531,6 +535,27 @@ func (self *Scope) SetGrouper(grouper types.Grouper) {
 
 func (self *Scope) SetMaterializer(materializer types.ScopeMaterializer) {
 	self.dispatcher.SetMaterializer(materializer)
+}
+
+func (self *Scope) SetExplainer(explainer types.Explainer) {
+	self.dispatcher.SetExplainer(explainer)
+}
+
+func (self *Scope) EnableExplain() {
+	self.Lock()
+	defer self.Unlock()
+
+	self.enable_explainer = true
+}
+
+func (self *Scope) Explainer() types.Explainer {
+	self.Lock()
+	defer self.Unlock()
+	if self.enable_explainer {
+		return self.dispatcher.Explainer()
+	}
+
+	return NULL_EXPLAINER
 }
 
 // Fetch the field from the scope variables.

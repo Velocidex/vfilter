@@ -1,0 +1,48 @@
+{
+  "000/000 No Explain: SELECT 'No Explain' FROM range(end=1)": [
+    {
+      "'No Explain'": "No Explain"
+    }
+  ],
+  "001/000 Simple Explain: EXPLAIN SELECT 'A' FROM range(end=1)": [
+    {
+      "'A'": "A"
+    },
+    "DEBUG:Explain start query: EXPLAIN SELECT 'A' FROM range(end=1)\n",
+    "DEBUG:  arg parsing: \u0026plugins.RangePluginArgs{End: 1, }\n",
+    "DEBUG: plugin range() sent row: [{int64 _value 0}]\n",
+    "DEBUG: SELECT: emitting row: [{string 'A' A}]\n"
+  ],
+  "002/000 Query with WHERE: EXPLAIN SELECT * FROM range(end=10) WHERE _value = 2": [
+    {
+      "_value": 2
+    },
+    "DEBUG:Explain start query: EXPLAIN SELECT * FROM range(end=10) WHERE _value = 2\n",
+    "DEBUG:  arg parsing: \u0026plugins.RangePluginArgs{End: 10, }\n",
+    "DEBUG: plugin range() sent row: [{int64 _value 0}]\n",
+    "DEBUG: REJECTED by _value = 2\n",
+    "DEBUG: plugin range() sent row: [{int64 _value 1}]\n",
+    "DEBUG: REJECTED by _value = 2\n",
+    "DEBUG: plugin range() sent row: [{int64 _value 2}]\n",
+    "DEBUG: SELECT: emitting row: [{int64 _value 2}]\n",
+    "DEBUG: plugin range() sent row: [{int64 _value 3}]\n",
+    "DEBUG: REJECTED by _value = 2\n",
+    "DEBUG: plugin range() sent row: [{int64 _value 4}]\n",
+    "DEBUG: REJECTED by _value = 2\n",
+    "DEBUG: plugin range() sent row: [{int64 _value 5}]\n",
+    "DEBUG: REJECTED by _value = 2\n",
+    "DEBUG: plugin range() sent row: [{int64 _value 6}]\n",
+    "DEBUG: REJECTED by _value = 2\n",
+    "DEBUG: plugin range() sent row: [{int64 _value 7}]\n",
+    "DEBUG: REJECTED by _value = 2\n",
+    "DEBUG: plugin range() sent row: [{int64 _value 8}]\n",
+    "DEBUG: REJECTED by _value = 2\n",
+    "DEBUG: plugin range() sent row: [{int64 _value 9}]\n",
+    "DEBUG: REJECTED by _value = 2\n"
+  ],
+  "003/000 Error Arg Parsing: EXPLAIN SELECT 'A' FROM range(end=1, foo=2)": [
+    "DEBUG:Explain start query: EXPLAIN SELECT 'A' FROM range(end=1, foo=2)\n",
+    "DEBUG:  arg parsing: error Unexpected arg foo while parsing {\"end\":1,\"foo\":2}\n",
+    "range: Unexpected arg foo\n"
+  ]
+}

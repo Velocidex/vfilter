@@ -1026,5 +1026,10 @@
         }
       ]
     }
+  ],
+  "072/000 Explain query: EXPLAIN SELECT \"A\" FROM scope()": [
+    {
+      "\"A\"": "A"
+    }
   ]
 }

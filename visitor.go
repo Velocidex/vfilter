@@ -198,7 +198,7 @@ func (self *Visitor) Visit(node interface{}) {
 	case *_From:
 		self.visitPlugin(&t.Plugin)
 
-	case *_Plugin:
+	case *Plugin:
 		self.visitPlugin(t)
 
 	case *_Args:
@@ -628,7 +628,7 @@ func (self *Visitor) pluginUsesLineMode(name string) bool {
 	return false
 }
 
-func (self *Visitor) visitPlugin(node *_Plugin) {
+func (self *Visitor) visitPlugin(node *Plugin) {
 	self.push(node.Name)
 	if node.Call {
 		// No parameters anyway.
@@ -734,6 +734,10 @@ func (self *Visitor) visitSelectExpression(node *_SelectExpression) {
 
 func (self *Visitor) visitSelect(node *_Select) {
 	self.Visit(node.Comments)
+
+	if node.Explain != nil {
+		self.push("EXPLAIN ")
+	}
 
 	self.push("SELECT ")
 	self.push_indent()
