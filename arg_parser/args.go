@@ -42,10 +42,13 @@ func ExtractArgs(scope types.Scope, args *ordereddict.Dict, target interface{}) 
 
 	parser, err := GetParser(v)
 	if err != nil {
+		scope.Explainer().ParseArgs(args, target, err)
 		return err
 	}
 
-	return parser.Parse(context.Background(), scope, args, v)
+	err = parser.Parse(context.Background(), scope, args, v)
+	scope.Explainer().ParseArgs(args, target, err)
+	return err
 }
 
 func ExtractArgsWithContext(
@@ -57,10 +60,13 @@ func ExtractArgsWithContext(
 
 	parser, err := GetParser(v)
 	if err != nil {
+		scope.Explainer().ParseArgs(args, target, err)
 		return err
 	}
 
-	return parser.Parse(ctx, scope, args, v)
+	err = parser.Parse(ctx, scope, args, v)
+	scope.Explainer().ParseArgs(args, target, err)
+	return err
 }
 
 // Try to retrieve an arg name from the Dict of args. Coerce the arg

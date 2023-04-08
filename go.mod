@@ -4,7 +4,7 @@ require (
 	github.com/Velocidex/ordereddict v0.0.0-20221110130714-6a7cb85851cd
 	github.com/alecthomas/assert v1.0.0
 	github.com/alecthomas/participle v0.7.1
-	github.com/alecthomas/repr v0.2.0
+	github.com/alecthomas/repr v0.2.1-0.20230322203820-fba37eeb3a59
 	github.com/google/go-cmp v0.5.6
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/pkg/errors v0.9.1

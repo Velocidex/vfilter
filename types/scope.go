@@ -67,6 +67,11 @@ type Scope interface {
 	SetSorter(sorter Sorter)
 	SetGrouper(grouper Grouper)
 	SetMaterializer(materializer ScopeMaterializer)
+	SetExplainer(explainer Explainer)
+
+	// Start explaining this scope and its children
+	EnableExplain()
+	Explainer() Explainer
 
 	// We can program the scope's protocols
 	AddProtocolImpl(implementations ...Any) Scope

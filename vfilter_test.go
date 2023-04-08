@@ -1185,6 +1185,9 @@ LET B = SELECT if(condition=TRUE, then=FooBar) AS Item
 FROM scope()
 SELECT B, FooBar FROM scope()
 `},
+	{"Explain query", `
+EXPLAIN SELECT "A" FROM scope()
+`},
 }
 
 type _RangeArgs struct {

@@ -1,4 +1,4 @@
-Plugin args with very long second arg:
+0 Plugin args with very long second arg:
 SELECT *,
        upload_directory(
          accessor="collector",
@@ -7,7 +7,7 @@ FROM ALLUploads
 
 
 
-MultiLine Comment:
+1 MultiLine Comment:
 /*
    This is a multiline comment
 */
@@ -16,7 +16,7 @@ FROM plugin()
 
 
 
-Comment on columns:
+2 Comment on columns:
 SELECT Foo,
        -- This is a comment on Bar
        Bar
@@ -24,14 +24,14 @@ FROM plugin()
 
 
 
-Comment in a comma list:
+3 Comment in a comma list:
 LET LocalDeviceMajor <= (253, 7, -- loop
     8, -- sd
     )
 
 
 
-Comment above plugin arg:
+4 Comment above plugin arg:
 SELECT *
 FROM info(
   -- This is a comment for Foo
@@ -40,7 +40,7 @@ FROM info(
 
 
 
-Comment above LET:
+5 Comment above LET:
 // This is a comment
 -- Another type of comment
 LET X = SELECT *
@@ -48,7 +48,7 @@ LET X = SELECT *
 
 
 
-Comment above SELECT:
+6 Comment above SELECT:
 // This is a comment
 -- Another type of comment
 SELECT *
@@ -56,35 +56,35 @@ FROM info()
 
 
 
-Comma Expression:
+7 Comma Expression:
 SELECT *
 FROM plugin()
 WHERE dict(foo=[1, ])
 
 
 
-Comma Expression 2:
+8 Comma Expression 2:
 SELECT *
 FROM plugin()
 WHERE (1, 2, 3, 4)
 
 
 
-Group by with many columns:
+9 Group by with many columns:
 SELECT min(item=EventTime) AS EarliestTime
 FROM source(artifact="Exchange.Windows.Detection.ISOMount")
 GROUP BY Computer, Username, EventID, Filename
 
 
 
-Plugin with long first arg:
+10 Plugin with long first arg:
 SELECT *
 FROM Artifact.Windows.EventLogs.EvtxHunter(
   EvtxGlob='''%SystemRoot%\System32\Winevt\Logs\*Sysmon*.evtx''')
 
 
 
-If Plugin:
+11 If Plugin:
 LET DateAfterTime <= if(
     condition=TargetTime,
     then=timestamp(epoch=TargetTime.Unix - TargetTimeBox),
@@ -92,7 +92,7 @@ LET DateAfterTime <= if(
 
 
 
-If Plugin with longer args:
+12 If Plugin with longer args:
 LET DateAfterTime <= if(
     condition=TargetTime,
     then=timestamp(epoch=TargetTime.Unix - TargetTimeBox + SomeConstant),
@@ -100,13 +100,13 @@ LET DateAfterTime <= if(
 
 
 
-Try to fit plugin args in one line:
+13 Try to fit plugin args in one line:
 LET CacheList = SELECT FullPath
   FROM glob(globs=GlobPath, root=RootPath)
 
 
 
-If plugin args break lines line up on (:
+14 If plugin args break lines line up on (:
 LET CacheList = SELECT FullPath
   FROM glob(globs=GlobPath,
             follow_symlinks=TRUE,
@@ -115,7 +115,7 @@ LET CacheList = SELECT FullPath
 
 
 
-If plugin args are too long to line up on ( they get indent more:
+15 If plugin args are too long to line up on ( they get indent more:
 LET CacheList = SELECT FullPath
   FROM glob(
     globs=Glob,
@@ -125,19 +125,19 @@ LET CacheList = SELECT FullPath
 
 
 
-Try to keep function args in one line:
+16 Try to keep function args in one line:
 LET CacheList = SELECT FullPath
   FROM glob(globs=split(string=CacheGlob, sep=","), root=RootPath)
 
 
 
-Example:
+17 Example:
 LET CacheList = SELECT FullPath
   FROM glob(globs=Glob, root=RootPath)
 
 
 
-LET expression:
+18 LET expression:
 LET Foo = SELECT *
   FROM info()
   WHERE Foo
@@ -145,7 +145,7 @@ LET Foo = SELECT *
 
 
 
-LET with parameters:
+19 LET with parameters:
 LET Foo(x, y, z) = SELECT *
   FROM info()
   WHERE Foo
@@ -153,7 +153,7 @@ LET Foo(x, y, z) = SELECT *
 
 
 
-Nesting:
+20 Nesting:
 SELECT *
 FROM foreach(
   row={
@@ -172,7 +172,7 @@ FROM foreach(
 
 
 
-Foreach:
+21 Foreach:
 SELECT *
 FROM foreach(
   row={
@@ -187,7 +187,7 @@ FROM foreach(
 
 
 
-Subquery:
+22 Subquery:
 SELECT {
          SELECT *
          FROM info()
@@ -197,7 +197,7 @@ FROM scope()
 
 
 
-Simple Statement:
+23 Simple Statement:
 SELECT A AS First,
        B AS Second,
        C,
@@ -206,6 +206,12 @@ FROM info(arg=1, arg2=3)
 WHERE 1
 ORDER BY C
 LIMIT 1 
+
+
+
+24 Explain statements:
+EXPLAIN SELECT 'A'
+FROM scope()
 
 
 
