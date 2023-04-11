@@ -33,6 +33,9 @@ type PluginInfo struct {
 	// A version of this plugin. VQL queries can target certain
 	// versions of this plugin if needed.
 	Version int
+
+	// Arbitrary metadata attched to the plugin info
+	Metadata *ordereddict.Dict
 }
 
 // Describe functions.
@@ -50,6 +53,9 @@ type FunctionInfo struct {
 	// A version of this plugin. VQL queries can target certain
 	// versions of this function if needed.
 	Version int
+
+	// Arbitrary metadata attched to the function info
+	Metadata *ordereddict.Dict
 }
 
 // Describe a type. This is meant for human consumption so it does not

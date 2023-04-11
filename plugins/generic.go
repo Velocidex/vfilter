@@ -27,7 +27,8 @@ type GenericListPlugin struct {
 	Doc        string
 	Function   FunctionPlugin
 
-	ArgType types.Any
+	ArgType  types.Any
+	Metadata *ordereddict.Dict
 }
 
 func (self GenericListPlugin) Call(
@@ -57,8 +58,9 @@ func (self GenericListPlugin) Name() string {
 
 func (self GenericListPlugin) Info(scope types.Scope, type_map *types.TypeMap) *types.PluginInfo {
 	result := &types.PluginInfo{
-		Name: self.PluginName,
-		Doc:  self.Doc,
+		Name:     self.PluginName,
+		Doc:      self.Doc,
+		Metadata: self.Metadata,
 	}
 
 	if self.ArgType != nil {
