@@ -11,6 +11,9 @@ type LazyRow interface {
 	// Add a lazy evaluator to the column.
 	AddColumn(name string, getter func(ctx context.Context, scope Scope) Any) LazyRow
 
+	// Check if a row has a column name without evaluating it
+	Has(name string) bool
+
 	// Materialize the value at a column
 	Get(name string) (Any, bool)
 
