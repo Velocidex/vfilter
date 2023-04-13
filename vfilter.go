@@ -647,7 +647,8 @@ type _SelectExpression struct {
 
 type _AliasedExpression struct {
 	Comments   []*_Comment     ` { @@ } `
-	SubSelect  *_Select        `( "{" @@ "}" |`
+	Star       *bool           ` ( @"*" | `
+	SubSelect  *_Select        ` "{" @@ "}" |`
 	Expression *_AndExpression ` @@ )`
 
 	As string `[ AS @Ident ]`
@@ -871,6 +872,27 @@ type _Value struct {
 	cache Any
 }
 
+// A * expression means to merge the old row on top of the new row,
+// but not override any variables. This allows users to add a column
+// to the left side of a * and have the * merge all old columns if
+// they are not there.
+func (self *_SelectExpression) mergeStarRow(
+	scope types.Scope, new_row types.LazyRow, row types.Row) {
+	for _, member := range scope.GetMembers(row) {
+		if new_row.Has(member) {
+			continue
+		}
+
+		value, pres := scope.Associative(row, member)
+		if pres {
+			new_row.AddColumn(member,
+				func(ctx context.Context, scope types.Scope) Any {
+					return value
+				})
+		}
+	}
+}
+
 // Receives a row from the FROM clause (i.e. the plugin) and
 // transforms it according to the select expression to produce a new
 // row. The transformation results in a lazy row - The column
@@ -882,26 +904,20 @@ type _Value struct {
 // resolved and not needed any more.
 func (self *_SelectExpression) Transform(
 	ctx context.Context, scope types.Scope, row Row) (types.LazyRow, func()) {
-	// The select uses a * to relay all the rows without
-	// filtering
+	// The select uses a * to relay all the rows without filtering
 
-	// The select expression consists of multiple
-	// columns, each may be an
-	// expression. Expressions may also be
-	// repeated. VQL produces unique column names
-	// so each column must be a unique string.
+	// The select expression consists of multiple columns, each may be
+	// an expression. Expressions may also be repeated. VQL produces
+	// unique column names so each column must be a unique string.
 
-	// If an AS keyword is used to name the
-	// column, then we use that name, otherwise we
-	// generate the name by converting the
-	// expression to a string using its ToString()
-	// method.
+	// If an AS keyword is used to name the column, then we use that
+	// name, otherwise we generate the name by converting the
+	// expression to a string using its ToString() method.
 	new_row := NewLazyRow(ctx, scope)
 
-	// If there is a * expression in addition to the
-	// column expressions, this is equivalent to adding
-	// all the columns as defined by the * as if they were
-	// explicitely defined.
+	// If there is a * expression in addition to the column
+	// expressions, this is equivalent to adding all the columns as
+	// defined by the * as if they were explicitely defined.
 	if self.All {
 		for _, member := range scope.GetMembers(row) {
 			value, pres := scope.Associative(row, member)
@@ -914,8 +930,8 @@ func (self *_SelectExpression) Transform(
 		}
 	}
 
-	// Scope will be closed with the parent - need to keep alive
-	// until the row is materialized.
+	// Scope will be closed with the parent - need to keep alive until
+	// the row is materialized.
 	new_scope := scope.Copy()
 	new_scope.AppendVars(row)
 	scope.AddDestructor(new_scope.Close)
@@ -924,13 +940,17 @@ func (self *_SelectExpression) Transform(
 		// A copy of the expression for the lambda capture.
 		expr := expr_
 		name := expr.GetName(scope)
+		if name == "*" {
+			self.mergeStarRow(scope, new_row, row)
+			continue
+		}
+
 		new_row.AddColumn(
 			name,
 
-			// Use the new scope rather than the callers
-			// scope since the lazy row may be accessed in
-			// any scope but needs to resolve members in
-			// the scope it was created from.
+			// Use the new scope rather than the callers scope since
+			// the lazy row may be accessed in any scope but needs to
+			// resolve members in the scope it was created from.
 			func(ctx context.Context, scope types.Scope) Any {
 				item := expr.Reduce(ctx, new_scope)
 				switch t := item.(type) {

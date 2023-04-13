@@ -292,6 +292,11 @@ func (self *Visitor) visitAliasedExpression(node *_AliasedExpression) {
 
 	self.Visit(node.Comments)
 
+	if node.Star != nil {
+		self.push("*")
+		return
+	}
+
 	if node.Expression != nil {
 		visitor, longest_line, does_it_fit := doesNodeFitInOneLine(self, node.Expression)
 

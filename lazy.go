@@ -45,6 +45,20 @@ func (self *LazyRowImpl) AddColumn(
 	return self
 }
 
+func (self *LazyRowImpl) Has(key string) bool {
+	_, pres := self.cache.Get(key)
+	if pres {
+		return true
+	}
+
+	_, pres = self.getters[key]
+	if pres {
+		return true
+	}
+
+	return false
+}
+
 func (self *LazyRowImpl) Get(key string) (types.Any, bool) {
 	res, pres := self.cache.Get(key)
 	if pres {

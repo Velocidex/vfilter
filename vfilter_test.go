@@ -716,6 +716,8 @@ var multiVQLTest = []vqlTest{
 	{"LET with index", "LET X = SELECT * FROM test() SELECT X[0], X[1].bar FROM scope()"},
 
 	{"LET with extra columns", "LET X = SELECT * FROM test() SELECT *, 1 FROM X"},
+	{"LET with extra columns before *", "LET X = SELECT * FROM test() SELECT 1, *, 2 FROM X"},
+	{"LET with extra columns before * and override", "LET X = SELECT * FROM test() SELECT 1000 + foo as foo, *, 2 FROM X"},
 	{"LET materialized with extra columns", "LET X <= SELECT * FROM test() SELECT *, 1 FROM X"},
 	{"Column name with space", "LET X <= SELECT 2 AS `Hello World` FROM scope() " +
 		"SELECT `Hello World`, `Hello World` + 4 AS Foo, X.`Hello World` FROM X"},
@@ -1384,7 +1386,7 @@ func TestMultiVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range multiVQLTest {
-		if false && i != 58 {
+		if false && i != 4 {
 			continue
 		}
 		scope := makeTestScope()
