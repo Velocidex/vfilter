@@ -21,8 +21,13 @@ func getRanges(field_name []*int64, array_length int64) (
 	if end_range < 0 {
 		end_range = array_length + end_range
 	}
+
 	if end_range < 0 {
 		end_range = 0
+	}
+
+	if end_range > array_length {
+		end_range = array_length
 	}
 
 	return start_range, end_range
