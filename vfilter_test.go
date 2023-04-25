@@ -240,6 +240,10 @@ var execTestsSerialization = []execTest{
 	{"'Hello'[1]", 101},
 	{"'Hello'[-1]", 111},
 	{"'Hello'[:3]", "Hel"},
+
+	// Indexing past the end of the array should clamp to end.
+	{"'Hello'[2:300]", "llo"},
+	{"'Hello'[-2:300]", "lo"},
 	{"'Hello'[-3:]", "llo"},
 
 	// Rgexp operator
