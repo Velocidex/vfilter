@@ -151,7 +151,7 @@ var (
 	vqlLexer = lexer.Must(lexer.Regexp(
 		`(?ms)` +
 			`(\s+)` +
-			`|(?P<MLineComment>^/[*].*?[*]/$)` + // C Style comment.
+			`|(?P<MLineComment>/[*].*?[*]/)` + // C Style comment.
 			`|(?P<VQLComment>^--.*?$)` + // SQL style one line comment.
 			`|(?P<Comment>^//.*?$)` + // C++ style one line comment.
 			`|(?ims)(?P<EXPLAIN>\bEXPLAIN\b)` +
@@ -261,8 +261,6 @@ func MultiParseWithComments(expression string) ([]*VQL, error) {
 	err := multiVQLParserWithComments.ParseString(expression, vql)
 	switch t := err.(type) {
 	case *lexer.Error:
-		utils.Debug(t)
-
 		return nil, reportError(err, t, expression)
 
 	default:
@@ -271,13 +269,21 @@ func MultiParseWithComments(expression string) ([]*VQL, error) {
 }
 
 type MultiVQL struct {
-	Comments []*_Comment `{ @@ } `
-	VQL1     *VQL        ` @@ `
-	VQL2     *MultiVQL   ` { @@ } `
+	Comments  []*_Comment `{ @@ } `
+	VQL1      *VQL        ` @@ `
+	Comments2 []*_Comment `{ @@ } `
+	VQL2      *MultiVQL   ` { @@ } `
 }
 
 func (self *MultiVQL) GetStatements() []*VQL {
 	self.VQL1.Comments = self.Comments
+
+	// Rebalance the comments - trailing comments belong in the next
+	// statement
+	if len(self.Comments2) > 0 && self.VQL2 != nil {
+		self.VQL2.Comments = append(self.Comments2, self.VQL2.Comments...)
+		self.Comments2 = nil
+	}
 
 	result := []*VQL{self.VQL1}
 	if self.VQL2 != nil {
