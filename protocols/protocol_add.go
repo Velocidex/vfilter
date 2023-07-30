@@ -30,8 +30,17 @@ func (self AddDispatcher) Add(scope types.Scope, a types.Any, b types.Any) types
 	case string:
 		b_str, ok := b.(string)
 		if ok {
+			// Estimate how much memory we will use when adding the
+			// string
+			memory := len(t) * len(b_str)
+			if memory > 100000000 { // 100mb
+				scope.Log("Multiply Str x Int exceeded memory limits")
+				return &types.Null{}
+			}
+
 			return t + b_str
 		}
+
 	case types.Null, *types.Null, nil:
 		return &types.Null{}
 
