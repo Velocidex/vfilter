@@ -33,6 +33,12 @@ func (self MulDispatcher) Mul(scope types.Scope, a types.Any, b types.Any) types
 	case string:
 		b_int, ok := utils.ToInt64(b)
 		if ok {
+			// Estimate how much memory we will use when duplicating the string
+			memory := len(t) * int(b_int)
+			if memory > 100000000 { // 100mb
+				scope.Log("Multiply Str x Int exceeded memory limits")
+				return &types.Null{}
+			}
 			return strings.Repeat(t, int(b_int))
 		}
 

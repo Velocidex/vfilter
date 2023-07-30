@@ -46,7 +46,9 @@ func (self *AssociativeDispatcher) Associative(
 			return t.Resolve(b_str)
 
 		case types.StoredExpression:
-			return scope.Associative(t.Reduce(ctx, scope), b)
+			sub_scope := scope.Copy()
+			defer sub_scope.Close()
+			return scope.Associative(t.Reduce(ctx, sub_scope), b)
 
 		case types.LazyRow:
 			return t.Get(b_str)

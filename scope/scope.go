@@ -218,12 +218,15 @@ func (self *Scope) ChargeOp() {
 }
 
 func (self *Scope) CheckForOverflow() bool {
-	if self.StackDepth() < 1000 {
+	self.Lock()
+	defer self.Unlock()
+
+	if self.stack_depth < 1000 {
 		return false
 	}
 
 	// Log the query for overflow
-	query, _ := self.Resolve("$Query")
+	query, _ := self._Resolve("$Query")
 	self.Log("Stack Overflow: %v", query)
 
 	return true
@@ -560,8 +563,17 @@ func (self *Scope) Explainer() types.Explainer {
 
 // Fetch the field from the scope variables.
 func (self *Scope) Resolve(field string) (interface{}, bool) {
+	if self.CheckForOverflow() {
+		return types.Null{}, false
+	}
+
 	self.Lock()
 	defer self.Unlock()
+
+	return self._Resolve(field)
+}
+
+func (self *Scope) _Resolve(field string) (interface{}, bool) {
 
 	var default_value types.Any
 

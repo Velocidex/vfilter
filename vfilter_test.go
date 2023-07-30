@@ -779,6 +779,9 @@ var multiVQLTest = []vqlTest{
 	{"Overflow condition - should not get stuck",
 		"LET X = 1 + X SELECT X(X=1), X FROM test()"},
 
+	{"Overflow condition - https://github.com/Velocidex/velociraptor/issues/2845",
+		"LET X = X.ID SELECT * FROM X"},
+
 	{"Overflow condition - should not get stuck",
 		"LET X = 1 + X  LET Y = 1 + Y SELECT X, Y FROM scope()"},
 
