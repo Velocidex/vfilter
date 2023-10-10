@@ -2,7 +2,6 @@ package plugins
 
 import (
 	"context"
-	"reflect"
 
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/arg_parser"
@@ -36,8 +35,12 @@ func (self _FlattenPluginImpl) Call(ctx context.Context,
 			if !ok {
 				break
 			}
-			members := scope.GetMembers(row_item)
-			for _, item := range flatten(scope, row_item, members, 0) {
+
+			row_dict := makeDict(scope, row_item)
+			members := row_dict.Keys()
+
+			flattened := flatten(ctx, scope, row_dict, len(members)-1)
+			for _, item := range flattened {
 				select {
 				case <-ctx.Done():
 					return
@@ -66,56 +69,45 @@ func makeDict(scope types.Scope, item types.Any) *ordereddict.Dict {
 	return result
 }
 
-func flatten(scope types.Scope, item types.Row, members []string, idx int) []*ordereddict.Dict {
+// Expands the idx'th key into a list of rows
+func flatten(ctx context.Context,
+	scope types.Scope, item *ordereddict.Dict, idx int) []*ordereddict.Dict {
+	if idx < 0 {
+		return []*ordereddict.Dict{item}
+	}
+
 	result := []*ordereddict.Dict{}
-	if idx >= len(members) {
-		return result
-	}
-
-	tail := flatten(scope, item, members, idx+1)
+	members := item.Keys()
 	column := members[idx]
-	cell, pres := scope.Associative(item, column)
-	if !pres {
-		return tail
-	}
+	cell, _ := item.Get(column)
 
-	slice := reflect.Indirect(reflect.ValueOf(cell))
-	if slice.Type().Kind() == reflect.Slice {
-		switch slice.Type().Elem().Kind() {
-		case reflect.String, reflect.Struct, reflect.Interface,
-			reflect.Map, reflect.Array:
-			for i := 0; i < slice.Len(); i++ {
-				original_value := slice.Index(i).Interface()
-				if len(tail) == 0 {
-					result = append(
-						result,
-						ordereddict.NewDict().Set(column, original_value))
-				} else {
-					for _, subrow := range tail {
-						new_row := ordereddict.NewDict()
-						new_row.Set(column, original_value)
-
-						new_row.MergeFrom(subrow)
-
-						result = append(result, new_row)
-					}
-				}
+	// Now iterate over all items in the cell.
+	count := 0
+	for member := range scope.Iterate(ctx, cell) {
+		count++
+		member_dict, ok := member.(*ordereddict.Dict)
+		if ok {
+			real_member, ok := member_dict.Get("_value")
+			if ok {
+				member = real_member
 			}
-
-			return result
 		}
+
+		// Prepare a copy of the row
+		new_row := ordereddict.NewDict()
+		new_row.MergeFrom(item)
+		new_row.Update(column, member)
+
+		// By induction
+		result = append(result, flatten(ctx, scope, new_row, idx-1)...)
 	}
 
-	// Not an array - just set this column and pass all the
-	// expansions up the call chain.
-	if len(tail) == 0 {
-		result = append(result, ordereddict.NewDict().Set(column, cell))
-	} else {
-		for _, subrow := range tail {
-			subrow.Set(column, cell)
-			result = append(result, subrow)
-		}
+	// Iterating over the member produced no results, just forward the
+	// member directly.
+	if count == 0 {
+		result = append(result, flatten(ctx, scope, item, idx-1)...)
 	}
+
 	return result
 }
 

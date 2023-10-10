@@ -1074,5 +1074,90 @@
     {
       "\"A\"": "A"
     }
+  ],
+  "076/000 Flatten query: SELECT * FROM flatten(query={ SELECT 1 AS A, (1, 2) AS B FROM scope() })": [
+    {
+      "A": 1,
+      "B": 1
+    },
+    {
+      "A": 1,
+      "B": 2
+    }
+  ],
+  "077/000 Flatten query cartesian with 2 lists: SELECT * FROM flatten(query={ SELECT (3, 4) AS A, (1, 2) AS B FROM scope() })": [
+    {
+      "A": 3,
+      "B": 1
+    },
+    {
+      "A": 4,
+      "B": 1
+    },
+    {
+      "A": 3,
+      "B": 2
+    },
+    {
+      "A": 4,
+      "B": 2
+    }
+  ],
+  "078/000 Flatten query empty list: LET FOO \u003c= SELECT * FROM scope() WHERE FALSE": null,
+  "078/001 Flatten query empty list: SELECT * FROM flatten(query={ SELECT 1 AS A, FOO, (1, 2) AS B FROM scope() })": [
+    {
+      "A": 1,
+      "FOO": [],
+      "B": 1
+    },
+    {
+      "A": 1,
+      "FOO": [],
+      "B": 2
+    }
+  ],
+  "079/000 Flatten dict query: SELECT * FROM flatten(query={ SELECT 1 AS A, dict(E=1, F=2) AS B FROM scope() })": [
+    {
+      "A": 1,
+      "B": {
+        "E": 1,
+        "F": 2
+      }
+    }
+  ],
+  "080/000 Flatten subquery: SELECT * FROM flatten(query={ SELECT *, { SELECT * FROM range(start=1, end=3) } AS Count FROM foreach(row=[dict(A=1)]) })": [
+    {
+      "A": 1,
+      "Count": 1
+    },
+    {
+      "A": 1,
+      "Count": 2
+    },
+    {
+      "A": 1,
+      "Count": 3
+    }
+  ],
+  "081/000 Flatten stored query: LET SQ = SELECT * FROM range(start=1, end=3)": null,
+  "081/001 Flatten stored query: SELECT * FROM flatten(query={ SELECT *, SQ FROM foreach(row=[dict(A=1)]) })": [
+    {
+      "A": 1,
+      "SQ": {
+        "value": 1
+      }
+    },
+    {
+      "A": 1,
+      "SQ": {
+        "value": 2
+      }
+    },
+    {
+      "A": 1,
+      "SQ": {
+        "value": 3
+      }
+    }
   ]
 }

@@ -1719,13 +1719,13 @@ func (self *_SymbolRef) callFunction(
 
 		} else if arg.Array != nil {
 			value := arg.Array.Reduce(ctx, scope)
-			args.Set(arg.Left, value)
+			args.Set(utils.Unquote_ident(arg.Left), value)
 
 		} else if arg.ArrayOpenBrace != "" {
-			args.Set(arg.Left, []Row{})
+			args.Set(utils.Unquote_ident(arg.Left), []Row{})
 
 		} else if arg.SubSelect != nil {
-			args.Set(arg.Left, arg.SubSelect)
+			args.Set(utils.Unquote_ident(arg.Left), arg.SubSelect)
 		}
 	}
 
