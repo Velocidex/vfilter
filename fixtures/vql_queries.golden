@@ -91,18 +91,19 @@
       "FooColumn": 4
     }
   ],
-  "008 dict plugin: SELECT * FROM dict(env_var=15, foo=5)": [
+  "008 dict plugin: SELECT * FROM dict(env_var=15, foo=5, `field with space`='value')": [
     {
       "env_var": 15,
-      "foo": 5
+      "foo": 5,
+      "field with space": "value"
     }
   ],
-  "009 dict plugin with invalide column: SELECT no_such_column FROM dict(env_var=15, foo=5)": [
+  "009 dict plugin with invalid column: SELECT no_such_column FROM dict(env_var=15, foo=5)": [
     {
       "no_such_column": null
     }
   ],
-  "010 dict plugin with invalide column in expression: SELECT no_such_column + 'foo' FROM dict(env_var=15, foo=5)": [
+  "010 dict plugin with invalid column in expression: SELECT no_such_column + 'foo' FROM dict(env_var=15, foo=5)": [
     {
       "no_such_column + 'foo'": null
     }

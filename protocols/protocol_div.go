@@ -52,14 +52,14 @@ func (self DivDispatcher) Div(scope types.Scope, a types.Any, b types.Any) types
 	}
 
 	// Always convert to float to not lose preceision.
-	a_int, ok := utils.ToInt64(a)
+	a_int, ok := utils.ToFloat(a)
 	if ok {
 		b_int, ok := utils.ToFloat(b)
 		if ok {
 			if b_int == 0 {
 				return &types.Null{}
 			}
-			return float64(a_int) / b_int
+			return a_int / b_int
 		}
 	}
 

@@ -194,6 +194,9 @@ var execTestsSerialization = []execTest{
 	{"dict(foo=[1, 2])", ordereddict.NewDict().
 		Set("foo", []int64{1, 2})},
 
+	{"dict(`key with spaces`='Value')",
+		ordereddict.NewDict().Set("key with spaces", "Value")},
+
 	// Using the trailing comma notation indicates an array.
 	{"dict(foo=[1,])", ordereddict.NewDict().
 		Set("foo", []int64{1})},
@@ -509,10 +512,10 @@ var vqlTests = []vqlTest{
 	{"condition on aliases with not", "select foo as FooColumn from test() where NOT FooColumn = 2"},
 	{"condition on non aliases", "select foo as FooColumn from test() where foo = 4"},
 
-	{"dict plugin", "select * from dict(env_var=15, foo=5)"},
-	{"dict plugin with invalide column",
+	{"dict plugin", "select * from dict(env_var=15, foo=5, `field with space`='value')"},
+	{"dict plugin with invalid column",
 		"select no_such_column from dict(env_var=15, foo=5)"},
-	{"dict plugin with invalide column in expression",
+	{"dict plugin with invalid column in expression",
 		"select no_such_column + 'foo' from dict(env_var=15, foo=5)"},
 	{"mix from env and plugin", "select env_var + param as ConCat from dict(param='param')"},
 	{"subselects", "select param from dict(param={select * from range(start=3, end=5)})"},
@@ -1197,6 +1200,34 @@ SELECT B, FooBar FROM scope()
 	{"Explain query", `
 EXPLAIN SELECT "A" FROM scope()
 `},
+	{"Flatten query", `
+SELECT * FROM flatten(query={
+   SELECT 1 AS A, (1,2) AS B FROM scope()
+})`},
+	{"Flatten query cartesian with 2 lists", `
+SELECT * FROM flatten(query={
+   SELECT (3, 4) AS A, (1,2) AS B FROM scope()
+})`},
+	{"Flatten query empty list", `
+LET FOO <= SELECT * FROM scope() WHERE FALSE
+SELECT * FROM flatten(query={
+   SELECT 1 AS A, FOO, (1, 2) AS B FROM scope()
+})`},
+	{"Flatten dict query", `
+SELECT * FROM flatten(query={
+   SELECT 1 AS A, dict(E=1,F=2) AS B FROM scope()
+})`},
+	{"Flatten subquery", `
+SELECT * FROM flatten(query={
+   SELECT *, { SELECT * FROM range(start=1, end=3) } AS Count
+   FROM foreach(row=[dict(A=1)])
+})`},
+	{"Flatten stored query", `
+LET SQ = SELECT * FROM range(start=1, end=3)
+SELECT * FROM flatten(query={
+   SELECT *, SQ
+   FROM foreach(row=[dict(A=1)])
+})`},
 }
 
 type _RangeArgs struct {
