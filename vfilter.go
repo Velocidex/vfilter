@@ -631,7 +631,11 @@ type _From struct {
 }
 
 type Plugin struct {
-	Name string   `@Ident { @"." @Ident } `
+	mu         sync.Mutex
+	split_name []string
+
+	Name string `@Ident { @"." @Ident } `
+
 	Call bool     `[ @"("`
 	Args []*_Args ` [ @@  { "," @@ } ] ")" ]`
 }
@@ -854,8 +858,9 @@ type _SymbolRef struct {
 	Called     bool        `{ @"(" `
 	Parameters []*_Args    ` [ @@ { "," @@ } ] ")" } `
 
-	mu       sync.Mutex
-	function FunctionInterface
+	mu           sync.Mutex
+	function     FunctionInterface
+	split_symbol []string
 }
 
 type _Value struct {
@@ -1026,10 +1031,11 @@ func (self *Plugin) resolveSymbol(
 			// if Foo is not found but not if Foo is found but Bar is not found
 			if idx == 0 {
 				if len(components) > 1 {
-					scope.Log("ERROR:While resolving %v Plugin %v not found. %s",
+					scope.Log("ERROR:While resolving %v Plugin %v not found. Current Scope is %s",
 						self.Name, components[0], scope.PrintVars())
 				} else {
-					scope.Log("ERROR:Plugin %v not found. %s", self.Name, scope.PrintVars())
+					scope.Log("ERROR:Plugin %v not found. Current Scope is %s",
+						self.Name, scope.PrintVars())
 				}
 			}
 
@@ -1044,7 +1050,14 @@ func (self *Plugin) resolveSymbol(
 
 func (self *Plugin) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 
-	components := utils.SplitIdent(self.Name)
+	self.mu.Lock()
+	components := self.split_name
+	if components == nil {
+		components = utils.SplitIdent(self.Name)
+		self.split_name = components
+	}
+	self.mu.Unlock()
+
 	symbol, pres := self.resolveSymbol(ctx, scope, components)
 	// Symbol not found! alert the caller.
 	if !pres {
@@ -1534,7 +1547,14 @@ func (self *_SymbolRef) IsAggregate(scope types.Scope) bool {
 }
 
 func (self *_SymbolRef) getFunction(scope types.Scope) (types.Any, bool) {
-	components := utils.SplitIdent(self.Symbol)
+
+	self.mu.Lock()
+	components := self.split_symbol
+	if components == nil {
+		components = utils.SplitIdent(self.Symbol)
+		self.split_symbol = components
+	}
+	self.mu.Unlock()
 
 	// Single item reference and called - call built in function.
 	if len(components) == 1 && self.Called {
@@ -1555,10 +1575,11 @@ func (self *_SymbolRef) getFunction(scope types.Scope) (types.Any, bool) {
 			// if Foo is not found but not if Foo is found but Bar is not found
 			if idx == 0 {
 				if len(components) > 1 {
-					scope.Log("ERROR:While resolving %v Symbol %v not found. %s",
+					scope.Log("ERROR:While resolving %v Symbol %v not found. Current Scope is %s",
 						self.Symbol, components[0], scope.PrintVars())
 				} else {
-					scope.Log("ERROR:Symbol %v not found. %s", self.Symbol, scope.PrintVars())
+					scope.Log("ERROR:Symbol %v not found. Current Scope is %s",
+						self.Symbol, scope.PrintVars())
 				}
 			}
 

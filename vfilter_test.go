@@ -29,7 +29,7 @@ type execTest struct {
 }
 
 var compareOptions = cmpopts.IgnoreUnexported(
-	_Value{}, _SymbolRef{}, _AliasedExpression{})
+	_Value{}, Plugin{}, _SymbolRef{}, _AliasedExpression{})
 
 var execTestsSerialization = []execTest{
 	{"1 or sleep(a=100)", true},

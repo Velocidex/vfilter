@@ -92,8 +92,9 @@ type Scope struct {
 	stack_depth int
 
 	// All children of this scope and a link to our parent.
-	children map[*Scope]*Scope
-	parent   *Scope
+	children               []*Scope
+	children_grabage_count int
+	parent                 *Scope
 
 	// If enabled we explain this scope and its children
 	enable_explainer bool
@@ -129,7 +130,6 @@ func (self *Scope) NewScope() types.Scope {
 			ordereddict.NewDict().
 				Set("NULL", types.Null{}),
 		},
-		children:   make(map[*Scope]*Scope),
 		dispatcher: self.dispatcher.Copy(),
 		throttler:  self.throttler,
 		id:         NextId(),
@@ -164,20 +164,37 @@ func (self *Scope) SetContext(name string, value types.Any) {
 	self.dispatcher.SetContextValue(name, value)
 }
 
-func (self *Scope) PrintVars() string {
+func (self *Scope) PrintVarsKeys() []string {
 	self.Lock()
 	defer self.Unlock()
 
+	return self._PrintVarsKeys()
+}
+
+func (self *Scope) _PrintVarsKeys() []string {
 	my_vars := []string{}
+
+	if self.parent != nil && self.parent != self {
+		my_vars = append(my_vars, self.parent.PrintVarsKeys()...)
+	}
+
 	for _, vars := range self.vars {
 		keys := []string{}
 		for _, k := range self.GetMembers(vars) {
 			keys = append(keys, k)
 		}
-
-		my_vars = append(my_vars, "["+strings.Join(keys, ", ")+"]")
+		if len(keys) > 0 {
+			my_vars = append(my_vars, "["+strings.Join(keys, ", ")+"]")
+		}
 	}
-	return fmt.Sprintf("Current Scope is: %s", strings.Join(my_vars, ", "))
+	return my_vars
+}
+
+func (self *Scope) PrintVars() string {
+	self.Lock()
+	defer self.Unlock()
+
+	return strings.Join(self._PrintVarsKeys(), ", ")
 }
 
 /*
@@ -314,19 +331,25 @@ func (self *Scope) Copy() types.Scope {
 
 	self.GetStats().IncScopeCopy()
 
-	// Fast make copy
-	var_copy := make([]types.Row, len(self.vars))
-	copy(var_copy, self.vars)
-
 	child_scope := &Scope{
 		dispatcher:       self.dispatcher,
-		vars:             var_copy,
 		stack_depth:      self.stack_depth + 1,
-		children:         make(map[*Scope]*Scope),
 		parent:           self,
 		enable_explainer: self.enable_explainer,
 		throttler:        self.throttler,
 		id:               NextId(),
+	}
+
+	// Compact the children list lazily
+	if self.children_grabage_count > 10 {
+		new_children := make([]*Scope, 0, len(self.children))
+		for _, c := range self.children {
+			if c != nil {
+				new_children = append(new_children, c)
+			}
+		}
+		self.children = new_children
+		self.children_grabage_count = 0
 	}
 
 	// Remember our children.
@@ -334,7 +357,7 @@ func (self *Scope) Copy() types.Scope {
 		fmt.Printf("Copying scope of %v children - this is probably a bug!!!\n%v\n",
 			len(self.children), string(debug.Stack()))
 	}
-	self.children[child_scope] = child_scope
+	self.children = append(self.children, child_scope)
 
 	return child_scope
 }
@@ -442,15 +465,14 @@ func (self *Scope) IsClosed() bool {
 // destructors may use the scope so we can not lock it for the
 // duration.
 func (self *Scope) Close() {
+	var children []*Scope
+
 	self.Lock()
 
 	// We need to call child.Close() without a lock since
 	// child.Close() will attempt to remove themselves from our
 	// own child list and will grab the lock.
-	children := make([]*Scope, 0, len(self.children))
-	for _, child := range self.children {
-		children = append(children, child)
-	}
+	children = append(children, self.children...)
 
 	parent := self.parent
 
@@ -469,13 +491,22 @@ func (self *Scope) Close() {
 	// This has to be done without a lock since the child needs to
 	// access us.
 	for _, child := range children {
-		child.Close()
+		if child != nil {
+			child.Close()
+		}
 	}
 
 	// Remove ourselves from our parent.
-	if parent != nil {
+	if parent != nil && parent != self {
 		parent.Lock()
-		delete(parent.children, self)
+
+		// Clear the child in the parent list and increment its garbage count
+		for idx, c := range parent.children {
+			if c != nil && self.id == c.id {
+				parent.children[idx] = nil
+				parent.children_grabage_count++
+			}
+		}
 		parent.Unlock()
 	}
 
@@ -504,7 +535,6 @@ func NewScope() *Scope {
 	dispatcher := newprotocolDispatcher()
 
 	result := &Scope{
-		children:   make(map[*Scope]*Scope),
 		dispatcher: dispatcher,
 		id:         NextId(),
 	}
@@ -605,6 +635,15 @@ func (self *Scope) _Resolve(field string) (interface{}, bool) {
 		}
 	}
 
+	// If we get here this scope does not contain the var, search the
+	// parent.
+	if self.parent != self && self.parent != nil {
+		res, pres := self.parent._Resolve(field)
+		if pres {
+			return res, true
+		}
+	}
+
 	return default_value, default_value != nil
 }
 
@@ -621,6 +660,13 @@ func (self _ScopeAssociative) GetMembers(
 	scope *Scope, a types.Any) []string {
 	seen := make(map[string]bool)
 	var result []string
+
+	if scope.parent != nil && scope.parent != scope {
+		for _, i := range self.GetMembers(scope.parent, a) {
+			seen[i] = true
+		}
+	}
+
 	a_scope, ok := a.(Scope)
 	if ok {
 		for _, vars := range scope.vars {
