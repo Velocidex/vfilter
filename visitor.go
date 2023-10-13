@@ -247,11 +247,10 @@ func (self *Visitor) Visit(node interface{}) {
 		self.visitStoredExpression(t)
 
 	case types.StringProtocol:
-		self.scope.Log("Unable to visit %T", node)
 		self.push(t.ToString(self.scope))
 
 	default:
-		self.scope.Log("Unable to visit %T", node)
+		self.scope.Log("FormatToString: Unable to visit %T", node)
 	}
 }
 

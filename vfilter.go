@@ -565,7 +565,7 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 					return
 				}
 				scope.Explainer().PluginOutput(
-					self.From.Plugin, row)
+					&self.From.Plugin, row)
 				self.processSingleRow(ctx, scope, row, output_chan)
 			}
 		}
