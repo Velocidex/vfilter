@@ -164,37 +164,19 @@ func (self *Scope) SetContext(name string, value types.Any) {
 	self.dispatcher.SetContextValue(name, value)
 }
 
-func (self *Scope) PrintVarsKeys() []string {
+func (self *Scope) PrintVars() string {
 	self.Lock()
 	defer self.Unlock()
 
-	return self._PrintVarsKeys()
-}
-
-func (self *Scope) _PrintVarsKeys() []string {
 	my_vars := []string{}
-
-	if self.parent != nil && self.parent != self {
-		my_vars = append(my_vars, self.parent.PrintVarsKeys()...)
-	}
-
 	for _, vars := range self.vars {
 		keys := []string{}
 		for _, k := range self.GetMembers(vars) {
 			keys = append(keys, k)
 		}
-		if len(keys) > 0 {
-			my_vars = append(my_vars, "["+strings.Join(keys, ", ")+"]")
-		}
+		my_vars = append(my_vars, "["+strings.Join(keys, ", ")+"]")
 	}
-	return my_vars
-}
-
-func (self *Scope) PrintVars() string {
-	self.Lock()
-	defer self.Unlock()
-
-	return strings.Join(self._PrintVarsKeys(), ", ")
+	return strings.Join(my_vars, ", ")
 }
 
 /*
@@ -331,8 +313,13 @@ func (self *Scope) Copy() types.Scope {
 
 	self.GetStats().IncScopeCopy()
 
+	// Fast make copy
+	var_copy := make([]types.Row, len(self.vars))
+	copy(var_copy, self.vars)
+
 	child_scope := &Scope{
 		dispatcher:       self.dispatcher,
+		vars:             var_copy,
 		stack_depth:      self.stack_depth + 1,
 		parent:           self,
 		enable_explainer: self.enable_explainer,
@@ -465,14 +452,12 @@ func (self *Scope) IsClosed() bool {
 // destructors may use the scope so we can not lock it for the
 // duration.
 func (self *Scope) Close() {
-	var children []*Scope
-
 	self.Lock()
 
 	// We need to call child.Close() without a lock since
 	// child.Close() will attempt to remove themselves from our
 	// own child list and will grab the lock.
-	children = append(children, self.children...)
+	children := append([]*Scope{}, self.children...)
 
 	parent := self.parent
 
@@ -603,8 +588,6 @@ func (self *Scope) Resolve(field string) (interface{}, bool) {
 	return self._Resolve(field)
 }
 
-// This function called under lock. We release the lock when calling
-// our parent.
 func (self *Scope) _Resolve(field string) (interface{}, bool) {
 
 	var default_value types.Any
@@ -637,17 +620,6 @@ func (self *Scope) _Resolve(field string) (interface{}, bool) {
 		}
 	}
 
-	// If we get here this scope does not contain the var, search the
-	// parent.
-	if self.parent != self && self.parent != nil {
-		self.Unlock()
-		res, pres := self.parent.Resolve(field)
-		self.Lock()
-		if pres {
-			return res, true
-		}
-	}
-
 	return default_value, default_value != nil
 }
 
@@ -664,12 +636,6 @@ func (self _ScopeAssociative) GetMembers(
 	scope *Scope, a types.Any) []string {
 	seen := make(map[string]bool)
 	var result []string
-
-	if scope.parent != nil && scope.parent != scope {
-		for _, i := range self.GetMembers(scope.parent, a) {
-			seen[i] = true
-		}
-	}
 
 	a_scope, ok := a.(Scope)
 	if ok {
