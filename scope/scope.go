@@ -603,6 +603,8 @@ func (self *Scope) Resolve(field string) (interface{}, bool) {
 	return self._Resolve(field)
 }
 
+// This function called under lock. We release the lock when calling
+// our parent.
 func (self *Scope) _Resolve(field string) (interface{}, bool) {
 
 	var default_value types.Any
@@ -638,7 +640,9 @@ func (self *Scope) _Resolve(field string) (interface{}, bool) {
 	// If we get here this scope does not contain the var, search the
 	// parent.
 	if self.parent != self && self.parent != nil {
-		res, pres := self.parent._Resolve(field)
+		self.Unlock()
+		res, pres := self.parent.Resolve(field)
+		self.Lock()
 		if pres {
 			return res, true
 		}

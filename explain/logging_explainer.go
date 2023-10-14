@@ -44,7 +44,7 @@ func (self *LoggingExplainer) PluginOutput(
 	node interface{}, row types.Row) {
 
 	name := ""
-	plugin, ok := node.(vfilter.Plugin)
+	plugin, ok := node.(*vfilter.Plugin)
 	if ok {
 		name = plugin.Name + "()"
 	}
