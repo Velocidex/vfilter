@@ -15,6 +15,7 @@ import (
 	"www.velocidex.com/golang/vfilter/scope"
 	"www.velocidex.com/golang/vfilter/types"
 	"www.velocidex.com/golang/vfilter/utils"
+	"www.velocidex.com/golang/vfilter/utils/dict"
 )
 
 type vqlTest struct {
@@ -264,7 +265,7 @@ func TestArgParsing(t *testing.T) {
 
 			for row := range vql.Eval(ctx, scope) {
 				output = append(output,
-					vfilter.RowToDict(ctx, scope, row))
+					dict.RowToDict(ctx, scope, row))
 			}
 
 			result.Set(fmt.Sprintf("%03d/%03d %s: %s", i, idx, testCase.name,

@@ -10,6 +10,7 @@ import (
 	"github.com/sebdah/goldie/v2"
 	"www.velocidex.com/golang/vfilter/arg_parser"
 	"www.velocidex.com/golang/vfilter/types"
+	"www.velocidex.com/golang/vfilter/utils/dict"
 )
 
 var (
@@ -158,7 +159,7 @@ func TestLazy(t *testing.T) {
 		for _, vql := range multi_vql {
 			ctx := context.Background()
 			for row := range vql.Eval(ctx, scope) {
-				output = append(output, RowToDict(ctx, scope, row))
+				output = append(output, dict.RowToDict(ctx, scope, row))
 			}
 			query += FormatToString(scope, vql)
 		}

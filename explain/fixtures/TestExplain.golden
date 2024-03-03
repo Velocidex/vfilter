@@ -9,7 +9,7 @@
       "'A'": "A"
     },
     "DEBUG:Explain start query: EXPLAIN SELECT 'A' FROM range(end=1)\n",
-    "DEBUG:  arg parsing: \u0026plugins.RangePluginArgs{End: 1, }\n",
+    "DEBUG:  arg parsing: \u0026plugins.RangePluginArgs{End: 1}\n",
     "DEBUG: plugin range() sent row: [{int64 _value 0}]\n",
     "DEBUG: SELECT: emitting row: [{string 'A' A}]\n"
   ],
@@ -18,7 +18,7 @@
       "_value": 2
     },
     "DEBUG:Explain start query: EXPLAIN SELECT * FROM range(end=10) WHERE _value = 2\n",
-    "DEBUG:  arg parsing: \u0026plugins.RangePluginArgs{End: 10, }\n",
+    "DEBUG:  arg parsing: \u0026plugins.RangePluginArgs{End: 10}\n",
     "DEBUG: plugin range() sent row: [{int64 _value 0}]\n",
     "DEBUG: REJECTED by _value = 2\n",
     "DEBUG: plugin range() sent row: [{int64 _value 1}]\n",

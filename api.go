@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"www.velocidex.com/golang/vfilter/types"
+	"www.velocidex.com/golang/vfilter/utils/dict"
 )
 
 // A response from VQL queries.
@@ -91,7 +92,7 @@ func GetResponseChannel(
 						time.Second)
 				}
 
-				value := RowToDict(ctx, scope, row)
+				value := dict.RowToDict(ctx, scope, row)
 				rows = append(rows, value)
 			}
 		}
@@ -110,7 +111,7 @@ func OutputJSON(
 	result := []Row{}
 
 	for row := range output_chan {
-		value := RowToDict(ctx, scope, row)
+		value := dict.RowToDict(ctx, scope, row)
 		result = append(result, value)
 
 		// Throttle if needed.

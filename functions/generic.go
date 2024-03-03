@@ -26,8 +26,8 @@ type GenericFunction struct {
 	FunctionName string
 	Doc          string
 	Function     GenericFunctionInterface
-
-	ArgType types.Any
+	Metadata     *ordereddict.Dict
+	ArgType      types.Any
 }
 
 func (self GenericFunction) Copy() types.FunctionInterface {
@@ -44,8 +44,9 @@ func (self GenericFunction) Call(
 
 func (self GenericFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
 	result := &types.FunctionInfo{
-		Name: self.FunctionName,
-		Doc:  self.Doc,
+		Name:     self.FunctionName,
+		Doc:      self.Doc,
+		Metadata: self.Metadata,
 	}
 
 	if self.ArgType != nil {

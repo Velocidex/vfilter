@@ -13,6 +13,7 @@ import (
 	"www.velocidex.com/golang/vfilter/arg_parser"
 	"www.velocidex.com/golang/vfilter/functions"
 	"www.velocidex.com/golang/vfilter/types"
+	"www.velocidex.com/golang/vfilter/utils/dict"
 )
 
 var (
@@ -201,7 +202,7 @@ func TestDestructors(t *testing.T) {
 			ctx := context.Background()
 			var output []types.Row
 			for row := range vql.Eval(ctx, scope) {
-				output = append(output, vfilter.RowToDict(ctx, scope, row))
+				output = append(output, dict.RowToDict(ctx, scope, row))
 			}
 			query += vfilter.FormatToString(scope, vql)
 		}

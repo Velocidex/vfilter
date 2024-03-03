@@ -11,6 +11,7 @@ import (
 	errors "github.com/pkg/errors"
 	"www.velocidex.com/golang/vfilter/types"
 	"www.velocidex.com/golang/vfilter/utils"
+	"www.velocidex.com/golang/vfilter/utils/dict"
 )
 
 type tmpTypes struct {
@@ -155,6 +156,29 @@ func sliceAnyParser(ctx context.Context, scope types.Scope,
 		return new_value, nil
 	}
 	return []interface{}{}, nil
+}
+
+func sliceDictParser(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, arg interface{}) (interface{}, error) {
+	lazy_arg, ok := arg.(types.LazyExpr)
+	if ok {
+		arg = lazy_arg.Reduce(ctx)
+	}
+
+	new_value, pres := _ExtractAnyArray(ctx, scope, arg)
+	if !pres {
+		return []interface{}{}, nil
+	}
+
+	result := []*ordereddict.Dict{}
+	for i := 0; i < len(new_value); i++ {
+		item := new_value[i]
+		if !utils.IsNil(item) {
+			result = append(result, dict.RowToDict(ctx, scope, item))
+		}
+	}
+
+	return result, nil
 }
 
 func stringParser(ctx context.Context, scope types.Scope,
@@ -366,6 +390,8 @@ func BuildParser(v reflect.Value) (*Parser, error) {
 			// Currently only support slice of string and slice of any
 			if target_type == anyType {
 				field_parser.Parser = sliceAnyParser
+			} else if target_type == dictExprType {
+				field_parser.Parser = sliceDictParser
 			} else if target_type.Kind() == reflect.String {
 				field_parser.Parser = sliceParser
 			} else {
