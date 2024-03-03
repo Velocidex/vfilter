@@ -1,12 +1,15 @@
 package vfilter
 
 import (
+	"context"
+
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/arg_parser"
 	"www.velocidex.com/golang/vfilter/functions"
 	"www.velocidex.com/golang/vfilter/plugins"
 	"www.velocidex.com/golang/vfilter/scope"
 	"www.velocidex.com/golang/vfilter/types"
+	"www.velocidex.com/golang/vfilter/utils/dict"
 )
 
 // Aliases to public types.
@@ -39,4 +42,10 @@ func NewScope() types.Scope {
 
 func ExtractArgs(scope types.Scope, args *ordereddict.Dict, value interface{}) error {
 	return arg_parser.ExtractArgs(scope, args, value)
+}
+
+func RowToDict(
+	ctx context.Context,
+	scope types.Scope, row types.Row) *ordereddict.Dict {
+	return dict.RowToDict(ctx, scope, row)
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/sebdah/goldie/v2"
 	"www.velocidex.com/golang/vfilter"
 	"www.velocidex.com/golang/vfilter/types"
+	"www.velocidex.com/golang/vfilter/utils/dict"
 )
 
 type CapturingLogger struct {
@@ -52,7 +53,7 @@ func TestExplain(t *testing.T) {
 		for idx, vql := range multi_vql {
 			var output []vfilter.Row
 			for row := range vql.Eval(ctx, scope) {
-				output = append(output, vfilter.RowToDict(ctx, scope, row))
+				output = append(output, dict.RowToDict(ctx, scope, row))
 			}
 			for _, row := range logger.rows {
 				output = append(output, row)

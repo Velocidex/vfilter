@@ -10,6 +10,7 @@ import (
 	"www.velocidex.com/golang/vfilter"
 	"www.velocidex.com/golang/vfilter/scope"
 	"www.velocidex.com/golang/vfilter/types"
+	"www.velocidex.com/golang/vfilter/utils/dict"
 )
 
 func makeScope() vfilter.Scope {
@@ -33,7 +34,7 @@ func runBenchmark(b *testing.B, query string) {
 		var output []types.Row
 
 		for row := range vql.Eval(ctx, scope) {
-			output = append(output, vfilter.RowToDict(ctx, scope, row))
+			output = append(output, dict.RowToDict(ctx, scope, row))
 		}
 
 		result.Set(fmt.Sprintf("%03d %s: %s", idx, query,
