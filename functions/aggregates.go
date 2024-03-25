@@ -221,6 +221,10 @@ func (self _MaxFunction) Call(
 	return max_value
 }
 
+type _EnumeateFunctionArgs struct {
+	Items types.Any `vfilter:"optional,field=items,doc=The items to enumerate"`
+}
+
 type _EnumerateFunction struct {
 	Aggregator
 }
@@ -229,7 +233,7 @@ func (self _EnumerateFunction) Info(scope types.Scope, type_map *types.TypeMap) 
 	return &types.FunctionInfo{
 		Name:        "enumerate",
 		Doc:         "Collect all the items in each group by bin.",
-		ArgType:     type_map.AddType(scope, _CountFunctionArgs{}),
+		ArgType:     type_map.AddType(scope, _EnumeateFunctionArgs{}),
 		IsAggregate: true,
 	}
 }
@@ -238,7 +242,7 @@ func (self _EnumerateFunction) Call(
 	ctx context.Context,
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
-	arg := &_CountFunctionArgs{}
+	arg := &_EnumeateFunctionArgs{}
 	err := arg_parser.ExtractArgs(scope, args, arg)
 	if err != nil {
 		scope.Log("enumerate: %s", err.Error())

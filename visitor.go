@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"www.velocidex.com/golang/vfilter/arg_parser"
 	"www.velocidex.com/golang/vfilter/types"
 )
 
@@ -248,6 +249,12 @@ func (self *Visitor) Visit(node interface{}) {
 
 	case types.StringProtocol:
 		self.push(t.ToString(self.scope))
+
+	case *arg_parser.StoredQueryWrapperLazyExpression:
+		self.Visit(t.Delegate())
+
+	case *arg_parser.LazyExpressionWrapper:
+		self.Visit(t.Delegate())
 
 	default:
 		self.scope.Log("FormatToString: Unable to visit %T", node)

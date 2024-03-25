@@ -218,35 +218,43 @@ func ToLazyExpr(scope types.Scope, arg types.Any) types.LazyExpr {
 		return t
 
 	case types.StoredQuery:
-		return &storedQueryWrapperLazyExpression{query: t}
+		return &StoredQueryWrapperLazyExpression{query: t}
 	default:
-		return &lazyExpressionWrapper{arg}
+		return &LazyExpressionWrapper{arg}
 	}
 }
 
 // Wrap a Stored Query with a LazyExpr interface. Callers will receive
 // the Stored Query when reducing us.
-type storedQueryWrapperLazyExpression struct {
+type StoredQueryWrapperLazyExpression struct {
 	query types.StoredQuery
 }
 
-func (self *storedQueryWrapperLazyExpression) ReduceWithScope(
+func (self *StoredQueryWrapperLazyExpression) Delegate() types.StoredQuery {
+	return self.query
+}
+
+func (self *StoredQueryWrapperLazyExpression) ReduceWithScope(
 	ctx context.Context, scope types.Scope) types.Any {
 	return scope.Materialize(ctx, "", self.query)
 }
 
-func (self *storedQueryWrapperLazyExpression) Reduce(ctx context.Context) types.Any {
+func (self *StoredQueryWrapperLazyExpression) Reduce(ctx context.Context) types.Any {
 	return self.query
 }
 
-type lazyExpressionWrapper struct {
+type LazyExpressionWrapper struct {
 	value types.Any
 }
 
-func (self *lazyExpressionWrapper) ReduceWithScope(ctx context.Context, scope types.Scope) types.Any {
+func (self *LazyExpressionWrapper) Delegate() types.Any {
 	return self.value
 }
 
-func (self *lazyExpressionWrapper) Reduce(ctx context.Context) types.Any {
+func (self *LazyExpressionWrapper) ReduceWithScope(ctx context.Context, scope types.Scope) types.Any {
+	return self.value
+}
+
+func (self *LazyExpressionWrapper) Reduce(ctx context.Context) types.Any {
 	return self.value
 }
