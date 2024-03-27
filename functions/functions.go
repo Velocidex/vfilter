@@ -16,6 +16,7 @@ import (
 	"golang.org/x/text/transform"
 	"www.velocidex.com/golang/vfilter/arg_parser"
 	"www.velocidex.com/golang/vfilter/types"
+	"www.velocidex.com/golang/vfilter/utils/dict"
 )
 
 // A helper function to build a dict within the query.
@@ -30,17 +31,7 @@ func (self _DictFunc) Info(scope types.Scope, type_map *types.TypeMap) *types.Fu
 }
 
 func (self _DictFunc) Call(ctx context.Context, scope types.Scope, args *ordereddict.Dict) types.Any {
-	result := ordereddict.NewDict()
-	for _, k := range scope.GetMembers(args) {
-		v, _ := args.Get(k)
-		lazy_arg, ok := v.(types.LazyExpr)
-		if ok {
-			result.Set(k, lazy_arg.Reduce(ctx))
-		} else {
-			result.Set(k, v)
-		}
-	}
-	return result
+	return dict.RowToDict(ctx, scope, args)
 }
 
 type _TimestampArg struct {
