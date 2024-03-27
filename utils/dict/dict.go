@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 	"time"
 
 	"github.com/Velocidex/ordereddict"
@@ -103,6 +104,7 @@ func normalize_value(ctx context.Context,
 			}
 			return result
 
+			// Map keys are random so they lead to unstable output
 		} else if a_type.Kind() == reflect.Map {
 			result := ordereddict.NewDict()
 			for _, key := range a_value.MapKeys() {
@@ -113,7 +115,17 @@ func normalize_value(ctx context.Context,
 						depth+1))
 				}
 			}
-			return result
+
+			// Sort the output to make keys stable
+			stable_dict := ordereddict.NewDict()
+			keys := result.Keys()
+			sort.Strings(keys)
+			for _, k := range keys {
+				v, _ := result.Get(k)
+				stable_dict.Set(k, v)
+			}
+
+			return stable_dict
 		}
 
 		return value
