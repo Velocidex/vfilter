@@ -18,6 +18,7 @@ package functions
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	"github.com/Velocidex/ordereddict"
@@ -35,21 +36,40 @@ var (
 // store their state in the scope context so they can retrieve it next
 // time they are evaluated.
 type Aggregator struct {
+	mu sync.Mutex
 	id string
+
+	// Cache the aggregator context since it does not really change
+	// for the life of this query.
+	ag_context *ordereddict.Dict
 }
 
-func (self Aggregator) GetContext(scope types.Scope) (types.Any, bool) {
-	return scope.GetContext(self.id)
+func (self *Aggregator) GetContext(scope types.Scope) (types.Any, bool) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	if self.ag_context == nil {
+		self.ag_context = getAgContext(scope)
+	}
+
+	return self.ag_context.Get(self.id)
 }
 
-func (self Aggregator) SetContext(scope types.Scope, value types.Any) {
-	scope.SetContext(self.id, value)
+func (self *Aggregator) SetContext(scope types.Scope, value types.Any) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	if self.ag_context == nil {
+		self.ag_context = getAgContext(scope)
+	}
+
+	self.ag_context.Set(self.id, value)
 }
 
 // Sets a new aggregator if possible
 func (self *Aggregator) SetNewAggregator() {
 	new_id := atomic.AddUint64(&id, 1)
-	self.id = fmt.Sprintf("__aggr_id_%v", new_id)
+	self.id = fmt.Sprintf("id_%v", new_id)
 }
 
 type AggregatorInterface interface {
@@ -263,4 +283,19 @@ func (self _EnumerateFunction) Call(
 	self.SetContext(scope, value)
 
 	return value
+}
+
+func getAgContext(scope types.Scope) *ordereddict.Dict {
+	ag_context_any, pres := scope.GetContext(types.AGGREGATOR_CONTEXT_TAG)
+	if !pres {
+		ag_context_any = ordereddict.NewDict()
+		scope.SetContext(types.AGGREGATOR_CONTEXT_TAG, ag_context_any)
+	}
+
+	ag_context, ok := ag_context_any.(*ordereddict.Dict)
+	if !ok {
+		ag_context = ordereddict.NewDict()
+		scope.SetContext(types.AGGREGATOR_CONTEXT_TAG, ag_context_any)
+	}
+	return ag_context
 }

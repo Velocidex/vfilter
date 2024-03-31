@@ -76,8 +76,12 @@ func (self *_StoredQuery) Info(scope types.Scope, type_map *TypeMap) *PluginInfo
 func (self *_StoredQuery) Call(ctx context.Context,
 	scope types.Scope, args *ordereddict.Dict) <-chan Row {
 
+	// When running a stored query, we need to use a brand new scope
+	// with its own aggregator context to make sure that aggregate
+	// functions inside the stored query start fresh.
 	sub_scope := scope.Copy()
-	sub_scope.ClearContext()
+	sub_scope.SetContext(
+		types.AGGREGATOR_CONTEXT_TAG, ordereddict.NewDict())
 	defer sub_scope.Close()
 
 	self.checkCallingArgs(sub_scope, args)

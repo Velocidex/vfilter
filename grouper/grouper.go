@@ -58,10 +58,11 @@ func (self *DefaultGrouper) Group(
 				aggregate_ctx = aggregate_ctx_any.(*AggregateContext)
 			}
 
-			// The transform function receives its
-			// own unique context for the specific
-			// aggregate group.
-			new_scope.SetContextDict(aggregate_ctx.context)
+			// The transform function receives its own unique context
+			// for the specific aggregate group.
+			new_scope.SetContext(
+				types.AGGREGATOR_CONTEXT_TAG,
+				aggregate_ctx.context)
 
 			// Update the row with the transformed
 			// columns. Note we must materialize these

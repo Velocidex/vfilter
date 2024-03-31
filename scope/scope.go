@@ -63,21 +63,22 @@ func (self *_destructors) RemoveDestructors() []func() {
 	return result
 }
 
-/* The scope is a common environment passed to all plugins, functions
-   and operators.
+/*
+The scope is a common environment passed to all plugins, functions and
+operators.
 
-   The scope contains all the client specific code which velocifilter
-   will use to actually execute the query. For example, clients may
-   add new plugins (See PluginGeneratorInterface{}), functions (see
-   FunctionInterface{}) or various protocol implementations to the
-   scope prior to evaluating any queries. This is the main mechanism
-   where clients may extend and specialize the VQL language.
+The scope contains all the client specific code which velocifilter
+will use to actually execute the query. For example, clients may add
+new plugins (See PluginGeneratorInterface{}), functions (see
+FunctionInterface{}) or various protocol implementations to the scope
+prior to evaluating any queries. This is the main mechanism where
+clients may extend and specialize the VQL language.
 
-   The scope also contains convenience functions allowing clients to
-   execute available protocols.
+The scope also contains convenience functions allowing clients to
+execute available protocols.
 
-   The scope may be populated with free variables that can be
-   referenced by the query.
+The scope may be populated with free variables that can be referenced
+by the query.
 */
 type Scope struct {
 	sync.Mutex
@@ -664,11 +665,6 @@ func (self _ScopeAssociative) Associative(
 		return nil, false
 	}
 	return a_scope.Resolve(b_str)
-}
-
-// Should only be used by groupers to replace the group context at once
-func (self *Scope) SetContextDict(context *ordereddict.Dict) {
-	self.dispatcher.SetContext(context)
 }
 
 func NextId() uint64 {
