@@ -1,5 +1,4 @@
 /*
-
 The veloci-filter (vfilter) library implements a generic SQL like
 query language.
 
@@ -87,10 +86,10 @@ implementing a registration systen in the Scope{} object.
 For example, consider a client of the library wishing to pass custom
 types in queries:
 
-  type Foo struct {
-     ...
-     bar Bar
-  }
+	type Foo struct {
+	   ...
+	   bar Bar
+	}
 
 Where both Foo and Bar are defined and produced by some other library
 which our client uses. Suppose our client wishes to allow addition of
@@ -103,28 +102,26 @@ not maintainable for heavily nested complex structs). We define a
 FooAdder{} object which implements the Addition protocol on behalf of
 the Foo object.
 
-  // This is an object which implements addition between two Foo objects.
-  type FooAdder struct{}
+	  // This is an object which implements addition between two Foo objects.
+	  type FooAdder struct{}
 
-  // This method will be run to see if this implementation is
-  // applicable. We only want to run when we add two Foo objects together.
-  func (self FooAdder) Applicable(a Any, b Any) bool {
-	_, a_ok := a.(Foo)
-	_, b_ok := b.(Foo)
-	return a_ok && b_ok
-  }
+	  // This method will be run to see if this implementation is
+	  // applicable. We only want to run when we add two Foo objects together.
+	  func (self FooAdder) Applicable(a Any, b Any) bool {
+		_, a_ok := a.(Foo)
+		_, b_ok := b.(Foo)
+		return a_ok && b_ok
+	  }
 
-  // Actually implement the addition between two Foo objects.
-  func (self FooAdder) Add(scope types.Scope, a Any, b Any) Any {
-    ... return new object (does not have to be Foo{}).
-  }
+	  // Actually implement the addition between two Foo objects.
+	  func (self FooAdder) Add(scope types.Scope, a Any, b Any) Any {
+	    ... return new object (does not have to be Foo{}).
+	  }
 
 Now clients can add this protocol to the scope before evaluating a
 query:
 
 scope := NewScope().AddProtocolImpl(FooAdder{})
-
-
 */
 package vfilter
 
@@ -1634,11 +1631,12 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 			if self.Parameters != nil {
 
 				// When running a stored query as a function we need
-				// to use a brand new scope with its own context to
-				// make sure that aggregate functions inside the
-				// stored query start fresh.
+				// to use a brand new scope with its own aggregator
+				// context to make sure that aggregate functions
+				// inside the stored query start fresh.
 				subscope := scope.Copy()
-				subscope.ClearContext()
+				subscope.SetContext(
+					types.AGGREGATOR_CONTEXT_TAG, ordereddict.NewDict())
 				defer subscope.Close()
 
 				if subscope.CheckForOverflow() {

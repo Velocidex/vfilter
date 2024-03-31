@@ -4,8 +4,11 @@ import (
 	"context"
 	"log"
 	"runtime"
+)
 
-	"github.com/Velocidex/ordereddict"
+// Aggregator functions maintain their context in this tag
+const (
+	AGGREGATOR_CONTEXT_TAG = "__ag"
 )
 
 // A ScopeMaterializer handles VQL Let Materialize operators (<=). The
@@ -29,12 +32,15 @@ type Scope interface {
 	// Copy the scope and create a subscope child.
 	Copy() Scope
 
-	// The scope context is a global k/v store
+	// The scope context is a global k/v store. It is inherited into
+	// subscopes so should be used to store global data. It is not
+	// accessible from VQL itself.
 	GetContext(name string) (Any, bool)
 	SetContext(name string, value Any)
 
-	// Replace the entire context dict.
-	SetContextDict(context *ordereddict.Dict)
+	// DEPRECATED: This should not really be used as it trashes
+	// everything in the context. It is only used when making an
+	// entirely new scope.
 	ClearContext()
 
 	// Extract debug string about the current scope state.
