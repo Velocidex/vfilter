@@ -13,6 +13,32 @@
 // aggregates to use a different scope context, therefore the result
 // will be the sum over each group.
 
+// There are several parts to aggregate support:
+
+//  1. Each aggregate function instance in the AST carries a unique
+//     ID. This allows the function to store its own state in the
+//     aggregate context without interference from other instances of
+//     the same function (e.g. having two count() instaces is OK)
+
+//  2. The scope may contain a reference to an AggregatorCtx
+//     object. This object manages access to the aggregate
+//     context. The main method that should be used is Modify() which
+//     mofidies the context under lock.
+
+//  3. When the scope spawns a child scope, the child scope does not
+//     have its own AggregatorCtx, instead chasing its parent to find
+//     one. This allows aggregate functions within the scope to see
+//     the wider AggregatorCtx which controls the entire query clause.
+
+//  4. When the query runs in an isolated context, the AggregatorCtx
+//     is recreated at the calling scope. This allows isolated scopes
+//     to reset the AggregatorCtx. For example, when calling a LET
+//     defined function, a new context is created.
+
+//  5. If a GROUP BY query, the Grouper will create a new
+//     AggregatorCtx for each bin. This allows aggregate functions to
+//     apply on each group separately.
+
 package functions
 
 import (

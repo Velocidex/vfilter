@@ -327,7 +327,7 @@
     {
       "Y1": 6,
       "Y2": 7,
-      "Y3": 8
+      "Y3": 6
     }
   ],
   "025/000 Overflow condition - should not get stuck: LET X = 1 + X": null,
@@ -1160,42 +1160,51 @@
       }
     }
   ],
-  "082/000 Foreach query with multiple count(): SELECT * FROM foreach(row={ SELECT count() AS RowCount FROM range(start=1, end=3) }, query={ SELECT RowCount, count() AS QueryCount FROM range(start=1, step=1, end=3) })": [
+  "082/000 Foreach query with multiple count(): SELECT * FROM foreach(row={ SELECT count() AS RowCount FROM range(start=1, end=3) }, query={ SELECT RowCount, count() AS QueryCount, count() AS SecondQueryCount FROM range(start=1, step=1, end=3) })": [
     {
       "RowCount": 1,
-      "QueryCount": 1
-    },
-    {
-      "RowCount": 1,
-      "QueryCount": 2
+      "QueryCount": 1,
+      "SecondQueryCount": 1
     },
     {
       "RowCount": 1,
-      "QueryCount": 3
+      "QueryCount": 2,
+      "SecondQueryCount": 2
+    },
+    {
+      "RowCount": 1,
+      "QueryCount": 3,
+      "SecondQueryCount": 3
     },
     {
       "RowCount": 2,
-      "QueryCount": 4
+      "QueryCount": 4,
+      "SecondQueryCount": 4
     },
     {
       "RowCount": 2,
-      "QueryCount": 5
+      "QueryCount": 5,
+      "SecondQueryCount": 5
     },
     {
       "RowCount": 2,
-      "QueryCount": 6
+      "QueryCount": 6,
+      "SecondQueryCount": 6
     },
     {
       "RowCount": 3,
-      "QueryCount": 7
+      "QueryCount": 7,
+      "SecondQueryCount": 7
     },
     {
       "RowCount": 3,
-      "QueryCount": 8
+      "QueryCount": 8,
+      "SecondQueryCount": 8
     },
     {
       "RowCount": 3,
-      "QueryCount": 9
+      "QueryCount": 9,
+      "SecondQueryCount": 9
     }
   ],
   "083/000 Calling stored query with aggregators: LET Counter(Start) = SELECT count() AS Count, Start FROM range(start=1, step=1, end=3)": null,
@@ -1235,6 +1244,56 @@
     {
       "Count": 3,
       "Start": 3
+    }
+  ],
+  "084/000 Aggregate function in a parameter resets stat: LET Counter(Start) = SELECT count() AS Count, Start FROM range(start=1, step=1, end=3)": null,
+  "084/001 Aggregate function in a parameter resets stat: LET CountFunc(Start) = dict(A=count(), B=Start)": null,
+  "084/002 Aggregate function in a parameter resets stat: SELECT set_env(column=\"Eval\", value=Counter(Start=\"First Call\")), set_env(column=\"Eval2\", value=Counter(Start=\"Second Call\")), set_env(column=\"Eval3\", value=CountFunc(Start=\"First Func Call\")), set_env(column=\"Eval4\", value=CountFunc(Start=\"Second Func Call\")) FROM scope()": [
+    {
+      "set_env(column=\"Eval\", value=Counter(Start=\"First Call\"))": true,
+      "set_env(column=\"Eval2\", value=Counter(Start=\"Second Call\"))": true,
+      "set_env(column=\"Eval3\", value=CountFunc(Start=\"First Func Call\"))": true,
+      "set_env(column=\"Eval4\", value=CountFunc(Start=\"Second Func Call\"))": true
+    }
+  ],
+  "084/003 Aggregate function in a parameter resets stat: SELECT RootEnv.Eval AS FirstCall, RootEnv.Eval2 AS SecondCall, RootEnv.Eval3 AS FirstFuncCall, RootEnv.Eval4 AS SecondFuncCall FROM scope()": [
+    {
+      "FirstCall": [
+        {
+          "Count": 1,
+          "Start": "First Call"
+        },
+        {
+          "Count": 2,
+          "Start": "First Call"
+        },
+        {
+          "Count": 3,
+          "Start": "First Call"
+        }
+      ],
+      "SecondCall": [
+        {
+          "Count": 1,
+          "Start": "Second Call"
+        },
+        {
+          "Count": 2,
+          "Start": "Second Call"
+        },
+        {
+          "Count": 3,
+          "Start": "Second Call"
+        }
+      ],
+      "FirstFuncCall": {
+        "A": 1,
+        "B": "First Func Call"
+      },
+      "SecondFuncCall": {
+        "A": 1,
+        "B": "Second Func Call"
+      }
     }
   ]
 }

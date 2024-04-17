@@ -1610,6 +1610,11 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 		// it.
 		case *StoredExpression:
 			subscope := scope.Copy()
+
+			// Only create a new context for called functions.
+			if self.Called {
+				subscope.SetAggregatorCtx(nil)
+			}
 			defer subscope.Close()
 
 			if subscope.CheckForOverflow() {
