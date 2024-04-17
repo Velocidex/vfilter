@@ -45,7 +45,7 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 
 		// Create a worker pool to run the subquery in.
 		if arg.Workers > 1 {
-			scope.Log("Creating %v workers for foreach plugin\n", arg.Workers)
+			scope.Log("DEBUG:Creating %v workers for foreach plugin\n", arg.Workers)
 		}
 		pool := newWorkerPool(ctx, arg.Query, output_chan, int(arg.Workers))
 		defer pool.Close()

@@ -84,7 +84,7 @@ type _CountFunction struct {
 	Aggregator
 }
 
-func (self _CountFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
+func (self *_CountFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
 	return &types.FunctionInfo{
 		Name:        "count",
 		Doc:         "Counts the items.",
@@ -93,7 +93,7 @@ func (self _CountFunction) Info(scope types.Scope, type_map *types.TypeMap) *typ
 	}
 }
 
-func (self _CountFunction) Call(
+func (self *_CountFunction) Call(
 	ctx context.Context,
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
@@ -138,7 +138,7 @@ func (self _SumFunction) Info(scope types.Scope, type_map *types.TypeMap) *types
 	}
 }
 
-func (self _SumFunction) Call(
+func (self *_SumFunction) Call(
 	ctx context.Context,
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
@@ -183,7 +183,7 @@ func (self _MinFunction) Info(scope types.Scope, type_map *types.TypeMap) *types
 	}
 }
 
-func (self _MinFunction) Call(
+func (self *_MinFunction) Call(
 	ctx context.Context,
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
@@ -219,7 +219,7 @@ func (self _MaxFunction) Info(scope types.Scope, type_map *types.TypeMap) *types
 	}
 }
 
-func (self _MaxFunction) Call(
+func (self *_MaxFunction) Call(
 	ctx context.Context,
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
@@ -258,7 +258,7 @@ func (self _EnumerateFunction) Info(scope types.Scope, type_map *types.TypeMap) 
 	}
 }
 
-func (self _EnumerateFunction) Call(
+func (self *_EnumerateFunction) Call(
 	ctx context.Context,
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {

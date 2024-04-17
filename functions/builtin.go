@@ -11,11 +11,14 @@ func GetBuiltinFunctions() []types.FunctionInterface {
 		FormatFunction{},
 		_GetFunction{},
 		_EncodeFunction{},
-		_CountFunction{},
-		_SumFunction{},
-		_MinFunction{},
-		_MaxFunction{},
-		_EnumerateFunction{},
+
+		// Aggregate functions must not be implicitly copied. They are
+		// copied deliberately using vfilter.CopyFunction()
+		&_CountFunction{},
+		&_SumFunction{},
+		&_MinFunction{},
+		&_MaxFunction{},
+		&_EnumerateFunction{},
 		FormatFunction{},
 		LenFunction{},
 	}
