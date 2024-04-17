@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Velocidex/ordereddict"
+	"www.velocidex.com/golang/vfilter/aggregators"
 	"www.velocidex.com/golang/vfilter/functions"
 	"www.velocidex.com/golang/vfilter/materializer"
 	"www.velocidex.com/golang/vfilter/plugins"
@@ -90,6 +91,8 @@ type Scope struct {
 	// make scope copy very cheap.
 	dispatcher *protocolDispatcher
 
+	ag_context types.AggregatorCtx
+
 	stack_depth int
 
 	// All children of this scope and a link to our parent.
@@ -110,6 +113,32 @@ type Scope struct {
 
 func (self *Scope) SetLogger(logger *log.Logger) {
 	self.dispatcher.Logger = logger
+}
+
+func (self *Scope) SetAggregatorCtx(ctx types.AggregatorCtx) {
+	self.Lock()
+	defer self.Unlock()
+
+	if ctx == nil {
+		ctx = aggregators.NewAggregatorCtx()
+	}
+
+	self.ag_context = ctx
+}
+
+// Get the aggregator context from the scope or one of its parents.
+func (self *Scope) GetAggregatorCtx() types.AggregatorCtx {
+	self.Lock()
+	defer self.Unlock()
+
+	if self.ag_context == nil {
+		if self.parent != nil {
+			return self.parent.GetAggregatorCtx()
+		}
+		self.ag_context = aggregators.NewAggregatorCtx()
+	}
+
+	return self.ag_context
 }
 
 func (self *Scope) SetTracer(logger *log.Logger) {
@@ -133,6 +162,7 @@ func (self *Scope) NewScope() types.Scope {
 		},
 		dispatcher: self.dispatcher.Copy(),
 		throttler:  self.throttler,
+		ag_context: NewAggregatorCtx(),
 		id:         NextId(),
 	}
 
@@ -325,6 +355,7 @@ func (self *Scope) Copy() types.Scope {
 		parent:           self,
 		enable_explainer: self.enable_explainer,
 		throttler:        self.throttler,
+		ag_context:       nil, //  Search for context in our parent.
 		id:               NextId(),
 	}
 
@@ -522,6 +553,7 @@ func NewScope() *Scope {
 
 	result := &Scope{
 		dispatcher: dispatcher,
+		ag_context: NewAggregatorCtx(),
 		id:         NextId(),
 	}
 

@@ -39,10 +39,10 @@
   ],
   "009 Multiple functions: SELECT destructor(name='one'), destructor(name='two'), destructor(name='three') FROM scope() - markers": [
     "Func Open one 1",
-    "Func Open two 1",
-    "Func Open three 1",
-    "Func Close three 1",
-    "Func Close two 1",
+    "Func Open two 2",
+    "Func Open three 3",
+    "Func Close three 3",
+    "Func Close two 2",
     "Func Close one 1"
   ]
 }

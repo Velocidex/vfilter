@@ -13,7 +13,6 @@ import (
 type GroupbyActor struct {
 	delegate   *_Select
 	row_source <-chan types.Row
-	scope      types.Scope
 }
 
 func (self *GroupbyActor) Transform(ctx context.Context,
@@ -26,22 +25,17 @@ func (self *GroupbyActor) GetNextRow(ctx context.Context, scope types.Scope) (
 	types.LazyRow, types.Row, string, types.Scope, error) {
 
 	for row := range self.row_source {
-		// Create a new scope over which we can evaluate the filter
-		// clause.
-		new_scope := self.scope.Copy()
-		defer new_scope.Close()
-
 		transformed_row, closer := self.delegate.SelectExpression.Transform(
-			ctx, new_scope, row)
+			ctx, scope, row)
 		defer closer()
 
 		// Order matters - transformed row (from column specifiers)
 		// may mask original row (from plugin).
-		new_scope.AppendVars(row)
-		new_scope.AppendVars(transformed_row)
+		scope.AppendVars(row)
+		scope.AppendVars(transformed_row)
 
 		if self.delegate.Where != nil {
-			expression := self.delegate.Where.Reduce(ctx, new_scope)
+			expression := self.delegate.Where.Reduce(ctx, scope)
 
 			// If the filtered expression returns a bool false, then
 			// skip the row.
@@ -53,11 +47,11 @@ func (self *GroupbyActor) GetNextRow(ctx context.Context, scope types.Scope) (
 
 		// Materialize the group by value as much as possible - we
 		// dont want a lazy item here.
-		gb_element := types.ToString(ctx, new_scope,
-			self.delegate.GroupBy.Reduce(ctx, new_scope))
+		gb_element := types.ToString(ctx, scope,
+			self.delegate.GroupBy.Reduce(ctx, scope))
 
 		// Emit a single row.
-		return transformed_row, row, gb_element, new_scope, nil
+		return transformed_row, row, gb_element, scope, nil
 	}
 
 	return nil, nil, "", nil, io.EOF
@@ -70,7 +64,7 @@ func (self *GroupbyActor) MaterializeRow(ctx context.Context,
 
 func (self *_Select) EvalGroupBy(ctx context.Context, scope types.Scope) <-chan Row {
 	// Build an actor to send to the grouper.
-	actor := &GroupbyActor{self, self.From.Eval(ctx, scope), scope}
+	actor := &GroupbyActor{self, self.From.Eval(ctx, scope)}
 
 	// Get a grouper implementation
 	grouper_output_chan := GetIntScope(scope).Group(ctx, scope, actor)

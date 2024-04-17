@@ -745,8 +745,10 @@ var multiVQLTest = []vqlTest{
 	{"LET with expression lazy - string concat",
 		"LET X = 'hello' SELECT X + 'world', 'world' + X, 'hello world' =~ X FROM scope()"},
 
-	// count() increments every time it is called proving X is
-	// lazy and will be re-evaluated each time.
+	// count() increments every time it is called proving X is lazy
+	// and will be re-evaluated each time. NOTE: Referencing variables
+	// without calling them **does not** create an isolated scope. In
+	// this way LET X is different than LET X(Y)
 	{"Lazy expression in arrays",
 		"LET X = count() SELECT (1, X), dict(foo=X, bar=[1,X]) FROM scope()"},
 
@@ -777,9 +779,13 @@ var multiVQLTest = []vqlTest{
 	{"Lazy expression evaluates in caller's scope",
 		"LET X(foo) = 1 + foo SELECT X(foo= foo + 1 ), foo FROM test()"},
 
-	{"Calling lazy expressions as functions allows access to global scope",
-		"LET Xk = 5 LET Y = Xk + count() SELECT Y AS Y1, Y AS Y2, Y() AS Y3 FROM scope()"},
-
+	// Calling a symbol will reset aggregator context, but simply
+	// referencing it will not. Therefore Y1 = 6, Y2 = 7 but Y3 = 6 again.
+	{"Calling lazy expressions as functions allows access to global scope", `
+LET Xk = 5
+LET Y = Xk + count()
+SELECT Y AS Y1, Y AS Y2, Y() AS Y3 FROM scope()
+`},
 	{"Overflow condition - should not get stuck",
 		"LET X = 1 + X SELECT X(X=1), X FROM test()"},
 
@@ -1229,6 +1235,50 @@ SELECT * FROM flatten(query={
    SELECT *, SQ
    FROM foreach(row=[dict(A=1)])
 })`},
+
+	// Each count() AST node will use a different aggregator context
+	// so will count separately.
+	{"Foreach query with multiple count()", `
+SELECT * FROM foreach(row={
+   SELECT count() AS RowCount
+   FROM range(start=1, end=3)
+}, query={
+   SELECT RowCount, count() AS QueryCount, count() AS SecondQueryCount
+   FROM range(start=1, step=1, end=3)
+})
+`},
+
+	// Calling a VQL stored query will reset the aggregator context.
+	{"Calling stored query with aggregators", `
+LET Counter(Start) = SELECT count() AS Count, Start
+  FROM range(start=1, step=1, end=3)
+
+SELECT * FROM foreach(row={
+   SELECT count() AS RowCount
+   FROM range(start=1, end=3)
+}, query={
+   SELECT * FROM Counter(Start=RowCount)
+})
+`},
+
+	// Each time that Counter() is called should reset.
+	// Each time that CountFunc() is called should reset.
+	{"Aggregate function in a parameter resets stat", `
+LET Counter(Start) = SELECT count() AS Count, Start
+  FROM range(start=1, step=1, end=3)
+
+LET CountFunc(Start) = dict(A=count(), B=Start)
+
+SELECT set_env(column="Eval", value=Counter(Start="First Call")),
+       set_env(column="Eval2", value=Counter(Start="Second Call")),
+       set_env(column="Eval3", value=CountFunc(Start="First Func Call")),
+       set_env(column="Eval4", value=CountFunc(Start="Second Func Call"))
+FROM scope()
+
+SELECT RootEnv.Eval AS FirstCall, RootEnv.Eval2 AS SecondCall,
+       RootEnv.Eval3 AS FirstFuncCall, RootEnv.Eval4 AS SecondFuncCall
+FROM scope()
+`},
 }
 
 type _RangeArgs struct {
@@ -1391,7 +1441,7 @@ func TestVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range vqlTests {
-		if false && i != 59 {
+		if false && i != 45 {
 			continue
 		}
 
@@ -1425,7 +1475,7 @@ func TestMultiVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range multiVQLTest {
-		if false && i != 4 {
+		if false && i != 84 {
 			continue
 		}
 		scope := makeTestScope()
