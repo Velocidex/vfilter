@@ -1159,5 +1159,82 @@
         "value": 3
       }
     }
+  ],
+  "082/000 Foreach query with multiple count(): SELECT * FROM foreach(row={ SELECT count() AS RowCount FROM range(start=1, end=3) }, query={ SELECT RowCount, count() AS QueryCount FROM range(start=1, step=1, end=3) })": [
+    {
+      "RowCount": 1,
+      "QueryCount": 1
+    },
+    {
+      "RowCount": 1,
+      "QueryCount": 2
+    },
+    {
+      "RowCount": 1,
+      "QueryCount": 3
+    },
+    {
+      "RowCount": 2,
+      "QueryCount": 4
+    },
+    {
+      "RowCount": 2,
+      "QueryCount": 5
+    },
+    {
+      "RowCount": 2,
+      "QueryCount": 6
+    },
+    {
+      "RowCount": 3,
+      "QueryCount": 7
+    },
+    {
+      "RowCount": 3,
+      "QueryCount": 8
+    },
+    {
+      "RowCount": 3,
+      "QueryCount": 9
+    }
+  ],
+  "083/000 Calling stored query with aggregators: LET Counter(Start) = SELECT count() AS Count, Start FROM range(start=1, step=1, end=3)": null,
+  "083/001 Calling stored query with aggregators: SELECT * FROM foreach(row={ SELECT count() AS RowCount FROM range(start=1, end=3) }, query={ SELECT * FROM Counter(Start=RowCount) })": [
+    {
+      "Count": 1,
+      "Start": 1
+    },
+    {
+      "Count": 2,
+      "Start": 1
+    },
+    {
+      "Count": 3,
+      "Start": 1
+    },
+    {
+      "Count": 1,
+      "Start": 2
+    },
+    {
+      "Count": 2,
+      "Start": 2
+    },
+    {
+      "Count": 3,
+      "Start": 2
+    },
+    {
+      "Count": 1,
+      "Start": 3
+    },
+    {
+      "Count": 2,
+      "Start": 3
+    },
+    {
+      "Count": 3,
+      "Start": 3
+    }
   ]
 }

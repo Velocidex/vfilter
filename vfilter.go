@@ -137,7 +137,6 @@ import (
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
 	errors "github.com/pkg/errors"
-	"www.velocidex.com/golang/vfilter/functions"
 	"www.velocidex.com/golang/vfilter/scope"
 	scope_module "www.velocidex.com/golang/vfilter/scope"
 	"www.velocidex.com/golang/vfilter/types"
@@ -1621,6 +1620,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 				ctx, scope))
 
 			scope.GetStats().IncFunctionsCalled()
+
 			return t.Reduce(ctx, subscope)
 
 		case StoredQuery:
@@ -1635,8 +1635,8 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 				// context to make sure that aggregate functions
 				// inside the stored query start fresh.
 				subscope := scope.Copy()
-				subscope.SetContext(
-					types.AGGREGATOR_CONTEXT_TAG, ordereddict.NewDict())
+				subscope.SetAggregatorCtx(nil)
+
 				defer subscope.Close()
 
 				if subscope.CheckForOverflow() {
@@ -1799,12 +1799,6 @@ func CopyFunction(in types.Any) types.FunctionInterface {
 
 	in_value := reflect.Indirect(reflect.ValueOf(in))
 	result := reflect.New(in_value.Type()).Interface()
-
-	// Handle aggregate functions specifically.
-	aggregate_func, ok := result.(functions.AggregatorInterface)
-	if ok {
-		aggregate_func.SetNewAggregator()
-	}
 
 	return result.(types.FunctionInterface)
 }

@@ -80,8 +80,7 @@ func (self *_StoredQuery) Call(ctx context.Context,
 	// with its own aggregator context to make sure that aggregate
 	// functions inside the stored query start fresh.
 	sub_scope := scope.Copy()
-	sub_scope.SetContext(
-		types.AGGREGATOR_CONTEXT_TAG, ordereddict.NewDict())
+	sub_scope.SetAggregatorCtx(nil)
 	defer sub_scope.Close()
 
 	self.checkCallingArgs(sub_scope, args)

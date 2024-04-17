@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/Velocidex/ordereddict"
+	"www.velocidex.com/golang/vfilter/aggregators"
 	"www.velocidex.com/golang/vfilter/types"
 )
 
@@ -18,6 +19,11 @@ func (self *DefaultGrouper) Group(
 	go func() {
 		defer close(output_chan)
 
+		// Create a new scope over which we can evaluate the filter
+		// clause.
+		new_scope := scope.Copy()
+		defer new_scope.Close()
+
 		// Aggregate functions (count, sum etc)
 		// operate by storing data in the scope
 		// context between rows. When we group by we
@@ -27,7 +33,7 @@ func (self *DefaultGrouper) Group(
 		// the same context.
 		type AggregateContext struct {
 			row     *ordereddict.Dict
-			context *ordereddict.Dict
+			context types.AggregatorCtx
 		}
 
 		// Collect all the rows with the same group_by
@@ -38,7 +44,7 @@ func (self *DefaultGrouper) Group(
 		// Append this row to a bin based on a unique
 		// value of the group by column.
 		for {
-			row, _, bin_idx, new_scope, err := actor.GetNextRow(ctx, scope)
+			row, _, bin_idx, new_scope, err := actor.GetNextRow(ctx, new_scope)
 			if err != nil {
 				break
 			}
@@ -50,7 +56,7 @@ func (self *DefaultGrouper) Group(
 			// No previous aggregate_row - initialize with a new context.
 			if !pres {
 				aggregate_ctx = &AggregateContext{
-					context: ordereddict.NewDict(),
+					context: aggregators.NewAggregatorCtx(),
 				}
 				bins.Set(bin_idx, aggregate_ctx)
 
@@ -60,15 +66,11 @@ func (self *DefaultGrouper) Group(
 
 			// The transform function receives its own unique context
 			// for the specific aggregate group.
-			new_scope.SetContext(
-				types.AGGREGATOR_CONTEXT_TAG,
-				aggregate_ctx.context)
+			new_scope.SetAggregatorCtx(aggregate_ctx.context)
 
-			// Update the row with the transformed
-			// columns. Note we must materialize these
-			// rows because evaluating the row may have
-			// side effects (e.g. for aggregate
-			// functions).
+			// Update the row with the transformed columns. Note we
+			// must materialize these rows because evaluating the row
+			// may have side effects (e.g. for aggregate functions).
 			new_row := actor.MaterializeRow(ctx, row, new_scope)
 
 			aggregate_ctx.row = new_row

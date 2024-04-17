@@ -18,7 +18,6 @@ package functions
 import (
 	"context"
 	"fmt"
-	"sync"
 	"sync/atomic"
 
 	"github.com/Velocidex/ordereddict"
@@ -36,44 +35,30 @@ var (
 // store their state in the scope context so they can retrieve it next
 // time they are evaluated.
 type Aggregator struct {
-	mu sync.Mutex
 	id string
-
-	// Cache the aggregator context since it does not really change
-	// for the life of this query.
-	ag_context *ordereddict.Dict
 }
 
-func (self *Aggregator) GetContext(scope types.Scope) (types.Any, bool) {
-	self.mu.Lock()
-	defer self.mu.Unlock()
-
-	if self.ag_context == nil {
-		self.ag_context = getAgContext(scope)
-	}
-
-	return self.ag_context.Get(self.id)
+func (self Aggregator) GetContext(scope types.Scope) (res types.Any, res_pres bool) {
+	return scope.GetAggregatorCtx().Modify(self.id,
+		func(previous_value_any types.Any, pres bool) types.Any {
+			res_pres = pres
+			return previous_value_any
+		}), res_pres
 }
 
-func (self *Aggregator) SetContext(scope types.Scope, value types.Any) {
-	self.mu.Lock()
-	defer self.mu.Unlock()
-
-	if self.ag_context == nil {
-		self.ag_context = getAgContext(scope)
-	}
-
-	self.ag_context.Set(self.id, value)
+func (self Aggregator) SetContext(scope types.Scope, value types.Any) {
+	scope.GetAggregatorCtx().Modify(self.id,
+		func(previous_value_any types.Any, pres bool) types.Any {
+			return value
+		})
 }
 
 // Sets a new aggregator if possible
-func (self *Aggregator) SetNewAggregator() {
+func NewAggregator() Aggregator {
 	new_id := atomic.AddUint64(&id, 1)
-	self.id = fmt.Sprintf("id_%v", new_id)
-}
-
-type AggregatorInterface interface {
-	SetNewAggregator()
+	return Aggregator{
+		id: fmt.Sprintf("id_%v", new_id),
+	}
 }
 
 type _CountFunctionArgs struct {
@@ -84,7 +69,7 @@ type _CountFunction struct {
 	Aggregator
 }
 
-func (self *_CountFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
+func (self _CountFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
 	return &types.FunctionInfo{
 		Name:        "count",
 		Doc:         "Counts the items.",
@@ -93,7 +78,14 @@ func (self *_CountFunction) Info(scope types.Scope, type_map *types.TypeMap) *ty
 	}
 }
 
-func (self *_CountFunction) Call(
+// Aggregate functions must be copiable.
+func (self _CountFunction) Copy() types.FunctionInterface {
+	return _CountFunction{
+		Aggregator: NewAggregator(),
+	}
+}
+
+func (self _CountFunction) Call(
 	ctx context.Context,
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
@@ -104,21 +96,23 @@ func (self *_CountFunction) Call(
 		return types.Null{}
 	}
 
-	count := uint64(0)
-	previous_value_any, pres := self.GetContext(scope)
-	if pres {
-		var ok bool
-		count, ok = previous_value_any.(uint64)
-		if !ok {
-			scope.Log("sum: unexpected previous value type %T", previous_value_any)
-			return types.Null{}
-		}
-	}
+	// Modify the aggregator under lock
+	return scope.GetAggregatorCtx().Modify(self.id,
+		func(previous_value_any types.Any, pres bool) types.Any {
+			count := uint64(0)
 
-	count += 1
-	self.SetContext(scope, count)
+			if pres {
+				var ok bool
+				count, ok = previous_value_any.(uint64)
+				if !ok {
+					scope.Log("count: unexpected previous value type %T",
+						previous_value_any)
+					return types.Null{}
+				}
+			}
 
-	return count
+			return count + 1
+		})
 }
 
 type _SumFunctionArgs struct {
@@ -127,6 +121,13 @@ type _SumFunctionArgs struct {
 
 type _SumFunction struct {
 	Aggregator
+}
+
+// Aggregate functions must be copiable.
+func (self _SumFunction) Copy() types.FunctionInterface {
+	return _SumFunction{
+		Aggregator: NewAggregator(),
+	}
 }
 
 func (self _SumFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
@@ -138,7 +139,7 @@ func (self _SumFunction) Info(scope types.Scope, type_map *types.TypeMap) *types
 	}
 }
 
-func (self *_SumFunction) Call(
+func (self _SumFunction) Call(
 	ctx context.Context,
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
@@ -149,21 +150,22 @@ func (self *_SumFunction) Call(
 		return types.Null{}
 	}
 
-	sum := int64(0)
-	previous_value_any, pres := self.GetContext(scope)
-	if pres {
-		var ok bool
-		sum, ok = previous_value_any.(int64)
-		if !ok {
-			scope.Log("sum: unexpected previous value type %T", previous_value_any)
-			return types.Null{}
-		}
-	}
+	return scope.GetAggregatorCtx().Modify(self.id,
+		func(previous_value_any types.Any, pres bool) types.Any {
+			sum := int64(0)
+			if pres {
+				var ok bool
+				sum, ok = previous_value_any.(int64)
+				if !ok {
+					scope.Log("sum: unexpected previous value type %T", previous_value_any)
+					return types.Null{}
+				}
+			}
 
-	sum += arg.Item
-	self.SetContext(scope, sum)
+			sum += arg.Item
+			return sum
 
-	return sum
+		})
 }
 
 type _MinFunctionArgs struct {
@@ -172,6 +174,13 @@ type _MinFunctionArgs struct {
 
 type _MinFunction struct {
 	Aggregator
+}
+
+// Aggregate functions must be copiable.
+func (self _MinFunction) Copy() types.FunctionInterface {
+	return &_MinFunction{
+		Aggregator: NewAggregator(),
+	}
 }
 
 func (self _MinFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
@@ -183,7 +192,7 @@ func (self _MinFunction) Info(scope types.Scope, type_map *types.TypeMap) *types
 	}
 }
 
-func (self *_MinFunction) Call(
+func (self _MinFunction) Call(
 	ctx context.Context,
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
@@ -196,18 +205,26 @@ func (self *_MinFunction) Call(
 	}
 
 	var min_value types.Any = arg.Item.Reduce(ctx)
-	previous_value, pres := self.GetContext(scope)
-	if pres && !scope.Lt(min_value, previous_value) {
-		min_value = previous_value
-	}
 
-	self.SetContext(scope, min_value)
+	return scope.GetAggregatorCtx().Modify(self.id,
+		func(previous_value_any types.Any, pres bool) types.Any {
+			if pres && !scope.Lt(min_value, previous_value_any) {
+				min_value = previous_value_any
+			}
 
-	return min_value
+			return min_value
+		})
 }
 
 type _MaxFunction struct {
 	Aggregator
+}
+
+// Aggregate functions must be copiable.
+func (self _MaxFunction) Copy() types.FunctionInterface {
+	return _MaxFunction{
+		Aggregator: NewAggregator(),
+	}
 }
 
 func (self _MaxFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
@@ -219,7 +236,7 @@ func (self _MaxFunction) Info(scope types.Scope, type_map *types.TypeMap) *types
 	}
 }
 
-func (self *_MaxFunction) Call(
+func (self _MaxFunction) Call(
 	ctx context.Context,
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
@@ -231,14 +248,15 @@ func (self *_MaxFunction) Call(
 	}
 
 	var max_value types.Any = arg.Item.Reduce(ctx)
-	previous_value, pres := self.GetContext(scope)
-	if pres && scope.Lt(max_value, previous_value) {
-		max_value = previous_value
-	}
 
-	self.SetContext(scope, max_value)
+	return scope.GetAggregatorCtx().Modify(self.id,
+		func(previous_value_any types.Any, pres bool) types.Any {
+			if pres && scope.Lt(max_value, previous_value_any) {
+				max_value = previous_value_any
+			}
 
-	return max_value
+			return max_value
+		})
 }
 
 type _EnumeateFunctionArgs struct {
@@ -247,6 +265,13 @@ type _EnumeateFunctionArgs struct {
 
 type _EnumerateFunction struct {
 	Aggregator
+}
+
+// Aggregate functions must be copiable.
+func (self _EnumerateFunction) Copy() types.FunctionInterface {
+	return _EnumerateFunction{
+		Aggregator: NewAggregator(),
+	}
 }
 
 func (self _EnumerateFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
@@ -258,7 +283,7 @@ func (self _EnumerateFunction) Info(scope types.Scope, type_map *types.TypeMap) 
 	}
 }
 
-func (self *_EnumerateFunction) Call(
+func (self _EnumerateFunction) Call(
 	ctx context.Context,
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
@@ -269,33 +294,18 @@ func (self *_EnumerateFunction) Call(
 		return types.Null{}
 	}
 
-	var value types.Any
-	previous_value, ok := self.GetContext(scope)
-	if ok {
-		previous_value_array, ok := previous_value.([]types.Any)
-		if ok {
-			value = append(previous_value_array, arg.Items)
-		}
-	} else {
-		value = []types.Any{arg.Items}
-	}
+	return scope.GetAggregatorCtx().Modify(self.id,
+		func(previous_value_any types.Any, pres bool) types.Any {
+			var value types.Any
+			if pres {
+				previous_value_array, ok := previous_value_any.([]types.Any)
+				if ok {
+					value = append(previous_value_array, arg.Items)
+				}
+			} else {
+				value = []types.Any{arg.Items}
+			}
 
-	self.SetContext(scope, value)
-
-	return value
-}
-
-func getAgContext(scope types.Scope) *ordereddict.Dict {
-	ag_context_any, pres := scope.GetContext(types.AGGREGATOR_CONTEXT_TAG)
-	if !pres {
-		ag_context_any = ordereddict.NewDict()
-		scope.SetContext(types.AGGREGATOR_CONTEXT_TAG, ag_context_any)
-	}
-
-	ag_context, ok := ag_context_any.(*ordereddict.Dict)
-	if !ok {
-		ag_context = ordereddict.NewDict()
-		scope.SetContext(types.AGGREGATOR_CONTEXT_TAG, ag_context_any)
-	}
-	return ag_context
+			return value
+		})
 }

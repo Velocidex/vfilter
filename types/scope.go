@@ -6,11 +6,6 @@ import (
 	"runtime"
 )
 
-// Aggregator functions maintain their context in this tag
-const (
-	AGGREGATOR_CONTEXT_TAG = "__ag"
-)
-
 // A ScopeMaterializer handles VQL Let Materialize operators (<=). The
 // returned object will be added to the scope and can be accessed in
 // subsequent queries. This allows users of vfilter the ability to
@@ -42,6 +37,15 @@ type Scope interface {
 	// everything in the context. It is only used when making an
 	// entirely new scope.
 	ClearContext()
+
+	// The aggregator context is used by aggregator functions to store
+	// context within a query block.
+	GetAggregatorCtx() AggregatorCtx
+
+	// Creates a new AggregatorCtx on this scope. This is used by VQL
+	// when entering a new semantic scope where aggregators need to be
+	// reset.
+	SetAggregatorCtx(ctx AggregatorCtx)
 
 	// Extract debug string about the current scope state.
 	PrintVars() string

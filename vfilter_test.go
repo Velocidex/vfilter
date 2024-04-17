@@ -1229,6 +1229,31 @@ SELECT * FROM flatten(query={
    SELECT *, SQ
    FROM foreach(row=[dict(A=1)])
 })`},
+
+	// Each count() AST node will use a different aggregator context
+	// so will count separately.
+	{"Foreach query with multiple count()", `
+SELECT * FROM foreach(row={
+   SELECT count() AS RowCount
+   FROM range(start=1, end=3)
+}, query={
+   SELECT RowCount, count() AS QueryCount
+   FROM range(start=1, step=1, end=3)
+})
+`},
+
+	// Calling a VQL stored query will reset the aggregator context.
+	{"Calling stored query with aggregators", `
+LET Counter(Start) = SELECT count() AS Count, Start
+  FROM range(start=1, step=1, end=3)
+
+SELECT * FROM foreach(row={
+   SELECT count() AS RowCount
+   FROM range(start=1, end=3)
+}, query={
+   SELECT * FROM Counter(Start=RowCount)
+})
+`},
 }
 
 type _RangeArgs struct {
@@ -1391,7 +1416,7 @@ func TestVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range vqlTests {
-		if false && i != 59 {
+		if false && i != 45 {
 			continue
 		}
 
@@ -1425,7 +1450,7 @@ func TestMultiVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range multiVQLTest {
-		if false && i != 4 {
+		if false && i != 84 {
 			continue
 		}
 		scope := makeTestScope()
