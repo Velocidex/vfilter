@@ -1295,5 +1295,21 @@
         "B": "Second Func Call"
       }
     }
+  ],
+  "085/000 Test Scope Clearing: LET Data \u003c= (dict(A=1), dict(B=2))": null,
+  "085/001 Test Scope Clearing: LET s = scope()": null,
+  "085/002 Test Scope Clearing: SELECT s.A, A, s.B, B FROM Data": [
+    {
+      "s.A": 1,
+      "A": 1,
+      "s.B": null,
+      "B": null
+    },
+    {
+      "s.A": null,
+      "A": null,
+      "s.B": 2,
+      "B": 2
+    }
   ]
 }

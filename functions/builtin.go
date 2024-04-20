@@ -21,5 +21,6 @@ func GetBuiltinFunctions() []types.FunctionInterface {
 		&_EnumerateFunction{},
 		FormatFunction{},
 		LenFunction{},
+		_Scope{},
 	}
 }
