@@ -1278,6 +1278,11 @@ FROM scope()
 SELECT RootEnv.Eval AS FirstCall, RootEnv.Eval2 AS SecondCall,
        RootEnv.Eval3 AS FirstFuncCall, RootEnv.Eval4 AS SecondFuncCall
 FROM scope()
+`}, {"Test Scope Clearing", `
+LET Data <= (dict(A=1), dict(B=2))
+LET s = scope()
+
+SELECT s.A, A, s.B, B FROM Data
 `},
 }
 
@@ -1475,7 +1480,7 @@ func TestMultiVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range multiVQLTest {
-		if false && i != 84 {
+		if false && i != 85 {
 			continue
 		}
 		scope := makeTestScope()

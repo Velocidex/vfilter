@@ -20,38 +20,45 @@ func (self *GroupbyActor) Transform(ctx context.Context,
 	return self.delegate.SelectExpression.Transform(ctx, scope, row)
 }
 
-// Pull the next row off the query possibly filtering it.
+// Pull the next row off the query possibly filtering it. This
+// function adds the row to a new child scope, which the caller must
+// close.
 func (self *GroupbyActor) GetNextRow(ctx context.Context, scope types.Scope) (
 	types.LazyRow, types.Row, string, types.Scope, error) {
 
+	// Create a new scope to carry the new vars. This ensures that
+	// when the scope is closed, the vars can be removed for the next
+	// row.
+	new_scope := scope.Copy()
+
 	for row := range self.row_source {
 		transformed_row, closer := self.delegate.SelectExpression.Transform(
-			ctx, scope, row)
+			ctx, new_scope, row)
 		defer closer()
 
 		// Order matters - transformed row (from column specifiers)
 		// may mask original row (from plugin).
-		scope.AppendVars(row)
-		scope.AppendVars(transformed_row)
+		new_scope.AppendVars(row)
+		new_scope.AppendVars(transformed_row)
 
 		if self.delegate.Where != nil {
-			expression := self.delegate.Where.Reduce(ctx, scope)
+			expression := self.delegate.Where.Reduce(ctx, new_scope)
 
 			// If the filtered expression returns a bool false, then
 			// skip the row.
 			if expression == nil || !scope.Bool(expression) {
-				scope.Trace("During Groupby: Row rejected")
+				new_scope.Trace("During Groupby: Row rejected")
 				continue
 			}
 		}
 
 		// Materialize the group by value as much as possible - we
 		// dont want a lazy item here.
-		gb_element := types.ToString(ctx, scope,
-			self.delegate.GroupBy.Reduce(ctx, scope))
+		gb_element := types.ToString(ctx, new_scope,
+			self.delegate.GroupBy.Reduce(ctx, new_scope))
 
 		// Emit a single row.
-		return transformed_row, row, gb_element, scope, nil
+		return transformed_row, row, gb_element, new_scope, nil
 	}
 
 	return nil, nil, "", nil, io.EOF
