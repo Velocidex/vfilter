@@ -462,7 +462,7 @@ func (self *Scope) Group(
 // parent scopes are closed.
 func (self *Scope) AddDestructor(fn func()) error {
 	self.Lock()
-	self.Unlock()
+	defer self.Unlock()
 
 	// Scope is already destroyed - call the destructor now.
 	if self.destructors.IsDestroyed() {
