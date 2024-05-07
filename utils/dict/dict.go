@@ -57,7 +57,7 @@ func normalize_value(ctx context.Context,
 		return value
 
 	case []byte:
-		return string(t)
+		return t
 
 		// Reduce any LazyExpr to materialized types
 	case types.LazyExpr:
