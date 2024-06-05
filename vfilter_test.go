@@ -117,6 +117,8 @@ var execTestsSerialization = []execTest{
 	// Comparing int to float
 	{"1 = 1.0", true},
 	{"1.0 = 1", true},
+	{"1.1 = 1", false},
+	{"1 = 1.1", false},
 	{"1 = 'foo'", false},
 
 	// Floats do not compare with integers properly.
@@ -135,6 +137,21 @@ var execTestsSerialization = []execTest{
 	{"2 > 2.5", false},
 	{"2 < 1", false},
 	{"2 < 1.5", false},
+
+	// Floats
+	{"2.1 < three_int64", true},
+	{"2.1 < 2.5", true},
+	{"3.5 < three_int64", false},
+
+	{"three_int64 < 3.6", true},
+	{"three_int64 < 2.1", false},
+
+	{"2.1 > three_int64", false},
+	{"2.1 > 2.5", false},
+	{"3.5 > three_int64", true},
+
+	{"three_int64 > 3.6", false},
+	{"three_int64 > 2.1", true},
 
 	// Non matching types
 	{"2 > 'hello'", false},
@@ -390,6 +407,7 @@ func (self SetEnvFunction) Info(scope types.Scope, type_map *TypeMap) *FunctionI
 func makeScope() types.Scope {
 	env := ordereddict.NewDict().
 		Set("const_foo", 1).
+		Set("three_int64", int64(3)).
 		Set("my_list_obj", ordereddict.NewDict().
 			Set("my_list", []interface{}{
 				1, 2, 3,

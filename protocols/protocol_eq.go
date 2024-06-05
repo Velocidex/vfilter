@@ -37,6 +37,12 @@ func (self EqDispatcher) Eq(scope types.Scope, a types.Any, b types.Any) bool {
 			return t == rhs
 		}
 
+	case int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+		lhs, ok := utils.ToInt64(a)
+		if ok {
+			return intEq(lhs, b)
+		}
+
 	case bool:
 		rhs, ok := b.(bool)
 		if ok {

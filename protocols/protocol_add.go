@@ -22,6 +22,30 @@ func (self AddDispatcher) Copy() AddDispatcher {
 		append([]AddProtocol{}, self.impl...)}
 }
 
+// Adding protocol
+
+// LHS    RHS
+// int    int  -> lhs + rhs
+// int    float -> float(lhs) + rhs
+// float  int -> lhs + float(rhs)
+// float  float -> lhs + rhs
+
+// We dont handle any other additions with ints here.
+func intAdd(lhs int64, b types.Any) (types.Any, bool) {
+	switch b.(type) {
+	case int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+		rhs, _ := utils.ToInt64(b)
+		return lhs + rhs, true
+
+	case float64, float32:
+		rhs, _ := utils.ToFloat(b)
+		return float64(lhs) + rhs, true
+	}
+
+	// We dont handle any other additions here
+	return &types.Null{}, false
+}
+
 func (self AddDispatcher) Add(scope types.Scope, a types.Any, b types.Any) types.Any {
 	a = maybeReduce(a)
 	b = maybeReduce(b)
@@ -44,19 +68,19 @@ func (self AddDispatcher) Add(scope types.Scope, a types.Any, b types.Any) types
 	case types.Null, *types.Null, nil:
 		return &types.Null{}
 
+	case int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+		lhs, ok := utils.ToInt64(t)
+		if ok {
+			res, ok := intAdd(lhs, b)
+			if ok {
+				return res
+			}
+		}
+
 	case float64:
 		b_float, ok := utils.ToFloat(b)
 		if ok {
 			return t + b_float
-		}
-	}
-
-	// Maybe its an integer.
-	a_int, ok := utils.ToInt64(a)
-	if ok {
-		b_int, ok := utils.ToInt64(b)
-		if ok {
-			return a_int + b_int
 		}
 	}
 
