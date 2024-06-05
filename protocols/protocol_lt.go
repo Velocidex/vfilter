@@ -22,6 +22,39 @@ func (self LtDispatcher) Copy() LtDispatcher {
 		append([]LtProtocol{}, self.impl...)}
 }
 
+// Comparison table
+// LHS   RHS  -> Promoted
+// int   int  -> lhs < rhs
+// int   float -> float(lhs) < rhs
+// float int  -> lhs < float(rhs)
+// float float -> lhs < lhs
+
+func intLt(lhs int64, b types.Any) bool {
+	switch b.(type) {
+	case int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+		rhs, _ := utils.ToInt64(b)
+		return lhs < rhs
+	case float64, float32:
+		rhs, _ := utils.ToFloat(b)
+		return float64(lhs) < rhs
+	}
+	return false
+}
+
+func intEq(lhs int64, b types.Any) bool {
+	switch t := b.(type) {
+	case int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+		rhs, _ := utils.ToInt64(b)
+		return lhs == rhs
+	case float64, float32:
+		rhs, _ := utils.ToFloat(b)
+		return float64(lhs) == rhs
+	case bool:
+		return lhs != 0 == t
+	}
+	return false
+}
+
 func (self LtDispatcher) Lt(scope types.Scope, a types.Any, b types.Any) bool {
 	a = maybeReduce(a)
 	b = maybeReduce(b)
@@ -34,6 +67,13 @@ func (self LtDispatcher) Lt(scope types.Scope, a types.Any, b types.Any) bool {
 		rhs, ok := b.(string)
 		if ok {
 			return t < rhs
+		}
+
+		// If it is integer like, coerce to int.
+	case int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+		lhs, ok := utils.ToInt64(t)
+		if ok {
+			return intLt(lhs, b)
 		}
 
 	case float64:
@@ -55,11 +95,39 @@ func (self LtDispatcher) Lt(scope types.Scope, a types.Any, b types.Any) bool {
 		}
 	}
 
-	lhs, ok := utils.ToInt64(a)
-	if ok {
-		rhs, ok := utils.ToInt64(b)
+	switch t := b.(type) {
+	case types.Null, *types.Null, nil:
+		return false
+
+		// If it is integer like, coerce to int.
+	case int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+		rhs, ok := utils.ToInt64(t)
 		if ok {
-			return lhs < rhs
+			if intGt(rhs, a) {
+				return false
+			}
+			if intEq(rhs, a) {
+				return false
+			}
+			return true
+		}
+
+	case float64:
+		lhs, ok := utils.ToFloat(a)
+		if ok {
+			return lhs < t
+		}
+
+	case time.Time:
+		lhs, ok := toTime(a)
+		if ok {
+			return t.After(*lhs)
+		}
+
+	case *time.Time:
+		lhs, ok := toTime(a)
+		if ok {
+			return t.After(*lhs)
 		}
 	}
 
