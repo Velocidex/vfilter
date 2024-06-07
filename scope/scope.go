@@ -249,14 +249,15 @@ func (self *Scope) ChargeOp() {
 
 func (self *Scope) CheckForOverflow() bool {
 	self.Lock()
-	defer self.Unlock()
+	vars := self.vars[:]
+	self.Unlock()
 
 	if self.stack_depth < 1000 {
 		return false
 	}
 
 	// Log the query for overflow
-	query, _ := self._Resolve("$Query")
+	query, _ := self._ResolveVars("$Query", vars)
 	self.Log("Stack Overflow: %v", query)
 
 	return true
@@ -615,20 +616,22 @@ func (self *Scope) Resolve(field string) (interface{}, bool) {
 		return types.Null{}, false
 	}
 
+	// Snapshot the vars to remove the need to lock the scope for so
+	// long.
 	self.Lock()
-	defer self.Unlock()
+	vars := self.vars[:]
+	self.Unlock()
 
-	return self._Resolve(field)
+	return self._ResolveVars(field, vars)
 }
 
-func (self *Scope) _Resolve(field string) (interface{}, bool) {
-
+func (self *Scope) _ResolveVars(field string, vars []types.Row) (interface{}, bool) {
 	var default_value types.Any
 
 	// Walk the scope stack in reverse so more recent vars shadow
 	// older ones.
-	for i := len(self.vars) - 1; i >= 0; i-- {
-		subscope := self.vars[i]
+	for i := len(vars) - 1; i >= 0; i-- {
+		subscope := vars[i]
 
 		// Allow each subscope to specify a default. In the
 		// end if a default was found then return Resolve as
