@@ -586,9 +586,11 @@ func (self *_Select) processSingleRow(
 		select {
 		case <-ctx.Done():
 			return
+
 		case output_chan <- materialized_row:
 			scope.Explainer().SelectOutput(materialized_row)
 		}
+
 	} else {
 		// If there is a filter clause, we need to filter the
 		// row using a new scope.
@@ -940,8 +942,9 @@ func (self *_SelectExpression) Transform(
 	// Scope will be closed with the parent - need to keep alive until
 	// the row is materialized.
 	new_scope := scope.Copy()
+
+	// Closer is called by our caller.
 	new_scope.AppendVars(row)
-	scope.AddDestructor(new_scope.Close)
 
 	for _, expr_ := range self.Expressions {
 		// A copy of the expression for the lambda capture.

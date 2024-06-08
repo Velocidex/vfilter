@@ -26,15 +26,21 @@ func (self *GroupbyActor) Transform(ctx context.Context,
 func (self *GroupbyActor) GetNextRow(ctx context.Context, scope types.Scope) (
 	types.LazyRow, types.Row, string, types.Scope, error) {
 
-	// Create a new scope to carry the new vars. This ensures that
-	// when the scope is closed, the vars can be removed for the next
-	// row.
-	new_scope := scope.Copy()
-
 	for row := range self.row_source {
+		// Create a new scope to carry the new vars. This ensures that
+		// when the scope is closed, the vars can be removed for the next
+		// row.
+		new_scope := scope.Copy()
+
+		// The transform captures the scope inside the LazyRow so when
+		// it gets evaluated it can see previous values.
 		transformed_row, closer := self.delegate.SelectExpression.Transform(
 			ctx, new_scope, row)
-		defer closer()
+
+		// Now we mask the original columns with the LazyRow
+		// implementation. The Where clause below will access the
+		// transformed row, which will materialize based on the new
+		// scope.
 
 		// Order matters - transformed row (from column specifiers)
 		// may mask original row (from plugin).
@@ -48,6 +54,10 @@ func (self *GroupbyActor) GetNextRow(ctx context.Context, scope types.Scope) (
 			// skip the row.
 			if expression == nil || !scope.Bool(expression) {
 				new_scope.Trace("During Groupby: Row rejected")
+
+				// Prepare the next row
+				new_scope.Close()
+				closer()
 				continue
 			}
 		}
@@ -56,6 +66,8 @@ func (self *GroupbyActor) GetNextRow(ctx context.Context, scope types.Scope) (
 		// dont want a lazy item here.
 		gb_element := types.ToString(ctx, new_scope,
 			self.delegate.GroupBy.Reduce(ctx, new_scope))
+
+		closer()
 
 		// Emit a single row.
 		return transformed_row, row, gb_element, new_scope, nil
