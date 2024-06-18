@@ -174,7 +174,7 @@ func (self *storedQueryWrapper) Eval(ctx context.Context, scope types.Scope) <-c
 		if slice.Type().Kind() == reflect.Slice {
 			for i := 0; i < slice.Len(); i++ {
 				value := slice.Index(i).Interface()
-				if !types.IsNullObject(value) {
+				if !types.IsNil(value) {
 					select {
 					case <-ctx.Done():
 						return
@@ -184,7 +184,7 @@ func (self *storedQueryWrapper) Eval(ctx context.Context, scope types.Scope) <-c
 			}
 		} else {
 			row_value := self.toRow(scope, self.value)
-			if !types.IsNullObject(row_value) {
+			if !types.IsNil(row_value) {
 				select {
 				case <-ctx.Done():
 					return
@@ -198,7 +198,7 @@ func (self *storedQueryWrapper) Eval(ctx context.Context, scope types.Scope) <-c
 }
 
 func (self *storedQueryWrapper) toRow(scope types.Scope, value types.Any) types.Row {
-	if types.IsNullObject(value) {
+	if types.IsNil(value) {
 		return types.Null{}
 	}
 

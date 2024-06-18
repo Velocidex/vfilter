@@ -76,7 +76,7 @@ func (self ScopeUnmarshaller) Unmarshal(
 		unmarshalled, err := unmarshaller.Unmarshal(unmarshaller,
 			new_scope, v)
 		if err == nil {
-			if !utils.IsNil(unmarshalled) {
+			if !types.IsNil(unmarshalled) {
 				env.Set(k, unmarshalled)
 			}
 		} else {

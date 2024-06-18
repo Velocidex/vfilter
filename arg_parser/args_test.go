@@ -14,7 +14,6 @@ import (
 	"www.velocidex.com/golang/vfilter/arg_parser"
 	"www.velocidex.com/golang/vfilter/scope"
 	"www.velocidex.com/golang/vfilter/types"
-	"www.velocidex.com/golang/vfilter/utils"
 	"www.velocidex.com/golang/vfilter/utils/dict"
 )
 
@@ -185,7 +184,7 @@ func (self argFunc) Call(ctx context.Context, scope types.Scope, args *ordereddi
 		result.Set("dict", arg.Dict)
 	}
 
-	if !utils.IsNil(arg.Any) {
+	if !types.IsNil(arg.Any) {
 		result.Set("any", arg.Any)
 		result.Set("any type", fmt.Sprintf("%T", arg.Any))
 

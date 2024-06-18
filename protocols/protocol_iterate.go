@@ -65,7 +65,7 @@ func (self IterateDispatcher) Iterate(
 	go func() {
 		defer close(output_chan)
 
-		if !types.IsNullObject(a) {
+		if !types.IsNil(a) {
 			select {
 			case <-ctx.Done():
 				return
@@ -99,7 +99,7 @@ func _SliceIterator(ctx context.Context, scope types.Scope, a types.Any) <-chan 
 		if a_value.Type().Kind() == reflect.Slice {
 			for i := 0; i < a_value.Len(); i++ {
 				value := a_value.Index(i).Interface()
-				if types.IsNullObject(value) {
+				if types.IsNil(value) {
 					continue
 				}
 

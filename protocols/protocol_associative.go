@@ -35,7 +35,7 @@ func (self *AssociativeDispatcher) Associative(
 	scope types.Scope, a types.Any, b types.Any) (types.Any, bool) {
 	ctx := context.Background()
 
-	if utils.IsNil(a) {
+	if types.IsNil(a) {
 		return types.Null{}, false
 	}
 
@@ -79,7 +79,7 @@ func (self *AssociativeDispatcher) Associative(
 
 			// Do not let naked nils to be retrieved from
 			// a dict, instead return Null{}
-			if res == nil || utils.IsNil(res) {
+			if res == nil || types.IsNil(res) {
 				res = types.Null{}
 			}
 
