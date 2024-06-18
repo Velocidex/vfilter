@@ -173,7 +173,7 @@ func sliceDictParser(ctx context.Context, scope types.Scope,
 	result := []*ordereddict.Dict{}
 	for i := 0; i < len(new_value); i++ {
 		item := new_value[i]
-		if !utils.IsNil(item) {
+		if !types.IsNil(item) {
 			result = append(result, dict.RowToDict(ctx, scope, item))
 		}
 	}
@@ -269,7 +269,7 @@ func dictParser(ctx context.Context, scope types.Scope,
 
 	// Build the query args
 	env := ordereddict.NewDict()
-	if !utils.IsNil(arg) {
+	if !types.IsNil(arg) {
 		// Shortcut for actual dicts
 		dict, ok := arg.(*ordereddict.Dict)
 		if ok {

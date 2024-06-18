@@ -1,5 +1,7 @@
 package types
 
+import "reflect"
+
 // A real type which encodes to JSON NULL. Using go's nil is dangerous
 // because it forces constant checking for nil pointer dereference. It
 // is safer to just return this value when VQL needs to return NULL.
@@ -13,7 +15,7 @@ func (self Null) String() string {
 	return "Null"
 }
 
-func IsNullObject(a interface{}) bool {
+func IsNil(a interface{}) bool {
 	if a == nil {
 		return true
 	}
@@ -22,6 +24,11 @@ func IsNullObject(a interface{}) bool {
 	case Null, *Null:
 		return true
 	default:
+		switch reflect.TypeOf(a).Kind() {
+		case reflect.Ptr, reflect.Map, reflect.Chan, reflect.Slice:
+			//use of IsNil method
+			return reflect.ValueOf(a).IsNil()
+		}
 		return false
 	}
 }

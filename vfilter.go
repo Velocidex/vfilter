@@ -1783,7 +1783,7 @@ func (self *_SymbolRef) callFunction(
 
 	// Do not allow nil in VQL since it is not compatible with
 	// reflect package. The VQL plugin might accidentally pass nil
-	if utils.IsNil(result) {
+	if types.IsNil(result) {
 		return &Null{}
 	}
 

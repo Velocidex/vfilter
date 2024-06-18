@@ -6,7 +6,6 @@ import (
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/arg_parser"
 	"www.velocidex.com/golang/vfilter/types"
-	"www.velocidex.com/golang/vfilter/utils"
 )
 
 type _IfFunctionArgs struct {
@@ -38,7 +37,7 @@ func (self _IfFunction) Call(
 	}
 
 	if scope.Bool(arg.Condition) {
-		if utils.IsNil(arg.Then) {
+		if types.IsNil(arg.Then) {
 			return &types.Null{}
 		}
 
@@ -63,7 +62,7 @@ func (self _IfFunction) Call(
 			return t
 		}
 	}
-	if utils.IsNil(arg.Else) {
+	if types.IsNil(arg.Else) {
 		return &types.Null{}
 	}
 

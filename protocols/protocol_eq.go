@@ -29,7 +29,7 @@ func (self EqDispatcher) Eq(scope types.Scope, a types.Any, b types.Any) bool {
 
 	switch t := a.(type) {
 	case types.Null, *types.Null, nil:
-		return types.IsNullObject(b) // types.Null == types.Null else false
+		return types.IsNil(b) // types.Null == types.Null else false
 
 	case string:
 		rhs, ok := b.(string)

@@ -82,6 +82,16 @@ func (self *DefaultSorterCtx) Less(i, j int) bool {
 		return false
 	}
 
+	// Sort NULL like an empty string because normally NULL
+	// comparisons are not stable.
+	if types.IsNil(element1) {
+		element1 = ""
+	}
+
+	if types.IsNil(element2) {
+		element2 = ""
+	}
+
 	if self.Desc {
 		return !self.Scope.Lt(element1, element2)
 	}
