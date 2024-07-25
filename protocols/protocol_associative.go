@@ -36,7 +36,7 @@ func (self *AssociativeDispatcher) Associative(
 	ctx := context.Background()
 
 	if types.IsNil(a) {
-		return types.Null{}, false
+		return types.Null{}, true
 	}
 
 	b_str, ok := utils.ToString(b)

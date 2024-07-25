@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -467,6 +468,10 @@ func (self *Scope) AddDestructor(fn func()) error {
 
 	// Scope is already destroyed - call the destructor now.
 	if self.destructors.IsDestroyed() {
+		_, file, line, ok := runtime.Caller(1)
+		if ok {
+			self.Log("Scope already closed when adding destructor %v:%d", file, line)
+		}
 		return errors.New("Scope already closed")
 	} else {
 		self.destructors.AddDestructor(fn)
@@ -493,12 +498,6 @@ func (self *Scope) Close() {
 	children := append([]*Scope{}, self.children...)
 
 	parent := self.parent
-
-	// Stop new destructors from appearing.
-	self.destructors.SetDestroyed()
-
-	// Remove destructors from list so they are not run again.
-	ds := self.destructors.RemoveDestructors()
 
 	// Unlock the scope and start running the
 	// destructors. Destructors may actually add new destructors
@@ -528,19 +527,40 @@ func (self *Scope) Close() {
 		parent.Unlock()
 	}
 
+	// Now we call destructors. Because it is impossible to determine
+	// the order the destructors are called on the same scope, we
+	// sometimes need to retry the destructors. This means the
+	// destructors will reschedule themselves to be called again. At
+	// the end of this function we prevent new detructors from being
+	// added to this scope.
+
+	// Stop new destructors from appearing on this scope, once this
+	// function returns.
+	defer self.destructors.SetDestroyed()
+
 	// Destructors are called in reverse order to their
 	// declerations.
-	for i := len(ds) - 1; i >= 0; i-- {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
-		go func() {
-			ds[i]()
-			cancel()
-		}()
+	for try := 0; try < 10; try++ {
+		// Remove destructors from list so they are not run again.
+		ds := self.destructors.RemoveDestructors()
+		if len(ds) == 0 {
+			// No more destructors left - we are done.
+			break
+		}
 
-		select {
-		// Wait a maximum 60 seconds for the
-		// destructor before moving on.
-		case <-ctx.Done():
+		for i := len(ds) - 1; i >= 0; i-- {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+			go func() {
+				// Destructors may schedule a new destructor to retry
+				ds[i]()
+				cancel()
+			}()
+
+			select {
+			// Wait a maximum 60 seconds for the
+			// destructor before moving on.
+			case <-ctx.Done():
+			}
 		}
 	}
 }
