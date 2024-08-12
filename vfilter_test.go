@@ -1302,6 +1302,28 @@ LET s = scope()
 
 SELECT s.A, A, s.B, B FROM Data
 `},
+	// Comparing time to strings in unsupported in the base vfilter
+	// project, it is added with specialized handlers with
+	// Velociraptor.
+	{"Test timestamp comparisons", `
+SELECT timestamp(epoch=1723428985) < 1118628985,
+       1118628985 < timestamp(epoch=1723428985),
+       timestamp(epoch=1723428985) < timestamp(epoch=1118628985),
+       timestamp(epoch=1118628985) < timestamp(epoch=1723428985),
+       timestamp(epoch=1723428985) > 1118628985,
+       1118628985 > timestamp(epoch=1723428985),
+       timestamp(epoch=1723428985) > timestamp(epoch=1118628985),
+       timestamp(epoch=1118628985) > timestamp(epoch=1723428985),
+       timestamp(epoch=1723428985) < 1118628985.0,
+       1118628985.0 < timestamp(epoch=1723428985),
+       timestamp(epoch=1723428985) > 1118628985.0,
+       1118628985.0 > timestamp(epoch=1723428985),
+       timestamp(epoch=1723428985) < "2024-08-12T02:15:25.176Z",
+       "2024-08-12T02:15:25.176Z" < timestamp(epoch=1723428985),
+       timestamp(epoch=1723428985) > "2024-08-12T02:15:25.176Z",
+       "2024-08-12T02:15:25.176Z" > timestamp(epoch=1723428985)
+FROM scope()
+`},
 }
 
 type _RangeArgs struct {

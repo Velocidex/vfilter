@@ -43,6 +43,15 @@ func (self GtDispatcher) Gt(scope types.Scope, a types.Any, b types.Any) bool {
 		return false
 
 	case string:
+		if isTime(b) {
+			lhs, ok := utils.ToInt64(t)
+			if ok {
+				rhs, ok := toTime(b)
+				if ok {
+					return time.Unix(lhs, 0).After(*rhs)
+				}
+			}
+		}
 		rhs, ok := b.(string)
 		if ok {
 			return t > rhs
@@ -50,6 +59,16 @@ func (self GtDispatcher) Gt(scope types.Scope, a types.Any, b types.Any) bool {
 
 		// If it is integer like, coerce to int.
 	case int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+		if isTime(b) {
+			lhs, ok := utils.ToInt64(t)
+			if ok {
+				rhs, ok := toTime(b)
+				if ok {
+					return time.Unix(lhs, 0).After(*rhs)
+				}
+			}
+		}
+
 		lhs, ok := utils.ToInt64(t)
 		if ok {
 			return intGt(lhs, b)
