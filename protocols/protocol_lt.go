@@ -1,6 +1,7 @@
 package protocols
 
 import (
+	"math"
 	"time"
 
 	"www.velocidex.com/golang/vfilter/types"
@@ -64,13 +65,26 @@ func (self LtDispatcher) Lt(scope types.Scope, a types.Any, b types.Any) bool {
 		return false
 
 	case string:
-		rhs, ok := b.(string)
-		if ok {
-			return t < rhs
+		// Let string comparisons with time fall through to protocol
+		// selection.
+		if !isTime(b) {
+			rhs, ok := b.(string)
+			if ok {
+				return t < rhs
+			}
 		}
 
 		// If it is integer like, coerce to int.
 	case int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+		if isTime(b) {
+			lhs, ok := utils.ToInt64(t)
+			if ok {
+				rhs, ok := toTime(b)
+				if ok {
+					return time.Unix(lhs, 0).Before(*rhs)
+				}
+			}
+		}
 		lhs, ok := utils.ToInt64(t)
 		if ok {
 			return intLt(lhs, b)
@@ -141,13 +155,39 @@ func (self LtDispatcher) Lt(scope types.Scope, a types.Any, b types.Any) bool {
 	return false
 }
 
+func isTime(a types.Any) bool {
+	switch a.(type) {
+	case time.Time:
+		return true
+	case *time.Time:
+		return true
+	}
+	return false
+}
+
 func toTime(a types.Any) (*time.Time, bool) {
 	switch t := a.(type) {
 	case time.Time:
 		return &t, true
+
 	case *time.Time:
 		return t, true
+
+	case float64:
+		sec_f, dec_f := math.Modf(t)
+		dec_f *= 1e9
+		res := time.Unix(int64(sec_f), int64(dec_f))
+		return &res, true
+
 	default:
+		// Maybe it is an int
+		sec, ok := utils.ToInt64(a)
+		if ok {
+			// Treat it as an epoch seconds
+			res := time.Unix(sec, 0)
+			return &res, true
+		}
+
 		return nil, false
 	}
 }
