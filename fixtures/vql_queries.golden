@@ -665,7 +665,17 @@
       "'A' || '' || 'B'": "A"
     }
   ],
-  "076 Whitespace in the query: SELECT * FROM test()": [
+  "076 Alternatives with AND shortcut operator: SELECT NULL  \u0026\u0026 '', TRUE  \u0026\u0026 'XX', 'A'  \u0026\u0026 'B', 'A'  \u0026\u0026 FALSE, ((FALSE  \u0026\u0026 1) || 2), TRUE  \u0026\u0026 1 || 2 FROM scope()": [
+    {
+      "NULL  \u0026\u0026 ''": false,
+      "TRUE  \u0026\u0026 'XX'": "XX",
+      "'A'  \u0026\u0026 'B'": "B",
+      "'A'  \u0026\u0026 FALSE": false,
+      "((FALSE  \u0026\u0026 1) || 2)": 2,
+      "TRUE  \u0026\u0026 1 || 2": 1
+    }
+  ],
+  "077 Whitespace in the query: SELECT * FROM test()": [
     {
       "foo": 0,
       "bar": 0
