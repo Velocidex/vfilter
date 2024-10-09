@@ -732,6 +732,9 @@ b={
 	{"Alternatives with the OR shortcut operator false",
 		"SELECT NULL || '', NULL || FALSE, NULL || 'X', 'A' || 'B', 'A' || FALSE, 'A' || '' || 'B' FROM scope()"},
 
+	{"Alternatives with AND shortcut operator",
+		"SELECT NULL && '', TRUE && 'XX', 'A' && 'B', 'A' && FALSE, ((FALSE && 1) || 2), TRUE && 1 || 2 FROM scope()"},
+
 	{"Whitespace in the query",
 		"SELECT * FROM\ntest()"},
 }

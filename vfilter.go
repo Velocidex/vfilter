@@ -156,6 +156,7 @@ var (
 			`|(?ims)(?P<AND>\bAND\b)` +
 			`|(?ims)(?P<OR>\bOR\b)` +
 			`|(?ims)(?P<AlternativeOR>\|+)` +
+			`|(?ims)(?P<AlternativeAND>&&)` +
 			`|(?ims)(?P<FROM>\bFROM\b)` +
 			`|(?ims)(?P<NOT>\bNOT\b)` +
 			`|(?ims)(?P<AS>\bAS\b)` +
@@ -475,12 +476,10 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	// Start query evaluation
 	scope.Explainer().StartQuery(self)
 
-	if self.GroupBy != nil {
-		return self.EvalGroupBy(ctx, scope)
-	}
-
 	output_chan := make(chan Row)
 
+	// Limits occur before the group by so we can cut the group by
+	// result short according to the limit clause.
 	if self.Limit != nil {
 		go func() {
 			defer close(output_chan)
@@ -509,6 +508,12 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 		}()
 
 		return output_chan
+	}
+
+	// Group by occurs before order by so we can order the grouped by
+	// results.
+	if self.GroupBy != nil {
+		return self.EvalGroupBy(ctx, scope)
 	}
 
 	if self.OrderBy != nil {
@@ -813,7 +818,7 @@ type _AndExpression struct {
 }
 
 type _OpAndTerm struct {
-	Operator string         ` @AND `
+	Operator string         ` ( @AND | @AlternativeAND ) `
 	Term     *_OrExpression `@@`
 }
 
@@ -1268,22 +1273,30 @@ func (self *_AndExpression) IsAggregate(scope types.Scope) bool {
 }
 
 func (self *_AndExpression) Reduce(ctx context.Context, scope types.Scope) Any {
-	result := self.Left.Reduce(ctx, scope)
+	left := self.Left.Reduce(ctx, scope)
 	if self.Right == nil {
-		return result
+		return left
 	}
 
-	if scope.Bool(result) == false {
+	if scope.Bool(left) == false {
 		return false
 	}
 
+	last := left
 	for _, term := range self.Right {
-		if scope.Bool(term.Term.Reduce(ctx, scope)) == false {
+		right := term.Term.Reduce(ctx, scope)
+		if scope.Bool(right) == false {
 			return false
+		}
+
+		if term.Operator == "&&" {
+			last = right
+		} else {
+			last = true
 		}
 	}
 
-	return true
+	return last
 }
 
 func (self *_OrExpression) IsAggregate(scope types.Scope) bool {
