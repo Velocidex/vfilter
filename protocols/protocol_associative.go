@@ -226,16 +226,12 @@ func (self DefaultAssociative) Associative(scope types.Scope, a types.Any, b typ
 		}
 
 	case string:
-		if !utils.IsExported(field_name) {
-			field_name = strings.Title(field_name)
-		}
-
 		a_value := reflect.Indirect(reflect.ValueOf(a))
 		a_type := a_value.Type()
 
 		// A struct with regular exportable field.
 		if a_type.Kind() == reflect.Struct {
-			field_value := a_value.FieldByName(field_name)
+			field_value := a_value.FieldByNameFunc(FieldMatchName(a_type, field_name))
 			if field_value.IsValid() && field_value.CanInterface() {
 				if field_value.Kind() == reflect.Ptr && field_value.IsNil() {
 					return &types.Null{}, true
@@ -286,6 +282,28 @@ func (self DefaultAssociative) Associative(scope types.Scope, a types.Any, b typ
 	}
 
 	return &types.Null{}, false
+}
+
+func FieldMatchName(
+	struct_type reflect.Type,
+	field_name string) func(in string) bool {
+	return func(in string) bool {
+		if in == field_name {
+			return true
+		}
+
+		// If the field has a json tag of this name we also consider
+		// it a match.
+		field, pres := struct_type.FieldByName(in)
+		if pres {
+			tag := field.Tag.Get("json")
+			json_name, _, _ := strings.Cut(tag, ",")
+			if json_name == field_name {
+				return true
+			}
+		}
+		return false
+	}
 }
 
 // Get the members which are callable by VFilter.
