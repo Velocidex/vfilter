@@ -453,7 +453,7 @@ func TestValue(t *testing.T) {
 
 func TestEvalWhereClause(t *testing.T) {
 	scope := makeScope()
-	for _, test := range execTests {
+	for idx, test := range execTests {
 		preamble := "select * from plugin() where \n"
 		vql, err := Parse(preamble + test.clause)
 		if err != nil {
@@ -471,7 +471,7 @@ func TestEvalWhereClause(t *testing.T) {
 			utils.Debug(test.clause)
 			utils.Debug(test.result)
 			utils.Debug(value)
-			t.Fatalf("%v: Expected %v, got %v", test.clause, test.result, value)
+			t.Fatalf("%v: %v: Expected %v, got %v", idx, test.clause, test.result, value)
 		}
 	}
 }
@@ -1327,6 +1327,10 @@ SELECT timestamp(epoch=1723428985) < 1118628985,
        "2024-08-12T02:15:25.176Z" > timestamp(epoch=1723428985)
 FROM scope()
 `},
+
+	{"Test struct associative", `
+SELECT StructValue.SrcIP, StructValue.src_ip, StructValue.SrcIp
+FROM scope()`},
 }
 
 type _RangeArgs struct {
@@ -1338,6 +1342,9 @@ func makeTestScope() types.Scope {
 	result := makeScope().
 		AppendVars(ordereddict.NewDict().
 			Set("ArrayValue", [3]int{1, 2, 3}).
+			Set("StructValue", structWithJson{
+				SrcIP: "127.0.0.1",
+			}).
 			Set("VarIsObjectWithMethods", ObjectWithMethods{Value1: 1})).
 		AddProtocolImpl(protocols.NewLazyStructWrapper(
 			ObjectWithMethods{}, "Value1", "Value2", "Value3", "Counter")).
@@ -1580,4 +1587,8 @@ func TestVQLSerializaition(t *testing.T) {
 				test.vql, vql_string, diff)
 		}
 	}
+}
+
+type structWithJson struct {
+	SrcIP string `json:"src_ip,omitempty"`
 }

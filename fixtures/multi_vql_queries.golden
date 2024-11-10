@@ -1331,5 +1331,12 @@
       "timestamp(epoch=1723428985) \u003e \"2024-08-12T02:15:25.176Z\"": false,
       "\"2024-08-12T02:15:25.176Z\" \u003e timestamp(epoch=1723428985)": false
     }
+  ],
+  "087/000 Test struct associative: SELECT StructValue.SrcIP, StructValue.src_ip, StructValue.SrcIp FROM scope()": [
+    {
+      "StructValue.SrcIP": "127.0.0.1",
+      "StructValue.src_ip": "127.0.0.1",
+      "StructValue.SrcIp": null
+    }
   ]
 }
