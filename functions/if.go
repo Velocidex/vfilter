@@ -30,7 +30,7 @@ func (self _IfFunction) Call(
 	args *ordereddict.Dict) types.Any {
 
 	arg := &_IfFunctionArgs{}
-	err := arg_parser.ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 	if err != nil {
 		scope.Log("if: %v", err)
 		return types.Null{}

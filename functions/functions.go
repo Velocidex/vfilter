@@ -50,7 +50,7 @@ func (self _Timestamp) Info(scope types.Scope, type_map *types.TypeMap) *types.F
 
 func (self _Timestamp) Call(ctx context.Context, scope types.Scope, args *ordereddict.Dict) types.Any {
 	arg := &_TimestampArg{}
-	err := arg_parser.ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 	if err != nil {
 		scope.Log("timestamp: %s", err.Error())
 		return types.Null{}
@@ -88,7 +88,7 @@ func (self _SplitFunction) Info(scope types.Scope, type_map *types.TypeMap) *typ
 
 func (self _SplitFunction) Call(ctx context.Context, scope types.Scope, args *ordereddict.Dict) types.Any {
 	arg := &_SplitFunctionArgs{}
-	err := arg_parser.ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 	if err != nil {
 		scope.Log("split: %s", err.Error())
 		return types.Null{}
@@ -129,7 +129,7 @@ func (self _GetFunction) Call(
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
 	arg := &_GetFunctionArgs{}
-	err := arg_parser.ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 	if err != nil {
 		scope.Log("get: %s", err.Error())
 		return types.Null{}
@@ -183,7 +183,7 @@ func (self _EncodeFunction) Call(
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
 	arg := &_EncodeFunctionArgs{}
-	err := arg_parser.ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 	if err != nil {
 		scope.Log("hex: %s", err.Error())
 		return types.Null{}
@@ -236,7 +236,7 @@ func (self LenFunction) Call(ctx context.Context,
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
 	arg := &LenFunctionArgs{}
-	err := arg_parser.ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 	if err != nil {
 		scope.Log("len: %s", err.Error())
 		return &types.Null{}

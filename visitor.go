@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"www.velocidex.com/golang/vfilter/arg_parser"
+	"www.velocidex.com/golang/vfilter/materializer"
 	"www.velocidex.com/golang/vfilter/types"
 )
 
@@ -255,6 +256,9 @@ func (self *Visitor) Visit(node interface{}) {
 
 	case *arg_parser.LazyExpressionWrapper:
 		self.Visit(t.Delegate())
+
+	case *materializer.InMemoryMatrializer:
+		return
 
 	default:
 		self.scope.Log("FormatToString: Unable to visit %T", node)

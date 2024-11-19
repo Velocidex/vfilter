@@ -28,7 +28,7 @@ func (self _ForeachPluginImpl) Call(ctx context.Context,
 		defer close(output_chan)
 
 		arg := _ForeachPluginImplArgs{}
-		err := arg_parser.ExtractArgs(scope, args, &arg)
+		err := arg_parser.ExtractArgsWithContext(ctx, scope, args, &arg)
 		if err != nil {
 			scope.Log("foreach: %v", err)
 			return
