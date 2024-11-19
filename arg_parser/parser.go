@@ -319,7 +319,7 @@ func BuildParser(v reflect.Value) (*Parser, error) {
 	t := v.Type()
 
 	if t.Kind() != reflect.Struct {
-		return nil, errors.New("Only structs can be set with ExtractArgs()")
+		return nil, errors.New("Only structs can be set with ExtractArgsWithContext()")
 	}
 
 	result := &Parser{}

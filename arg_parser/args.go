@@ -24,7 +24,7 @@ import (
 
 // And parse the struct using this function:
 // myarg := &MyArgs{}
-// err := vfilter.ExtractArgs(scope, args, myarg)
+// err := vfilter.ExtractArgsWithContext(ctx, scope, args, myarg)
 
 // We will raise an error if a required field is missing or has the
 // wrong type of args.

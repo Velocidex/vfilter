@@ -161,7 +161,7 @@ type argFunc struct{}
 
 func (self argFunc) Call(ctx context.Context, scope types.Scope, args *ordereddict.Dict) types.Any {
 	arg := argFuncArgs{}
-	err := arg_parser.ExtractArgs(scope, args, &arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, &arg)
 	if err != nil {
 		result := ordereddict.NewDict().Set("ParseError", err.Error())
 		return result

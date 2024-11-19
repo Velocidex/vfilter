@@ -32,7 +32,7 @@ type DestructorFunction struct {
 func (self DestructorFunction) Call(
 	ctx context.Context, scope types.Scope, args *ordereddict.Dict) types.Any {
 	arg := DestructorFunctionArgs{}
-	err := arg_parser.ExtractArgs(scope, args, &arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, &arg)
 	if err != nil {
 		panic(err)
 	}
@@ -83,7 +83,7 @@ func (self *DestructorPlugin) Call(
 		defer close(output_chan)
 
 		arg := DestructorPluginArgs{}
-		err := arg_parser.ExtractArgs(scope, args, &arg)
+		err := arg_parser.ExtractArgsWithContext(ctx, scope, args, &arg)
 		if err != nil {
 			panic(err)
 		}
