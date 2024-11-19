@@ -26,7 +26,7 @@ func (self RangePlugin) Call(
 		defer close(output_chan)
 
 		arg := &RangePluginArgs{}
-		err := arg_parser.ExtractArgs(scope, args, arg)
+		err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 		if err != nil {
 			scope.Log("range: %v", err)
 			return

@@ -26,7 +26,7 @@ func (self _GetVersion) Info(scope types.Scope, type_map *types.TypeMap) *types.
 func (self _GetVersion) Call(ctx context.Context,
 	scope_int types.Scope, args *ordereddict.Dict) types.Any {
 	arg := &_GetVersion{}
-	err := arg_parser.ExtractArgs(scope_int, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope_int, args, arg)
 	if err != nil {
 		scope_int.Log("version: %s", err.Error())
 		return types.Null{}

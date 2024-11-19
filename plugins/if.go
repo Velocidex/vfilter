@@ -23,7 +23,7 @@ func (self _IfPlugin) Call(
 	output_chan := make(chan types.Row)
 
 	arg := &_IfPluginArg{}
-	err := arg_parser.ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 	if err != nil {
 		scope.Log("if: %s", err.Error())
 		close(output_chan)

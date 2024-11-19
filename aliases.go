@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/Velocidex/ordereddict"
-	"www.velocidex.com/golang/vfilter/arg_parser"
 	"www.velocidex.com/golang/vfilter/functions"
 	"www.velocidex.com/golang/vfilter/plugins"
 	"www.velocidex.com/golang/vfilter/scope"
@@ -38,10 +37,6 @@ type ScopeUnmarshaller = scope.ScopeUnmarshaller
 
 func NewScope() types.Scope {
 	return scope.NewScope()
-}
-
-func ExtractArgs(scope types.Scope, args *ordereddict.Dict, value interface{}) error {
-	return arg_parser.ExtractArgs(scope, args, value)
 }
 
 func RowToDict(

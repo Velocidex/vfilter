@@ -21,7 +21,7 @@ func (self FormatFunction) Call(ctx context.Context,
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
 	arg := &FormatArgs{}
-	err := arg_parser.ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 	if err != nil {
 		scope.Log("format: %v", err)
 		return false

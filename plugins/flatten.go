@@ -23,7 +23,7 @@ func (self _FlattenPluginImpl) Call(ctx context.Context,
 		defer close(output_chan)
 
 		arg := _FlattenPluginImplArgs{}
-		err := arg_parser.ExtractArgs(scope, args, &arg)
+		err := arg_parser.ExtractArgsWithContext(ctx, scope, args, &arg)
 		if err != nil {
 			scope.Log("flatten: %v", err)
 			return

@@ -24,7 +24,7 @@ import (
 
 // And parse the struct using this function:
 // myarg := &MyArgs{}
-// err := vfilter.ExtractArgs(scope, args, myarg)
+// err := vfilter.ExtractArgsWithContext(ctx, scope, args, myarg)
 
 // We will raise an error if a required field is missing or has the
 // wrong type of args.
@@ -33,26 +33,34 @@ import (
 // field must be exported (i.e. name begins with cap) and it must have
 // vfilter tags.
 
-// Deprecate this in favor of ExtractArgsWithContext
-func ExtractArgs(scope types.Scope, args *ordereddict.Dict, target interface{}) error {
-	v := reflect.ValueOf(target)
-	if v.Type().Kind() == reflect.Ptr {
-		v = v.Elem()
+// Allow the caller to pass args explicitly- this is similar to
+// Python's ** notation:
+// LET d = lazy_dict(a={....})
+// SELECT * FROM plugin(`**`=d)
+func NormalizeArgs(args *ordereddict.Dict) *ordereddict.Dict {
+	alt_args_any, pres := args.Get("**")
+	if pres {
+		lazy_arg, ok := alt_args_any.(types.LazyExpr)
+		if ok {
+			ctx := context.Background()
+			alt_args_any = lazy_arg.Reduce(ctx)
+		}
+
+		alt_args, ok := alt_args_any.(*ordereddict.Dict)
+		if ok {
+			return alt_args
+		}
 	}
 
-	parser, err := GetParser(v)
-	if err != nil {
-		scope.Explainer().ParseArgs(args, target, err)
-		return err
-	}
-
-	err = parser.Parse(context.Background(), scope, args, v)
-	scope.Explainer().ParseArgs(args, target, err)
-	return err
+	return args
 }
 
 func ExtractArgsWithContext(
-	ctx context.Context, scope types.Scope, args *ordereddict.Dict, target interface{}) error {
+	ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, target interface{}) error {
+
+	args = NormalizeArgs(args)
+
 	v := reflect.ValueOf(target)
 	if v.Type().Kind() == reflect.Ptr {
 		v = v.Elem()

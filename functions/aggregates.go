@@ -116,7 +116,7 @@ func (self _CountFunction) Call(
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
 	arg := &_CountFunctionArgs{}
-	err := arg_parser.ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 	if err != nil {
 		scope.Log("count: %s", err.Error())
 		return types.Null{}
@@ -170,7 +170,7 @@ func (self _SumFunction) Call(
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
 	arg := &_SumFunctionArgs{}
-	err := arg_parser.ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 	if err != nil {
 		scope.Log("sum: %s", err.Error())
 		return types.Null{}
@@ -224,7 +224,7 @@ func (self _MinFunction) Call(
 	args *ordereddict.Dict) types.Any {
 	arg := &_MinFunctionArgs{}
 
-	err := arg_parser.ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 	if err != nil {
 		scope.Log("min: %s", err.Error())
 		return types.Null{}
@@ -267,7 +267,7 @@ func (self _MaxFunction) Call(
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
 	arg := &_MinFunctionArgs{}
-	err := arg_parser.ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 	if err != nil {
 		scope.Log("min: %s", err.Error())
 		return types.Null{}
@@ -314,7 +314,7 @@ func (self _EnumerateFunction) Call(
 	scope types.Scope,
 	args *ordereddict.Dict) types.Any {
 	arg := &_EnumeateFunctionArgs{}
-	err := arg_parser.ExtractArgs(scope, args, arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 	if err != nil {
 		scope.Log("enumerate: %s", err.Error())
 		return types.Null{}

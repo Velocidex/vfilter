@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/assert"
+	"www.velocidex.com/golang/vfilter/arg_parser"
 	"www.velocidex.com/golang/vfilter/plugins"
 	"www.velocidex.com/golang/vfilter/protocols"
 	"www.velocidex.com/golang/vfilter/types"
@@ -351,7 +352,7 @@ type PanicFunctionArgs struct {
 func (self PanicFunction) Call(ctx context.Context, scope types.Scope, args *ordereddict.Dict) Any {
 	arg := PanicFunctionArgs{}
 
-	err := ExtractArgs(scope, args, &arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, &arg)
 	if err != nil {
 		scope.Log("Panic: %v", err)
 		return types.Null{}
@@ -380,7 +381,7 @@ type SetEnvFunction struct{}
 
 func (self SetEnvFunction) Call(ctx context.Context, scope types.Scope, args *ordereddict.Dict) Any {
 	arg := SetEnvFunctionArgs{}
-	err := ExtractArgs(scope, args, &arg)
+	err := arg_parser.ExtractArgsWithContext(ctx, scope, args, &arg)
 	if err != nil {
 		panic(err)
 	}
@@ -1364,7 +1365,7 @@ func makeTestScope() types.Scope {
 				PluginName: "range",
 				Function: func(ctx context.Context, scope types.Scope, args *ordereddict.Dict) []Row {
 					arg := &_RangeArgs{}
-					ExtractArgs(scope, args, arg)
+					arg_parser.ExtractArgsWithContext(ctx, scope, args, arg)
 					var result []Row
 					for i := arg.Start; i <= arg.End; i++ {
 						result = append(result, ordereddict.NewDict().Set("value", i))
