@@ -16,6 +16,7 @@ var (
 	ToStringOptions = FormatOptions{
 		BreakLines:        false,
 		MaxWidthThreshold: 1000000,
+		CollectCallSites:  false,
 	}
 
 	DefaultFormatOptions = FormatOptions{
@@ -23,6 +24,10 @@ var (
 		MaxWidthThreshold:    80,
 		ArgsOnNewLine:        true,
 		BreakLines:           true,
+	}
+
+	CollectCallSites = FormatOptions{
+		CollectCallSites: true,
 	}
 )
 
@@ -33,11 +38,19 @@ type FormatOptions struct {
 	MaxWidthThreshold    int
 
 	// Parameters are layed one on each line and indent at the first (
-	ArgsOnNewLine bool
-	BreakLines    bool
+	ArgsOnNewLine    bool
+	BreakLines       bool
+	CollectCallSites bool
+}
+
+type CallSite struct {
+	Type string
+	Name string
+	Args []string
 }
 
 type Visitor struct {
+	CallSites []CallSite
 	Fragments []string
 	scope     types.Scope
 	indents   []int
@@ -361,6 +374,18 @@ func (self *Visitor) visitSymbolRef(node *_SymbolRef) {
 		return
 	}
 
+	if node.Called && self.opts.CollectCallSites {
+		callsite := CallSite{
+			Type: "function",
+			Name: node.Symbol,
+		}
+
+		for _, p := range node.Parameters {
+			callsite.Args = append(callsite.Args, p.Left)
+		}
+		self.CallSites = append(self.CallSites, callsite)
+	}
+
 	// No parameters anyway.
 	if len(node.Parameters) == 0 {
 		self.push("()")
@@ -646,6 +671,19 @@ func (self *Visitor) pluginUsesLineMode(name string) bool {
 func (self *Visitor) visitPlugin(node *Plugin) {
 	self.push(node.Name)
 	if node.Call {
+
+		// Collect callsites if needed.
+		if self.opts.CollectCallSites {
+			callsite := CallSite{
+				Type: "plugin",
+				Name: node.Name,
+			}
+			for _, arg := range node.Args {
+				callsite.Args = append(callsite.Args, arg.Left)
+			}
+			self.CallSites = append(self.CallSites, callsite)
+		}
+
 		// No parameters anyway.
 		if len(node.Args) == 0 {
 			self.push("()")

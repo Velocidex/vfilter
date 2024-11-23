@@ -36,6 +36,10 @@ type PluginInfo struct {
 
 	// Arbitrary metadata attched to the plugin info
 	Metadata *ordereddict.Dict
+
+	// Set to true if the plugin accepts free form args (i.e. any
+	// keyword args).
+	FreeFormArgs bool
 }
 
 // Describe functions.
@@ -56,6 +60,10 @@ type FunctionInfo struct {
 
 	// Arbitrary metadata attched to the function info
 	Metadata *ordereddict.Dict
+
+	// Set to true if the plugin accepts free form args (i.e. any
+	// keyword args).
+	FreeFormArgs bool
 }
 
 // Describe a type. This is meant for human consumption so it does not
