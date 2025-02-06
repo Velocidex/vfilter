@@ -77,12 +77,18 @@ func Match(scope types.Scope, pattern string, target string) bool {
 	re_any, pres := scope.GetContext(key)
 	if pres {
 		re, _ = re_any.(*regexp.Regexp)
+		if re == nil {
+			return false
+		}
 
 	} else {
 		var err error
 		re, err = regexp.Compile("(?i)" + pattern)
 		if err != nil {
 			scope.Log("Compile regexp: %v", err)
+			// Cache the error to avoid logging again
+			scope.SetContext(key, nil)
+
 			return false
 		}
 

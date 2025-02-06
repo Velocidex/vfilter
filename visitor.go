@@ -184,6 +184,9 @@ func (self *Visitor) Visit(node interface{}) {
 			self.line_break()
 		}
 
+	case *types.FrozenStoredQuery:
+		self.Visit(t.Query())
+
 	case *_StoredQuery:
 		self.Visit(t.query)
 

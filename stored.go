@@ -22,6 +22,7 @@ package vfilter
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/types"
@@ -43,6 +44,12 @@ func NewStoredQuery(query *_Select, name string) *_StoredQuery {
 		query: query,
 		name:  name,
 	}
+}
+
+func (self *_StoredQuery) GoString() string {
+	scope := NewScope()
+	return fmt.Sprintf("StoredQuery{name: %v, query: {%v}, parameters: %v}",
+		self.name, FormatToString(scope, self.query), self.parameters)
 }
 
 func (self *_StoredQuery) Eval(ctx context.Context, scope types.Scope) <-chan Row {
