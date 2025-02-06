@@ -466,6 +466,11 @@ type _Select struct {
 	Limit            *int64             `[ LIMIT @Number ]`
 }
 
+func (self *_Select) GoString() string {
+	scope := NewScope()
+	return FormatToString(scope, self)
+}
+
 func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	// If the EXPLAIN keyword was used, enabled explaining for this
 	// scope and its children.
