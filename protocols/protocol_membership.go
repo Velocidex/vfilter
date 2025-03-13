@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/types"
 )
 
@@ -29,6 +30,13 @@ func (self MembershipDispatcher) Membership(scope types.Scope, a types.Any, b ty
 	switch t := b.(type) {
 	case types.Null, *types.Null, nil:
 		return false
+
+	case *ordereddict.Dict:
+		a_str, ok := a.(string)
+		if ok {
+			_, pres := t.Get(a_str)
+			return pres
+		}
 
 	case string:
 		// 'he' in 'hello'

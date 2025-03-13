@@ -85,6 +85,22 @@ FROM Artifact.Windows.EventLogs.EvtxHunter(EvtxGlob='''%SystemRoot%\System32\Win
 	{"Subquery", "SELECT {SELECT * FROM info()} AS Foo, Bar FROM scope()"},
 	{"Simple Statement", "SELECT A AS First, B AS Second, C, D FROM info(arg=1, arg2=3) WHERE 1 ORDER BY C LIMIT 1"},
 	{"Explain statements", "EXPLAIN SELECT 'A' FROM scope()"},
+	{"Very long LET with SELECT pushing far to right", `
+LET this_is_a_long_name = SELECT *, upload_directory(accessor="collector", file=RootPathSpec + "hello world " + _Components) AS UploadedFile FROM ALLUploads
+`},
+	{"Complex long lines. Args should line up on the function they are in.", `
+ LET enumerate_path = SELECT
+           regex_replace(source=TargetPath,
+                         re='''\%USERPROFILE\%''',
+                         replace=Directory) AS TargetPath,
+           *,
+           check_exist(path=regex_replace(source=TargetPath,
+                                          re='''\%USERPROFILE\%''',
+                                          replace=Directory))[0] AS Exists,
+           MaxSize - rand(range=(MaxSize - MinSize)) - len(
+             list=unhex(string=MagicBytes)) - 7 AS _PaddingSize
+         FROM Honeyfiles
+`},
 }
 
 func makeTestScope() types.Scope {
@@ -100,7 +116,7 @@ func TestVQLQueries(t *testing.T) {
 	golden := ""
 
 	for idx, testCase := range reformatTests {
-		if false && idx != 24 {
+		if false && idx != 20 {
 			continue
 		}
 

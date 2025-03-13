@@ -8,6 +8,7 @@ FROM ALLUploads
 
 
 1 MultiLine Comment:
+
 /*
    This is a multiline comment
 */
@@ -33,10 +34,8 @@ LET LocalDeviceMajor <= (253, 7, -- loop
 
 4 Comment above plugin arg:
 SELECT *
-FROM info(
-  -- This is a comment for Foo
-  Foo=1,
-  Bar=2)
+FROM info(-- This is a comment for Foo
+Foo=1, Bar=2)
 
 
 
@@ -85,18 +84,18 @@ FROM Artifact.Windows.EventLogs.EvtxHunter(
 
 
 11 If Plugin:
-LET DateAfterTime <= if(
-    condition=TargetTime,
-    then=timestamp(epoch=TargetTime.Unix - TargetTimeBox),
-    else=timestamp(epoch=now() - TargetTimeBox))
+LET DateAfterTime <= if(condition=TargetTime,
+                        then=timestamp(epoch=TargetTime.Unix - TargetTimeBox),
+                        else=timestamp(epoch=now() - TargetTimeBox))
 
 
 
 12 If Plugin with longer args:
-LET DateAfterTime <= if(
-    condition=TargetTime,
-    then=timestamp(epoch=TargetTime.Unix - TargetTimeBox + SomeConstant),
-    else=timestamp(epoch=now() - TargetTimeBox))
+LET DateAfterTime <= if(condition=TargetTime,
+                        then=timestamp(epoch=TargetTime.Unix -
+                                         TargetTimeBox +
+                                         SomeConstant),
+                        else=timestamp(epoch=now() - TargetTimeBox))
 
 
 
@@ -155,32 +154,22 @@ LET Foo(x, y, z) = SELECT *
 
 20 Nesting:
 SELECT *
-FROM foreach(
-  row={
+FROM foreach(row={
     SELECT *
-    FROM foreach(
-      row={
-        SELECT *
-        FROM info
-      },
-      query={
-        SELECT *
-        FROM info()
-      })
+    FROM foreach(row={ SELECT * FROM info }, query={ SELECT * FROM info() })
   },
-  query=ForeachQuery(X=1))
+             query=ForeachQuery(X=1))
 
 
 
 21 Foreach:
 SELECT *
-FROM foreach(
-  row={
+FROM foreach(row={
     SELECT *
     FROM clients()
-    LIMIT 5 
+    LIMIT 5
   },
-  query={
+             query={
     SELECT client_info(client_id=client_id)
     FROM glob(globs=AGlob)
   })
@@ -189,9 +178,9 @@ FROM foreach(
 
 22 Subquery:
 SELECT {
-         SELECT *
-         FROM info()
-       } AS Foo,
+    SELECT *
+    FROM info()
+    } AS Foo,
        Bar
 FROM scope()
 
@@ -205,13 +194,38 @@ SELECT A AS First,
 FROM info(arg=1, arg2=3)
 WHERE 1
 ORDER BY C
-LIMIT 1 
+LIMIT 1
 
 
 
 24 Explain statements:
 EXPLAIN SELECT 'A'
 FROM scope()
+
+
+
+25 Very long LET with SELECT pushing far to right:
+LET this_is_a_long_name = SELECT
+    *,
+    upload_directory(
+      accessor="collector",
+      file=RootPathSpec + "hello world " + _Components) AS UploadedFile
+  FROM ALLUploads
+
+
+
+26 Complex long lines. Args should line up on the function they are in.:
+LET enumerate_path = SELECT
+    regex_replace(source=TargetPath,
+                  re='''\%USERPROFILE\%''',
+                  replace=Directory) AS TargetPath,
+    *,
+    check_exist(path=regex_replace(source=TargetPath,
+                                   re='''\%USERPROFILE\%''',
+                                   replace=Directory))[0] AS Exists,
+    MaxSize - rand(range=(MaxSize - MinSize)) - len(
+      list=unhex(string=MagicBytes)) - 7 AS _PaddingSize
+  FROM Honeyfiles
 
 
 

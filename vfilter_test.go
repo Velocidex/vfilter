@@ -245,6 +245,8 @@ var execTestsSerialization = []execTest{
 		Set("foo", int64(1)).
 		Set("bar", []Any{int64(2), int64(3)})},
 
+	{"'foo' IN dict(foo=0)", true},
+
 	// Associative
 	// Relies on pre-populating the scope with a Dict.
 	{"foo.bar.baz, foo.bar2", []float64{5, 7}},

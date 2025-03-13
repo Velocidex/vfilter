@@ -323,7 +323,7 @@
       "bar": 0
     }
   ],
-  "035 Limit and order: SELECT * FROM test() ORDER BY foo DESC  LIMIT 1 ": [
+  "035 Limit and order: SELECT * FROM test() ORDER BY foo DESC LIMIT 1 ": [
     {
       "foo": 4,
       "bar": 2
