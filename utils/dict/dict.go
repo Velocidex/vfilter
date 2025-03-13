@@ -89,13 +89,18 @@ func normalize_value(ctx context.Context,
 		return result
 
 	default:
-		a_value := reflect.Indirect(reflect.ValueOf(value))
-		a_type := a_value.Type()
+		a_value := reflect.ValueOf(value)
+		a_value = reflect.Indirect(a_value)
+		a_type := reflect.TypeOf(value)
 		if a_type == nil {
 			return types.Null{}
 		}
 
 		if a_type.Kind() == reflect.Slice || a_type.Kind() == reflect.Array {
+			if types.IsNil(a_value) {
+				return types.Null{}
+			}
+
 			length := a_value.Len()
 			result := make([]types.Any, 0, length)
 			for i := 0; i < length; i++ {
@@ -106,6 +111,10 @@ func normalize_value(ctx context.Context,
 
 			// Map keys are random so they lead to unstable output
 		} else if a_type.Kind() == reflect.Map {
+			if types.IsNil(a_value) {
+				return types.Null{}
+			}
+
 			result := ordereddict.NewDict()
 			for _, key := range a_value.MapKeys() {
 				str_key, ok := key.Interface().(string)
