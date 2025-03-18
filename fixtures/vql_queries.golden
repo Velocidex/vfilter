@@ -229,7 +229,7 @@
       "foo": 2
     }
   ],
-  "022 Foreach fully materializes row before passing to query : SELECT Evaluated FROM foreach(row={ SELECT value, set_env(column=\"Evaluated\", value=TRUE) FROM range(start=1, end=10) }, query={ SELECT value FROM scope() }) LIMIT 1 ": [
+  "022 Foreach fully materializes row before passing to query : SELECT Evaluated FROM foreach(row={ SELECT value, set_env(column=\"Evaluated\", value=TRUE) FROM range(start=1, end=10) }, query={ SELECT value FROM scope() }) LIMIT 1": [
     {
       "Evaluated": true
     }
@@ -303,7 +303,7 @@
       "bar": 2
     }
   ],
-  "033 Order by desc: SELECT * FROM test() ORDER BY foo DESC ": [
+  "033 Order by desc: SELECT * FROM test() ORDER BY foo DESC": [
     {
       "foo": 4,
       "bar": 2
@@ -317,31 +317,31 @@
       "bar": 0
     }
   ],
-  "034 Limit: SELECT * FROM test() LIMIT 1 ": [
+  "034 Limit: SELECT * FROM test() LIMIT 1": [
     {
       "foo": 0,
       "bar": 0
     }
   ],
-  "035 Limit and order: SELECT * FROM test() ORDER BY foo DESC LIMIT 1 ": [
+  "035 Limit and order: SELECT * FROM test() ORDER BY foo DESC LIMIT 1": [
     {
       "foo": 4,
       "bar": 2
     }
   ],
-  "036 Comments Simple: SELECT * FROM test() LIMIT 1 ": [
+  "036 Comments Simple: SELECT * FROM test() LIMIT 1": [
     {
       "foo": 0,
       "bar": 0
     }
   ],
-  "037 Comments SQL Style: SELECT * FROM test() LIMIT 1 ": [
+  "037 Comments SQL Style: SELECT * FROM test() LIMIT 1": [
     {
       "foo": 0,
       "bar": 0
     }
   ],
-  "038 Comments Multiline: SELECT * FROM test() LIMIT 1 ": [
+  "038 Comments Multiline: SELECT * FROM test() LIMIT 1": [
     {
       "foo": 0,
       "bar": 0

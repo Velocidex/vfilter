@@ -131,7 +131,7 @@
     }
   ],
   "009/000 Order by with columns with spaces: LET X = SELECT foo AS `Foo Bar` FROM groupbytest()": null,
-  "009/001 Order by with columns with spaces: SELECT * FROM X ORDER BY `Foo Bar` DESC ": [
+  "009/001 Order by with columns with spaces: SELECT * FROM X ORDER BY `Foo Bar` DESC": [
     {
       "Foo Bar": 4
     },
@@ -620,7 +620,7 @@
   ],
   "047/000 If function with subqueries should return a lazy query: LET _ \u003c= SELECT * FROM reset_objectwithmethods()": null,
   "047/001 If function with subqueries should return a lazy query: LET MyCounter(Length) = SELECT * FROM foreach(row={ SELECT value FROM range(start=0, end=Length, step=1) }, query={ SELECT Value2 FROM objectwithmethods() WHERE Value2 })": null,
-  "047/002 If function with subqueries should return a lazy query: SELECT * FROM if(condition=TRUE, then=if(condition=TRUE, then=MyCounter(Length=1000))) LIMIT 3 ": [
+  "047/002 If function with subqueries should return a lazy query: SELECT * FROM if(condition=TRUE, then=if(condition=TRUE, then=MyCounter(Length=1000))) LIMIT 3": [
     {
       "Value2": "I am a method, called 1"
     },
@@ -631,7 +631,7 @@
       "Value2": "I am a method, called 3"
     }
   ],
-  "047/003 If function with subqueries should return a lazy query: SELECT * FROM if(condition=TRUE, then=if(condition=TRUE, then={ SELECT VarIsObjectWithMethods.Counter \u003c 20, Value2 =~ \"called\" FROM MyCounter(Length=100) })) LIMIT 3 ": [
+  "047/003 If function with subqueries should return a lazy query: SELECT * FROM if(condition=TRUE, then=if(condition=TRUE, then={ SELECT VarIsObjectWithMethods.Counter \u003c 20, Value2 =~ \"called\" FROM MyCounter(Length=100) })) LIMIT 3": [
     {
       "VarIsObjectWithMethods.Counter \u003c 20": true,
       "Value2 =~ \"called\"": true
@@ -645,7 +645,7 @@
       "Value2 =~ \"called\"": true
     }
   ],
-  "047/004 If function with subqueries should return a lazy query: SELECT Counter \u003c 20 FROM objectwithmethods() LIMIT 1 ": [
+  "047/004 If function with subqueries should return a lazy query: SELECT Counter \u003c 20 FROM objectwithmethods() LIMIT 1": [
     {
       "Counter \u003c 20": true
     }
@@ -695,19 +695,19 @@
       "X": "This\nis\na\nmultiline with 'quotes' and \"double quotes\" and \\ backslashes\nA string"
     }
   ],
-  "053/000 Early breakout of foreach with infinite row query: SELECT * FROM foreach(row={ SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5) }, query={ SELECT Count FROM scope() }) LIMIT 1 ": [
+  "053/000 Early breakout of foreach with infinite row query: SELECT * FROM foreach(row={ SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=5) }, query={ SELECT Count FROM scope() }) LIMIT 1": [
     {
       "Count": 1
     }
   ],
   "054/000 Early breakout of foreach with stored query: LET X = SELECT count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=6)": null,
-  "054/001 Early breakout of foreach with stored query: SELECT * FROM foreach(row=X, query={ SELECT Count FROM scope() }) LIMIT 1 ": [
+  "054/001 Early breakout of foreach with stored query: SELECT * FROM foreach(row=X, query={ SELECT Count FROM scope() }) LIMIT 1": [
     {
       "Count": 1
     }
   ],
   "055/000 Early breakout of foreach with stored query with parameters: LET X(Y) = SELECT Y, count() AS Count FROM range(start=1, end=20) WHERE panic(column=Count, value=7)": null,
-  "055/001 Early breakout of foreach with stored query with parameters: SELECT * FROM foreach(row=X(Y=23), query={ SELECT Y, Count FROM scope() }) LIMIT 1 ": [
+  "055/001 Early breakout of foreach with stored query with parameters: SELECT * FROM foreach(row=X(Y=23), query={ SELECT Y, Count FROM scope() }) LIMIT 1": [
     {
       "Y": 23,
       "Count": 1

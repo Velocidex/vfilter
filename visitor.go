@@ -1166,5 +1166,5 @@ func (self *Visitor) is_better(other *Visitor) bool {
 func FormatToString(scope types.Scope, node interface{}) string {
 	visitor := NewVisitor(scope, ToStringOptions)
 	visitor.Visit(node)
-	return visitor.ToString()
+	return strings.TrimSpace(visitor.ToString())
 }
