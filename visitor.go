@@ -23,8 +23,10 @@ var (
 	DefaultFormatOptions = FormatOptions{
 		IndentWidthThreshold: 50,
 		MaxWidthThreshold:    80,
-		ArgsOnNewLine:        true,
-		BreakLines:           true,
+
+		// If false we dont break lines at all - all tokens are
+		// written on the same line.
+		BreakLines: true,
 	}
 
 	CollectCallSites = FormatOptions{
@@ -39,7 +41,6 @@ type FormatOptions struct {
 	MaxWidthThreshold    int
 
 	// Parameters are layed one on each line and indent at the first (
-	ArgsOnNewLine    bool
 	BreakLines       bool
 	CollectCallSites bool
 
@@ -220,7 +221,6 @@ func (self *Visitor) Visit(node interface{}) {
 
 			// Leave an empty line between each VQL statement.
 			self.line_break()
-			self.line_break()
 		}
 
 	case *types.FrozenStoredQuery:
@@ -381,45 +381,48 @@ func (self *Visitor) visitAliasedExpression(node *_AliasedExpression) {
 		return
 	}
 
+	pos := node.pos
+
 	if node.Expression != nil {
 		// We have two choices here - fit the expression on the
 		// current line, or break lines
 		if node.As != "" {
 			node_as := node.As
-			self.abTest(node.Expression,
+			self.abTest("visitAliasedExpression with AS", node.Expression,
 				// Fit expression on one line.
-				func(self *Visitor, node interface{}) {
+				func(self *Visitor) {
 					self.opts.BreakLines = false
-					self.Visit(node)
+					self.Visit(node.Expression)
 
 					self.push(" AS ", node_as)
 				},
-				func(self *Visitor, node interface{}) {
-					// Break lines
-					if !self.isCurrentLineSpace() {
+				func(self *Visitor) {
+					// Break lines but not for the first arg after
+					// select. This ensures that something follows
+					// SELECT.
+					if pos > 0 && !self.isCurrentLineSpace() {
 						self.line_break()
 					}
 
-					self.Visit(node)
+					self.Visit(node.Expression)
 					self.push(" AS ", node_as)
 				})
 			return
 		}
 
 		// No AS clause
-		self.abTest(node.Expression,
+		self.abTest("visitAliasedExpression no AS", node.Expression,
 			// Fit expression on one line.
-			func(self *Visitor, node interface{}) {
+			func(self *Visitor) {
 				self.opts.BreakLines = false
-				self.opts.ArgsOnNewLine = false
-				self.Visit(node)
+				self.Visit(node.Expression)
 			},
-			func(self *Visitor, node interface{}) {
+			func(self *Visitor) {
 				// Break lines
 				if !self.isCurrentLineSpace() {
 					self.line_break()
 				}
-				self.Visit(node)
+				self.Visit(node.Expression)
 			})
 		return
 
@@ -492,12 +495,10 @@ func (self *Visitor) visitSymbolRef(node *_SymbolRef) {
 	// Here have two choices:
 	// 1. Try to fit the entire arg list on the same line.
 	// 2. Break each arg on its own line.
-	self.abTest(node,
+	self.abTest("visitSymbolRef", node,
 		// Fit everything on the one line.
-		func(self *Visitor, node_any interface{}) {
+		func(self *Visitor) {
 			self.opts.BreakLines = false
-
-			node := node_any.(*_SymbolRef)
 
 			// Write all the args on the one line
 			self.push("(")
@@ -511,62 +512,54 @@ func (self *Visitor) visitSymbolRef(node *_SymbolRef) {
 			self.push(")")
 		},
 
-		// Break each arg on a separate line
-		func(self *Visitor, node_any interface{}) {
-			node := node_any.(*_SymbolRef)
+		// Here we have a couple of choices:
+		// Write the args starting immediately after the ( - for example
+		//    plugin(Arg1=Foo
+		//           Arg2=Bar)
+		//
+		func(self *Visitor) {
+			self.push("(")
+			self.push_indent()
+			defer self.pop_indent()
 
+			for idx, arg := range node.Parameters {
+				if idx > 0 {
+					self.line_break()
+				}
+
+				self.Visit(arg)
+				if idx < len(node.Parameters)-1 {
+					self.push(",", " ")
+				}
+			}
+
+			self.push(")")
+		},
+
+		// Add another line break and indent a bit after the name of the plugin:
+		//    plugin(
+		//      Arg1=Foo,
+		//      Arg2=Bar)
+		func(self *Visitor) {
 			self.push("(")
 
-			// Here we have a couple of choices:
-			// 1. Write the args starting immediately after the ( - for example
-			//    plugin(Arg1=Foo
-			//           Arg2=Bar)
-			//
-			// 2. Add another line break and indent a bit after the name of the plugin :
-			//    plugin(
-			//      Arg1=Foo,
-			//      Arg2=Bar)
+			self.indent_in()
+			defer self.pop_indent()
 
-			self.abTest(node,
-				// Option 1: indent on start of (
-				func(self *Visitor, node_any interface{}) {
-					self.push_indent()
-					defer self.pop_indent()
+			self.line_break()
 
-					for idx, arg := range node.Parameters {
-						if idx > 0 {
-							self.line_break()
-						}
-
-						self.Visit(arg)
-						if idx < len(node.Parameters)-1 {
-							self.push(",", " ")
-						}
-					}
-
-					self.push(")")
-				},
-
-				// Option 2: Start a new line
-				func(self *Visitor, node_any interface{}) {
-					self.indent_in()
-					defer self.pop_indent()
-
+			for idx, arg := range node.Parameters {
+				if idx > 0 {
 					self.line_break()
+				}
 
-					for idx, arg := range node.Parameters {
-						if idx > 0 {
-							self.line_break()
-						}
+				self.Visit(arg)
+				if idx < len(node.Parameters)-1 {
+					self.push(",", " ")
+				}
+			}
 
-						self.Visit(arg)
-						if idx < len(node.Parameters)-1 {
-							self.push(",", " ")
-						}
-					}
-
-					self.push(")")
-				})
+			self.push(")")
 		})
 }
 
@@ -800,15 +793,6 @@ func (self *Visitor) visitArgs(node *_Args) {
 	}
 }
 
-// Some special plugins will always use line mode
-func (self *Visitor) pluginUsesLineMode(name string) bool {
-	switch name {
-	case "foreach", "if":
-		return true
-	}
-	return false
-}
-
 func (self *Visitor) visitPlugin(node *Plugin) {
 	self.push(node.Name)
 	if node.Call {
@@ -834,12 +818,11 @@ func (self *Visitor) visitPlugin(node *Plugin) {
 		// Here have two choices:
 		// 1. Try to fit the entire arg list on the same line.
 		// 2. Break each arg on its own line.
-		self.abTest(node,
-			// Fit everything on the one line.
-			func(self *Visitor, node_any interface{}) {
-				self.opts.BreakLines = false
+		self.abTest("visitPlugin", node,
 
-				node := node_any.(*Plugin)
+			// Fit everything on the one line.
+			func(self *Visitor) {
+				self.opts.BreakLines = false
 
 				// Write all the args on the one line
 				self.push("(")
@@ -854,69 +837,55 @@ func (self *Visitor) visitPlugin(node *Plugin) {
 
 			},
 
-			// Break each arg on a separate line
-			func(self *Visitor, node_any interface{}) {
-				node := node_any.(*Plugin)
+			// Here we have a couple of choices:
+			// 1. Write the args starting immediately after the ( - for example
+			//    plugin(Arg1=Foo
+			//           Arg2=Bar)
+			//
+			func(self *Visitor) {
+				self.push("(")
 
-				// Here we have a couple of choices:
-				// 1. Write the args starting immediately after the ( - for example
-				//    plugin(Arg1=Foo
-				//           Arg2=Bar)
-				//
-				// 2. Add another line break and indent a bit after the name of the plugin :
-				//    plugin(
-				//      Arg1=Foo,
-				//      Arg2=Bar)
+				self.push_indent()
+				defer self.pop_indent()
 
-				self.abTest(node,
-					// Option 1: indent on start of (
-					func(self *Visitor, node_any interface{}) {
-						node := node_any.(*Plugin)
-
-						self.push("(")
-
-						self.push_indent()
-						defer self.pop_indent()
-
-						for idx, arg := range node.Args {
-							if idx > 0 {
-								self.line_break()
-							}
-
-							self.Visit(arg)
-							if idx < len(node.Args)-1 {
-								self.push(",", " ")
-							}
-						}
-
-						self.push(")")
-					},
-
-					// Option 2: Start a new line
-					func(self *Visitor, node_any interface{}) {
-						node := node_any.(*Plugin)
-
-						self.push("(")
-
-						self.indent_in()
-						defer self.pop_indent()
-
+				for idx, arg := range node.Args {
+					if idx > 0 {
 						self.line_break()
+					}
 
-						for idx, arg := range node.Args {
-							if idx > 0 {
-								self.line_break()
-							}
+					self.Visit(arg)
+					if idx < len(node.Args)-1 {
+						self.push(",", " ")
+					}
+				}
 
-							self.Visit(arg)
-							if idx < len(node.Args)-1 {
-								self.push(",", " ")
-							}
-						}
+				self.push(")")
+			},
 
-						self.push(")")
-					})
+			// Add another line break and indent a bit after the name of the plugin:
+			//    plugin(
+			//      Arg1=Foo,
+			//      Arg2=Bar)
+			func(self *Visitor) {
+				self.push("(")
 
+				self.indent_in()
+				defer self.pop_indent()
+
+				self.line_break()
+
+				for idx, arg := range node.Args {
+					if idx > 0 {
+						self.line_break()
+					}
+
+					self.Visit(arg)
+					if idx < len(node.Args)-1 {
+						self.push(",", " ")
+					}
+				}
+
+				self.push(")")
 			})
 	}
 }
@@ -930,6 +899,8 @@ func (self *Visitor) visitSelectExpression(node *_SelectExpression) {
 	}
 
 	for idx, item := range node.Expressions {
+		item.pos = idx
+
 		self.Visit(item)
 		// No trailing , in the last element.
 		if idx < len(node.Expressions)-1 {
@@ -954,19 +925,19 @@ func (self *Visitor) visitSelect(node *_Select) {
 		// We need to make a choice here:
 		// 1. Put expression after SELECT
 		// 2. Break line and put expression near the start of line.
-		self.abTest(
+		self.abTest("SELECT expression",
 			node.SelectExpression,
 
 			// Render after the SELECT
-			func(self *Visitor, node interface{}) {
+			func(self *Visitor) {
 				self.push_indent()
 				defer self.pop_indent()
 
-				self.Visit(node)
+				self.Visit(node.SelectExpression)
 			},
 
 			// Start on a new line.
-			func(self *Visitor, node interface{}) {
+			func(self *Visitor) {
 				self.new_line(2)
 				defer self.pop_indent()
 
@@ -974,7 +945,7 @@ func (self *Visitor) visitSelect(node *_Select) {
 				defer self.pop_indent()
 
 				self.push("  ")
-				self.Visit(node)
+				self.Visit(node.SelectExpression)
 			})
 	}
 
@@ -1051,8 +1022,18 @@ func (self *Visitor) pop() {
 	}
 }
 
+// Represents a VQL statement.
 func (self *Visitor) visitVQL(node *VQL) {
 	self.Visit(node.Comments)
+
+	// When we finish here we reset the state of the renderer to the
+	// start as each VQL statement is rendered independently.
+	defer func() {
+		self.line_break()
+		self.pos = 0
+		self.max_line = ""
+		self.max_width = 0
+	}()
 
 	if node.Let != "" {
 		operator := " = "
@@ -1096,49 +1077,52 @@ func (self *Visitor) visitVQL(node *VQL) {
 
 // Try to format the node both ways and select the better one (based on is_better())
 func (self *Visitor) abTest(
+	name string,
 	node interface{},
-	a func(self *Visitor, node interface{}),
-	b func(self *Visitor, node interface{}),
+	cbs ...func(self *Visitor),
 ) {
+	var res *Visitor
 
-	visitor_a := self.copy()
-	visitor_a.opts.test = true
-	a(visitor_a, node)
-
-	if len(visitor_a.indents) != len(self.indents) {
-		utils.DebugPrint("Unbalanced indents")
+	if utils.IsDebug() {
+		fmt.Printf("%v: Performing abTest on %v\n", name, self.ToString())
 	}
 
-	// When not in reformat mode we really dont care which option we
-	// choose.
-	if !self.opts.BreakLines {
-		self.merge(visitor_a)
-		return
+	for idx, cb := range cbs {
+		test_visitor := self.copy()
+		test_visitor.opts.test = true
+
+		cb(test_visitor)
+
+		if utils.IsDebug() {
+			fmt.Printf("%v: Test %d:\n%v\n", name, idx, test_visitor.ToString())
+
+			if len(test_visitor.indents) != len(self.indents) {
+				utils.DebugPrint("Unbalanced indents")
+			}
+		}
+
+		// When not in reformat mode we really dont care which option
+		// we choose.
+		if !self.opts.BreakLines {
+			self.merge(test_visitor)
+			return
+		}
+
+		if res == nil {
+			res = test_visitor
+
+		} else if res.is_better(test_visitor) {
+			res.merge(test_visitor)
+		}
 	}
 
-	visitor_b := self.copy()
-	visitor_b.opts.test = true
-
-	b(visitor_b, node)
-
-	if len(visitor_b.indents) != len(self.indents) {
-		utils.DebugPrint("Unbalanced indents")
+	if res != nil {
+		self.merge(res)
 	}
 
-	/*
-		fmt.Printf("Performing abTest on %v\n", self.ToString())
-
-		fmt.Printf("Visitor_a:\n%v\n", visitor_a.ToString())
-
-		fmt.Printf("Visitor_b:\n%v\n", visitor_b.ToString())
-	*/
-	if visitor_a.is_better(visitor_b) {
-		self.merge(visitor_b)
-	} else {
-		self.merge(visitor_a)
+	if utils.IsDebug() {
+		fmt.Printf("%v: Selected:\n%v\n", name, self.ToString())
 	}
-
-	// fmt.Printf("Selected:\n%v\n", self.ToString())
 }
 
 // Is the other visitor better than this one?

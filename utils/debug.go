@@ -13,3 +13,7 @@ func DebugPrint(format string) {
 		fmt.Println(format)
 	}
 }
+
+func IsDebug() bool {
+	return debug
+}

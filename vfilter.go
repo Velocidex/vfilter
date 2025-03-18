@@ -671,6 +671,8 @@ type _AliasedExpression struct {
 
 	As string `[ AS @Ident ]`
 
+	// The position of this column in the SELECT
+	pos                int
 	mu                 sync.Mutex
 	cache, column_name *string
 }
