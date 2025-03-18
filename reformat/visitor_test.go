@@ -90,16 +90,16 @@ LET this_is_a_long_name = SELECT *, upload_directory(accessor="collector", file=
 `},
 	{"Complex long lines. Args should line up on the function they are in.", `
  LET enumerate_path = SELECT
-           regex_replace(source=TargetPath,
-                         re='''\%USERPROFILE\%''',
-                         replace=Directory) AS TargetPath,
-           *,
-           check_exist(path=regex_replace(source=TargetPath,
-                                          re='''\%USERPROFILE\%''',
-                                          replace=Directory))[0] AS Exists,
-           MaxSize - rand(range=(MaxSize - MinSize)) - len(
-             list=unhex(string=MagicBytes)) - 7 AS _PaddingSize
-         FROM Honeyfiles
+ regex_replace(source=TargetPath,
+ re='''\%USERPROFILE\%''',
+ replace=Dir) AS TargetPath,
+ *,
+ check_exist(path=regex_replace(source=TargetPath,
+ re='''\%USERPROFILE\%''',
+ replace=Directory))[0] AS Exists,
+ MaxSize - rand(range=(MaxSize - MinSize)) - len(
+ list=unhex(string=MagicBytes)) - 7 AS _PaddingSize
+ FROM Honeyfiles
 `},
 }
 
@@ -116,7 +116,7 @@ func TestVQLQueries(t *testing.T) {
 	golden := ""
 
 	for idx, testCase := range reformatTests {
-		if false && idx != 20 {
+		if false && idx != 11 {
 			continue
 		}
 
