@@ -56,7 +56,7 @@ type protocolDispatcher struct {
 }
 
 func (self *protocolDispatcher) SetContext(context *ordereddict.Dict) {
-	self.context.Clear()
+	clearMap(&self.context)
 	for _, k := range context.Keys() {
 		v, _ := context.Get(k)
 		self.context.Store(k, v)
@@ -162,7 +162,7 @@ func (self *protocolDispatcher) WithNewContext() *protocolDispatcher {
 		Tracer:       self.Tracer,
 	}
 
-	res.context.Clear()
+	clearMap(&res.context)
 	return res
 }
 
@@ -201,7 +201,7 @@ func (self *protocolDispatcher) Copy() *protocolDispatcher {
 		Tracer:       self.Tracer,
 	}
 
-	res.context.Clear()
+	clearMap(&res.context)
 	return res
 }
 
@@ -340,6 +340,14 @@ func newprotocolDispatcher() *protocolDispatcher {
 		Stats:        types.Stats{},
 	}
 
-	res.context.Clear()
+	clearMap(&res.context)
 	return res
+}
+
+// Implement map.Clear() for old Go compilers.
+func clearMap(m *sync.Map) {
+	m.Range(func(key, value interface{}) bool {
+		m.Delete(key)
+		return true
+	})
 }
