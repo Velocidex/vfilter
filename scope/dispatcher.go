@@ -24,7 +24,7 @@ type protocolDispatcher struct {
 	functions map[string]types.FunctionInterface
 	plugins   map[string]types.PluginGeneratorInterface
 
-	Stats *types.Stats
+	Stats types.Stats
 
 	// Protocol dispatchers control operators.
 	bool        protocols.BoolDispatcher
@@ -52,13 +52,15 @@ type protocolDispatcher struct {
 	// unless users try to debug VQL expressions.
 	Tracer *log.Logger
 
-	context *ordereddict.Dict
+	context sync.Map
 }
 
 func (self *protocolDispatcher) SetContext(context *ordereddict.Dict) {
-	self.Lock()
-	self.context = context
-	self.Unlock()
+	clearMap(&self.context)
+	for _, k := range context.Keys() {
+		v, _ := context.Get(k)
+		self.context.Store(k, v)
+	}
 }
 
 func (self *protocolDispatcher) SetSorter(sorter types.Sorter) {
@@ -97,16 +99,16 @@ func (self *protocolDispatcher) Explainer() types.Explainer {
 }
 
 func (self *protocolDispatcher) SetContextValue(name string, value types.Any) {
-	self.Lock()
-	defer self.Unlock()
-	self.context.Set(name, value)
+	self.context.Store(name, value)
 }
 
 func (self *protocolDispatcher) GetContext(name string) (types.Any, bool) {
-	self.Lock()
-	defer self.Unlock()
+	value, pres := self.context.Load(name)
+	if !pres {
+		return nil, false
+	}
 
-	return self.context.Get(name)
+	return value, true
 }
 
 func (self *protocolDispatcher) GetLogger() *log.Logger {
@@ -117,10 +119,7 @@ func (self *protocolDispatcher) GetLogger() *log.Logger {
 }
 
 func (self *protocolDispatcher) GetStats() *types.Stats {
-	self.Lock()
-	defer self.Unlock()
-
-	return self.Stats
+	return &self.Stats
 }
 
 func (self *protocolDispatcher) Describe(scope *Scope, type_map *types.TypeMap) *types.ScopeInformation {
@@ -140,9 +139,8 @@ func (self *protocolDispatcher) Describe(scope *Scope, type_map *types.TypeMap) 
 }
 
 func (self *protocolDispatcher) WithNewContext() *protocolDispatcher {
-	return &protocolDispatcher{
-		Stats:        &types.Stats{},
-		context:      ordereddict.NewDict(),
+	res := &protocolDispatcher{
+		Stats:        types.Stats{},
 		functions:    self.functions,
 		plugins:      self.plugins,
 		bool:         self.bool,
@@ -163,6 +161,9 @@ func (self *protocolDispatcher) WithNewContext() *protocolDispatcher {
 		Logger:       self.Logger,
 		Tracer:       self.Tracer,
 	}
+
+	clearMap(&res.context)
+	return res
 }
 
 func (self *protocolDispatcher) Copy() *protocolDispatcher {
@@ -176,9 +177,8 @@ func (self *protocolDispatcher) Copy() *protocolDispatcher {
 		plugins_copy[k] = v
 	}
 
-	return &protocolDispatcher{
-		Stats:        &types.Stats{},
-		context:      ordereddict.NewDict(),
+	res := &protocolDispatcher{
+		Stats:        types.Stats{},
 		functions:    function_copy,
 		plugins:      plugins_copy,
 		bool:         self.bool.Copy(),
@@ -200,6 +200,9 @@ func (self *protocolDispatcher) Copy() *protocolDispatcher {
 		Logger:       self.Logger,
 		Tracer:       self.Tracer,
 	}
+
+	clearMap(&res.context)
+	return res
 }
 
 func (self *protocolDispatcher) AppendPlugins(
@@ -260,9 +263,6 @@ func (self *protocolDispatcher) Log(format string, a ...interface{}) {
 }
 
 func (self *protocolDispatcher) Trace(format string, a ...interface{}) {
-	self.Lock()
-	defer self.Unlock()
-
 	if self.Tracer != nil {
 		msg := fmt.Sprintf(format, a...)
 		self.Tracer.Print(msg)
@@ -331,13 +331,23 @@ func (self *protocolDispatcher) GetSimilarPlugins(name string) []string {
 }
 
 func newprotocolDispatcher() *protocolDispatcher {
-	return &protocolDispatcher{
+	res := &protocolDispatcher{
 		Sorter:       &sorter.DefaultSorter{},
 		Grouper:      &grouper.DefaultGrouper{},
 		Materializer: &materializer.DefaultMaterializer{},
 		functions:    make(map[string]types.FunctionInterface),
 		plugins:      make(map[string]types.PluginGeneratorInterface),
-		context:      ordereddict.NewDict(),
-		Stats:        &types.Stats{},
+		Stats:        types.Stats{},
 	}
+
+	clearMap(&res.context)
+	return res
+}
+
+// Implement map.Clear() for old Go compilers.
+func clearMap(m *sync.Map) {
+	m.Range(func(key, value interface{}) bool {
+		m.Delete(key)
+		return true
+	})
 }
