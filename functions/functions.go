@@ -74,7 +74,7 @@ type _SubSelectFunctionArgs struct {
 
 type _SplitFunctionArgs struct {
 	String     string `vfilter:"required,field=string,doc=The value to split"`
-	Sep        string `vfilter:"optional,field=sep,doc=The separator that will be used to split"`
+	Sep        string `vfilter:"optional,field=sep,doc=The separator regex that will be used to split"`
 	Sep_string string `vfilter:"optional,field=sep_string,doc=The separator as string that will be used to split"`
 }
 type _SplitFunction struct{}
