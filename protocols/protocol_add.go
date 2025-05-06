@@ -56,9 +56,10 @@ func (self AddDispatcher) Add(scope types.Scope, a types.Any, b types.Any) types
 		if ok {
 			// Estimate how much memory we will use when adding the
 			// string
-			memory := len(t) * len(b_str)
+			memory := len(t) + len(b_str)
 			if memory > 100000000 { // 100mb
-				scope.Log("Multiply Str x Int exceeded memory limits")
+				scope.Log("Adding Str + Str exceeded memory limits. LH Str %v + RH Str %v = %v",
+					len(t), len(b_str), len(t)+len(b_str))
 				return &types.Null{}
 			}
 
