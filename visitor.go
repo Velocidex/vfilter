@@ -98,6 +98,7 @@ func NewVisitor(scope types.Scope, options FormatOptions) *Visitor {
 // Merge results from the in visitor to this visitor.
 func (self *Visitor) merge(in *Visitor) {
 	self.Fragments = append([]string{}, in.Fragments...)
+	self.CallSites = append(self.CallSites, in.CallSites...)
 	self.line_breaks = in.line_breaks
 	self.indents = append([]int{}, in.indents...)
 	self.pos = in.pos
