@@ -32,7 +32,7 @@ func (self LtDispatcher) Copy() LtDispatcher {
 
 func intLt(lhs int64, b types.Any) bool {
 	switch b.(type) {
-	case int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+	case bool, int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
 		rhs, _ := utils.ToInt64(b)
 		return lhs < rhs
 	case float64, float32:
@@ -43,15 +43,13 @@ func intLt(lhs int64, b types.Any) bool {
 }
 
 func intEq(lhs int64, b types.Any) bool {
-	switch t := b.(type) {
-	case int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+	switch b.(type) {
+	case bool, int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
 		rhs, _ := utils.ToInt64(b)
 		return lhs == rhs
 	case float64, float32:
 		rhs, _ := utils.ToFloat(b)
 		return float64(lhs) == rhs
-	case bool:
-		return lhs != 0 == t
 	}
 	return false
 }
@@ -75,7 +73,7 @@ func (self LtDispatcher) Lt(scope types.Scope, a types.Any, b types.Any) bool {
 		}
 
 		// If it is integer like, coerce to int.
-	case int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+	case bool, int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
 		if isTime(b) {
 			lhs, ok := utils.ToInt64(t)
 			if ok {

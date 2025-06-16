@@ -2,7 +2,6 @@ package plugins
 
 import (
 	"context"
-	"sort"
 
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/vfilter/arg_parser"
@@ -26,8 +25,9 @@ func (self _ChainPlugin) Call(
 	output_chan := make(chan types.Row)
 
 	queries := []types.StoredQuery{}
+
+	// Maintain definition order for the chain plugin.
 	members := scope.GetMembers(args)
-	sort.Strings(members)
 
 	go func() {
 		defer close(output_chan)
