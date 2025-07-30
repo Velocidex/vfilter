@@ -482,7 +482,8 @@ func (self *Visitor) visitSymbolRef(node *_SymbolRef) {
 		}
 
 		for _, p := range node.Parameters {
-			callsite.Args = append(callsite.Args, p.Left)
+			callsite.Args = append(callsite.Args,
+				utils.Unquote_ident(p.Left))
 		}
 		self.CallSites = append(self.CallSites, callsite)
 	}
@@ -805,7 +806,8 @@ func (self *Visitor) visitPlugin(node *Plugin) {
 				Name: node.Name,
 			}
 			for _, arg := range node.Args {
-				callsite.Args = append(callsite.Args, arg.Left)
+				callsite.Args = append(callsite.Args,
+					utils.Unquote_ident(arg.Left))
 			}
 			self.CallSites = append(self.CallSites, callsite)
 		}
