@@ -10,6 +10,17 @@ import (
 	"www.velocidex.com/golang/vfilter/utils"
 )
 
+var (
+	exportedDictMethods = map[string]bool{
+		"Items":  true,
+		"Keys":   true,
+		"Values": true,
+		"Len":    true,
+		"ToMap":  true,
+		"String": true,
+	}
+)
+
 // Associative protocol.
 type AssociativeProtocol interface {
 	Applicable(a types.Any, b types.Any) bool
@@ -68,6 +79,12 @@ func (self *AssociativeDispatcher) Associative(
 			return result, true
 
 		case *ordereddict.Dict:
+			// Support common dict methods
+			if exportedDictMethods[b_str] {
+				res, pres := DefaultAssociative{}.Associative(scope, a, b)
+				return res, pres
+			}
+
 			res, pres := t.Get(b_str)
 			if !pres {
 				default_value := t.GetDefault()
