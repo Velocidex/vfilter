@@ -12,12 +12,12 @@ import (
 
 var (
 	exportedDictMethods = map[string]bool{
-		"Items":  true,
-		"Keys":   true,
-		"Values": true,
-		"Len":    true,
-		"ToMap":  true,
-		"String": true,
+		"@Items":  true,
+		"@Keys":   true,
+		"@Values": true,
+		"@Len":    true,
+		"@ToMap":  true,
+		"@String": true,
 	}
 )
 
@@ -81,7 +81,7 @@ func (self *AssociativeDispatcher) Associative(
 		case *ordereddict.Dict:
 			// Support common dict methods
 			if exportedDictMethods[b_str] {
-				res, pres := DefaultAssociative{}.Associative(scope, a, b)
+				res, pres := DefaultAssociative{}.Associative(scope, a, b_str[1:])
 				return res, pres
 			}
 
