@@ -1338,5 +1338,83 @@
       "StructValue.src_ip": "127.0.0.1",
       "StructValue.SrcIp": null
     }
+  ],
+  "088/000 Adding Stored Query: LET X = SELECT value AS Foo FROM range(start=1, end=4)": null,
+  "088/001 Adding Stored Query: SELECT (dict(Foo=12), ) + X, X + (dict(Foo=12), ) FROM scope()": [
+    {
+      "(dict(Foo=12), ) + X": [
+        {
+          "Foo": 12
+        },
+        {
+          "Foo": 1
+        },
+        {
+          "Foo": 2
+        },
+        {
+          "Foo": 3
+        },
+        {
+          "Foo": 4
+        }
+      ],
+      "X + (dict(Foo=12), )": [
+        {
+          "Foo": 1
+        },
+        {
+          "Foo": 2
+        },
+        {
+          "Foo": 3
+        },
+        {
+          "Foo": 4
+        },
+        {
+          "Foo": 12
+        }
+      ]
+    }
+  ],
+  "089/000 Adding Materialized Stored Query: LET X \u003c= SELECT value AS Foo FROM range(start=1, end=4)": null,
+  "089/001 Adding Materialized Stored Query: SELECT (dict(Foo=12), ) + X, X + (dict(Foo=12), ) FROM scope()": [
+    {
+      "(dict(Foo=12), ) + X": [
+        {
+          "Foo": 12
+        },
+        {
+          "Foo": 1
+        },
+        {
+          "Foo": 2
+        },
+        {
+          "Foo": 3
+        },
+        {
+          "Foo": 4
+        }
+      ],
+      "X + (dict(Foo=12), )": [
+        {
+          "Foo": 1
+        },
+        {
+          "Foo": 2
+        },
+        {
+          "Foo": 3
+        },
+        {
+          "Foo": 4
+        },
+        {
+          "Foo": 12
+        }
+      ]
+    }
   ]
 }

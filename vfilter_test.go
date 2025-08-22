@@ -1334,6 +1334,17 @@ FROM scope()
 	{"Test struct associative", `
 SELECT StructValue.SrcIP, StructValue.src_ip, StructValue.SrcIp
 FROM scope()`},
+
+	{"Adding Stored Query", `
+LET X = SELECT value AS Foo FROM range(start=1, end=4)
+
+SELECT (dict(Foo=12), ) + X, X + (dict(Foo=12),) FROM scope()
+`},
+	{"Adding Materialized Stored Query", `
+LET X <= SELECT value AS Foo FROM range(start=1, end=4)
+
+SELECT (dict(Foo=12), ) + X, X + (dict(Foo=12),) FROM scope()
+`},
 }
 
 type _RangeArgs struct {
@@ -1533,7 +1544,7 @@ func TestMultiVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range multiVQLTest {
-		if false && i != 85 {
+		if false && i != 88 {
 			continue
 		}
 		scope := makeTestScope()
