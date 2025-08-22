@@ -1,6 +1,7 @@
 package protocols
 
 import (
+	"context"
 	"reflect"
 
 	"www.velocidex.com/golang/vfilter/types"
@@ -94,8 +95,8 @@ func (self AddDispatcher) Add(scope types.Scope, a types.Any, b types.Any) types
 
 	// Handle array concatenation
 	if is_array(a) || is_array(b) {
-		a_slice := convertToSlice(a)
-		b_slice := convertToSlice(b)
+		a_slice := convertToSlice(scope, a)
+		b_slice := convertToSlice(scope, b)
 
 		return append(a_slice, b_slice...)
 	}
@@ -111,7 +112,7 @@ func (self *AddDispatcher) AddImpl(elements ...AddProtocol) {
 	}
 }
 
-func convertToSlice(a types.Any) []types.Any {
+func convertToSlice(scope types.Scope, a types.Any) []types.Any {
 	if is_array(a) {
 		a_slice := reflect.ValueOf(a)
 		result := make([]types.Any, 0, a_slice.Len())
@@ -120,5 +121,15 @@ func convertToSlice(a types.Any) []types.Any {
 		}
 		return result
 	}
+
+	stored_query, ok := a.(types.StoredQuery)
+	if ok {
+		var res []types.Any
+		for _, x := range MaterializeToArray(context.Background(), scope, stored_query) {
+			res = append(res, x)
+		}
+		return res
+	}
+
 	return []types.Any{a}
 }
