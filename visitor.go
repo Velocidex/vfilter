@@ -57,6 +57,9 @@ type CallSite struct {
 type Visitor struct {
 	CallSites []CallSite
 
+	// A list of LET definitions
+	Definitions []CallSite
+
 	// Tokens added to the visitor as we encounter each token during
 	// parsing. Combining all the Fragments yields a reformatted
 	// query.
@@ -1049,6 +1052,19 @@ func (self *Visitor) visitVQL(node *VQL) {
 			if node.Parameters != nil {
 				self.push("(")
 				parameters := node.getParameters()
+				if self.opts.CollectCallSites {
+					callsite := CallSite{
+						Type: "definition",
+						Name: node.Let,
+					}
+
+					for _, p := range parameters {
+						callsite.Args = append(callsite.Args,
+							utils.Unquote_ident(p))
+					}
+					self.Definitions = append(self.Definitions, callsite)
+				}
+
 				for idx, p := range parameters {
 					self.push(p)
 					if idx < len(parameters)-1 {
@@ -1056,6 +1072,12 @@ func (self *Visitor) visitVQL(node *VQL) {
 					}
 				}
 				self.push(")")
+
+			} else if self.opts.CollectCallSites {
+				self.Definitions = append(self.Definitions, CallSite{
+					Type: "definition",
+					Name: node.Let,
+				})
 			}
 		}
 		self.push(" ", operator, " ")
