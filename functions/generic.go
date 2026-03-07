@@ -16,17 +16,18 @@ type GenericFunctionInterface func(ctx context.Context, scope types.Scope, args 
 // helper plugin allows callers to use these within VFilter
 // easily. Example:
 
-// scope.AppendPlugins(GenericListPlugin{
-//   PluginName: "my_plugin",
-//   Function: func(args types.Row) []types.Row {
-//        ....
-//   }
-// })
+//	scope.AppendPlugins(GenericListPlugin{
+//	  PluginName: "my_plugin",
+//	  Function: func(args types.Row) []types.Row {
+//	       ....
+//	  }
+//	})
 type GenericFunction struct {
 	FunctionName string
 	Doc          string
 	Function     GenericFunctionInterface
 	Metadata     *ordereddict.Dict
+	Version      int
 	ArgType      types.Any
 }
 
@@ -47,6 +48,7 @@ func (self GenericFunction) Info(scope types.Scope, type_map *types.TypeMap) *ty
 		Name:     self.FunctionName,
 		Doc:      self.Doc,
 		Metadata: self.Metadata,
+		Version:  self.Version,
 	}
 
 	if self.ArgType != nil {

@@ -1416,5 +1416,20 @@
         }
       ]
     }
+  ],
+  "090/000 Function definition with defaults: LET Y \u003c= 7": null,
+  "090/001 Function definition with defaults: LET F(X=2, Y) = X + Y": null,
+  "090/002 Function definition with defaults: SELECT F(Y=1), F(), F(X=1, Y=4) FROM scope()": [
+    {
+      "F(Y=1)": 3,
+      "F()": 9,
+      "F(X=1, Y=4)": 5
+    }
+  ],
+  "091/000 Stored Query definition with defaults: LET F(X=2, Y) = SELECT X + Y AS Total FROM scope()": null,
+  "091/001 Stored Query definition with defaults: SELECT * FROM F(Y=1)": [
+    {
+      "Total": 3
+    }
   ]
 }

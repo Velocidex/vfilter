@@ -37,6 +37,7 @@ type _StoredQuery struct {
 	query      *_Select
 	name       string
 	parameters []string
+	defaults   map[string]*_Args
 }
 
 func NewStoredQuery(query *_Select, name string) *_StoredQuery {
@@ -44,6 +45,15 @@ func NewStoredQuery(query *_Select, name string) *_StoredQuery {
 		query: query,
 		name:  name,
 	}
+}
+
+func (self *_StoredQuery) ApplyDefaults(
+	ctx context.Context, scope types.Scope, args *ordereddict.Dict) {
+	if self.defaults == nil {
+		return
+	}
+
+	applyDefaults(ctx, scope, args, self.defaults)
 }
 
 func (self *_StoredQuery) GoString() string {
@@ -155,11 +165,46 @@ type StoredExpression struct {
 	Expr       *_AndExpression
 	name       string
 	parameters []string
+	defaults   map[string]*_Args
 }
 
 func (self *StoredExpression) Reduce(
 	ctx context.Context, scope types.Scope) types.Any {
 	return self.Expr.Reduce(ctx, scope)
+}
+
+func (self *StoredExpression) ApplyDefaults(
+	ctx context.Context, scope types.Scope, args *ordereddict.Dict) {
+	// Add in any missing args
+	if self.defaults == nil {
+		return
+	}
+
+	applyDefaults(ctx, scope, args, self.defaults)
+}
+
+func applyDefaults(ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict,
+	defaults map[string]*_Args) {
+
+	for name, arg := range defaults {
+		_, pres := args.Get(name)
+
+		// If the user did not specify the arg we fill it in from
+		// the defaults. NOTE: The default expressions are
+		// evaluated at the calling scope.
+		if !pres {
+			if arg.Right != nil {
+				args.Set(name, arg.Right.Reduce(ctx, scope))
+			} else if arg.SubSelect != nil {
+				args.Set(arg.Left, arg.SubSelect)
+			} else if arg.Array != nil {
+				args.Set(name, arg.Array.Reduce(ctx, scope))
+			} else if arg.ArrayOpenBrace != "" {
+				args.Set(name, []Row{})
+			}
+		}
+	}
 }
 
 // Act as a function
@@ -182,6 +227,8 @@ func (self *StoredExpression) Call(ctx context.Context,
 		}
 		vars.Set(k, v)
 	}
+
+	self.ApplyDefaults(ctx, scope, vars)
 
 	sub_scope.AppendVars(vars)
 

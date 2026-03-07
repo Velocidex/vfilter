@@ -295,15 +295,25 @@ type _Comment struct {
 	MultiLine  *string `@MLineComment )`
 }
 
+type LetParameter struct {
+	DefaultArg *_Args  ` (  @@ | `
+	Name       *string ` @Ident )`
+}
+
 // An opaque object representing the VQL expression.
 type VQL struct {
-	Let         string          `LET  @Ident `
-	Parameters  *_ParameterList `{ "(" @@ ")" }`
-	LetOperator string          ` ( @"=" | @"<=" ) `
-	StoredQuery *_Select        ` ( @@ |  `
-	Expression  *_AndExpression ` @@ ) |`
-	Query       *_Select        ` @@  `
-	Comments    []*_Comment
+	Let           string          `LET  @Ident `
+	LetParameters []*LetParameter ` [ "(" [ @@ { "," @@ } ] ")" ] `
+	LetOperator   string          ` ( @"=" | @"<=" ) `
+	StoredQuery   *_Select        ` ( @@ |  `
+	Expression    *_AndExpression ` @@ ) |`
+	Query         *_Select        ` @@  `
+	Comments      []*_Comment
+
+	// JIT Compile these for faster execution
+	mu              sync.Mutex
+	argsCache       map[string]*_Args
+	parametersCache []string
 }
 
 type _ParameterList struct {
@@ -342,7 +352,9 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	// If this is a Let expression we need to create a stored
 	// query and assign to the scope.
 	if len(self.Let) > 0 {
-		if self.Parameters != nil && self.LetOperator == "<=" {
+		parameters, defaults := self.getParameters()
+
+		if parameters != nil && self.LetOperator == "<=" {
 			scope.Log("WARN:Expression %v takes parameters but is "+
 				"materialized! Did you mean to use '='? ", self.Let)
 		}
@@ -357,12 +369,10 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 		// Let assigning an expression.
 		if self.Expression != nil {
 			expr := &StoredExpression{
-				Expr: self.Expression,
-				name: name,
-			}
-
-			if self.Parameters != nil {
-				expr.parameters = self.getParameters()
+				Expr:       self.Expression,
+				name:       name,
+				parameters: parameters,
+				defaults:   defaults,
 			}
 
 			switch self.LetOperator {
@@ -393,9 +403,7 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 		switch self.LetOperator {
 		case "=":
 			stored_query := NewStoredQuery(self.StoredQuery, name)
-			if self.Parameters != nil {
-				stored_query.parameters = self.getParameters()
-			}
+			stored_query.parameters, stored_query.defaults = self.getParameters()
 
 			scope.AppendVars(ordereddict.NewDict().Set(name, stored_query))
 		case "<=":
@@ -427,7 +435,11 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 					if !ok {
 						return
 					}
-					output_chan <- row
+					select {
+					case <-ctx.Done():
+						return
+					case output_chan <- row:
+					}
 				}
 			}
 		}()
@@ -436,22 +448,36 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	}
 }
 
-// Walk the parameters list and collect all the parameter names.
-func visitor(parameters *_ParameterList, result *[]string) {
-	*result = append(*result, parameters.Left)
-	if parameters.Right != nil {
-		visitor(parameters.Right.Term, result)
-	}
-}
-
-func (self *VQL) getParameters() []string {
-	result := []string{}
-
-	if self.Let != "" && self.Parameters != nil {
-		visitor(self.Parameters, &result)
+func (self *VQL) getParameters() ([]string, map[string]*_Args) {
+	if self.Let == "" || len(self.LetParameters) == 0 {
+		return nil, nil
 	}
 
-	return result
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	if self.argsCache != nil {
+		return self.parametersCache, self.argsCache
+	}
+
+	self.argsCache = make(map[string]*_Args)
+
+	for _, arg := range self.LetParameters {
+
+		// Two possibilities - either the arg has a default or not.
+		if arg.Name != nil {
+			name := utils.Unquote_ident(*arg.Name)
+
+			self.parametersCache = append(self.parametersCache, name)
+		} else if arg.DefaultArg != nil {
+			name := utils.Unquote_ident(arg.DefaultArg.Left)
+			self.parametersCache = append(self.parametersCache, name)
+
+			self.argsCache[name] = arg.DefaultArg
+		}
+	}
+
+	return self.parametersCache, self.argsCache
 }
 
 type _Select struct {
@@ -1095,86 +1121,101 @@ func (self *Plugin) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	}
 
 	if self.Call {
-		return self.evalSymbol(
-			ctx, scope,
-			symbol, self.Name, buildArgsFromParameters(ctx, scope, self.Args))
+		return self.evalSymbolWithArgs(ctx, scope, symbol, self.Name)
 	}
-	return self.evalSymbol(ctx, scope, symbol, self.Name, nil)
+	return self.evalSymbol(ctx, scope, symbol, self.Name)
 }
 
-func (self *Plugin) evalSymbol(
+func (self *Plugin) evalSymbolWithArgs(
 	ctx context.Context, scope types.Scope,
-	symbol types.Any, name string, args *ordereddict.Dict) <-chan Row {
-
-	output_chan := make(chan Row)
+	symbol types.Any, name string) <-chan Row {
 
 	if scope.CheckForOverflow() {
+		output_chan := make(chan Row)
 		close(output_chan)
 		return output_chan
 	}
 
 	// We need to call the symbol depending on what it is.
-	if args != nil {
-		switch t := symbol.(type) {
+	switch t := symbol.(type) {
 
-		// Stored Expression e.g. LET Foo(X) = X + 1
-		case types.StoredExpression:
-			subscope := scope.Copy()
-			defer subscope.Close()
+	// Stored Expression e.g. LET Foo(X) = X + 1
+	case types.StoredExpression:
+		subscope := scope.Copy()
+		defer subscope.Close()
 
-			subscope.AppendVars(args)
-			return self.evalSymbol(
-				ctx, scope, t.Reduce(ctx, subscope), name, nil)
+		args := buildArgsFromParameters(ctx, scope, self.Args)
+		types.MaybeApplyDefaultArgs(t, ctx, scope, args)
 
-			// A plugin like item
-		case PluginGeneratorInterface:
-			scope.GetStats().IncPluginsCalled()
+		subscope.AppendVars(args)
+		return self.evalSymbol(ctx, scope, t.Reduce(ctx, subscope), name)
 
-			return t.Call(ctx, scope, args)
+		// A plugin like item
+	case PluginGeneratorInterface:
+		scope.GetStats().IncPluginsCalled()
 
-		default:
-			scope.Log("ERROR:Symbol %v is not callable", name)
-			close(output_chan)
-			return output_chan
-		}
+		args := buildArgsFromParameters(ctx, scope, self.Args)
+		types.MaybeApplyDefaultArgs(t, ctx, scope, args)
 
-		// Symbol is not called
-	} else {
+		return t.Call(ctx, scope, args)
 
-		switch t := symbol.(type) {
-		case types.StoredExpression:
-			return self.evalSymbol(ctx, scope, t.Reduce(ctx, scope), name, nil)
+	default:
+		scope.Log("ERROR:Symbol %v is not callable as a plugin", name)
+		utils.DlvBreak()
 
-		case StoredQuery:
-			return t.Eval(ctx, scope)
+		output_chan := make(chan Row)
+		close(output_chan)
+		return output_chan
+	}
+}
 
-		}
+// Evaluate the symbol with the current scope.
+func (self *Plugin) evalSymbol(
+	ctx context.Context, scope types.Scope,
+	symbol types.Any, name string) <-chan Row {
+
+	if scope.CheckForOverflow() {
+		output_chan := make(chan Row)
+		close(output_chan)
+		return output_chan
 	}
 
-	go func() {
-		defer close(output_chan)
+	switch t := symbol.(type) {
+	case types.StoredExpression:
+		return self.evalSymbol(ctx, scope, t.Reduce(ctx, scope), name)
 
-		if utils.IsArray(symbol) {
-			var_slice := reflect.ValueOf(symbol)
-			for i := 0; i < var_slice.Len(); i++ {
-				select {
-				case <-ctx.Done():
-					return
-				case output_chan <- var_slice.Index(i).Interface():
+	case StoredQuery:
+		return t.Eval(ctx, scope)
+
+	default:
+		// Send the value to the caller.
+		output_chan := make(chan Row)
+
+		go func() {
+			defer close(output_chan)
+
+			if utils.IsArray(symbol) {
+				var_slice := reflect.ValueOf(symbol)
+				for i := 0; i < var_slice.Len(); i++ {
+					select {
+					case <-ctx.Done():
+						return
+					case output_chan <- var_slice.Index(i).Interface():
+					}
 				}
+				return
 			}
-			return
-		}
 
-		select {
-		case <-ctx.Done():
-			return
-		case output_chan <- symbol:
-		}
+			select {
+			case <-ctx.Done():
+				return
+			case output_chan <- symbol:
+			}
 
-	}()
+		}()
 
-	return output_chan
+		return output_chan
+	}
 }
 
 func (self *_MemberExpression) IsAggregate(scope types.Scope) bool {
@@ -1644,8 +1685,10 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 				return &Null{}
 			}
 
-			subscope.AppendVars(self.buildArgsFromParameters(
-				ctx, scope))
+			args := self.buildArgsFromParameters(ctx, scope)
+			types.MaybeApplyDefaultArgs(t, ctx, scope, args)
+
+			subscope.AppendVars(args)
 
 			scope.GetStats().IncFunctionsCalled()
 
@@ -1672,6 +1715,8 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 				}
 
 				vars := self.buildArgsFromParameters(ctx, scope)
+				types.MaybeApplyDefaultArgs(t, ctx, scope, vars)
+
 				subscope.AppendVars(vars)
 
 				scope.GetStats().IncFunctionsCalled()
@@ -1716,30 +1761,32 @@ func (self *_SymbolRef) buildArgsFromParameters(
 
 func buildArgsFromParameters(
 	ctx context.Context,
-	scope types.Scope, parameters []*_Args) *ordereddict.Dict {
+	scope types.Scope,
+	parameters []*_Args) *ordereddict.Dict {
 
 	args := ordereddict.NewDict()
 
 	// When calling into a VQL stored function, we materialize all
 	// args.
 	for _, arg := range parameters {
+		name := utils.Unquote_ident(arg.Left)
+
 		// e.g. X=func(foo=Bar)
 		// This is evaluated at the point of definition.
 		if arg.Right != nil {
-			name := utils.Unquote_ident(arg.Left)
 			args.Set(name, arg.Right.Reduce(ctx, scope))
 
 			// e.g. X={ SELECT * FROM ... }
 		} else if arg.SubSelect != nil {
-			args.Set(arg.Left, arg.SubSelect)
+			args.Set(name, arg.SubSelect)
 
 			// e.g. X=[1,2,3,4]
 		} else if arg.Array != nil {
 			value := arg.Array.Reduce(ctx, scope)
-			args.Set(arg.Left, value)
+			args.Set(name, value)
 
 		} else if arg.ArrayOpenBrace != "" {
-			args.Set(arg.Left, []Row{})
+			args.Set(name, []Row{})
 		}
 	}
 
