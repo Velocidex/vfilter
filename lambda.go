@@ -24,8 +24,16 @@ type Lambda struct {
 func (self *Lambda) GetParameters() []string {
 	result := []string{}
 
+	var visitor func(parameters *_ParameterList)
+	visitor = func(parameters *_ParameterList) {
+		result = append(result, parameters.Left)
+		if parameters.Right != nil {
+			visitor(parameters.Right.Term)
+		}
+	}
+
 	if self.Parameters != nil {
-		visitor(self.Parameters, &result)
+		visitor(self.Parameters)
 	}
 
 	return result

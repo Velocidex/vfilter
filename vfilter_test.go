@@ -31,7 +31,8 @@ type execTest struct {
 }
 
 var compareOptions = cmpopts.IgnoreUnexported(
-	_Value{}, Plugin{}, _SymbolRef{}, _AliasedExpression{})
+	_Value{}, Plugin{}, _SymbolRef{}, _AliasedExpression{}, VQL{},
+)
 
 var execTestsSerialization = []execTest{
 	{"1 or sleep(a=100)", true},
@@ -1345,6 +1346,24 @@ LET X <= SELECT value AS Foo FROM range(start=1, end=4)
 
 SELECT (dict(Foo=12), ) + X, X + (dict(Foo=12),) FROM scope()
 `},
+
+	// The F() call is not valid and will trigger the verifier but it
+	// is allowed. The arg with no default will be evaluated in the
+	// scope of the caller.
+	{"Function definition with defaults", `
+LET Y <= 7
+
+LET F(X = 2, Y ) = X+Y
+SELECT F(Y=1), F(), F(X=1, Y=4) FROM scope()
+`},
+
+	{"Stored Query definition with defaults", `
+LET F(X = 2, Y ) =
+    SELECT X + Y AS Total
+    FROM scope()
+
+SELECT * FROM F(Y=1)
+`},
 }
 
 type _RangeArgs struct {
@@ -1544,7 +1563,7 @@ func TestMultiVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range multiVQLTest {
-		if false && i != 88 {
+		if false && i != 66 {
 			continue
 		}
 		scope := makeTestScope()

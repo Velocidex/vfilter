@@ -48,17 +48,28 @@ type FormatOptions struct {
 	test bool
 }
 
+// The CallSite describes the place where a callable is called
+// from. For example, SELECT Foo(X=45) FROM scope()
 type CallSite struct {
 	Type string
 	Name string
 	Args []string
 }
 
+// The DefinitionSite describes where a function is declared:
+// For example: LET Foo(X, Y) = ....
+type DefinitionSite struct {
+	Type     string
+	Name     string
+	Args     []string
+	Defaults []string
+}
+
 type Visitor struct {
 	CallSites []CallSite
 
 	// A list of LET definitions
-	Definitions []CallSite
+	Definitions []DefinitionSite
 
 	// Tokens added to the visitor as we encounter each token during
 	// parsing. Combining all the Fragments yields a reformatted
@@ -226,9 +237,6 @@ func (self *Visitor) Visit(node interface{}) {
 			// Leave an empty line between each VQL statement.
 			self.line_break()
 		}
-
-	case *types.FrozenStoredQuery:
-		self.Visit(t.Query())
 
 	case *_StoredQuery:
 		self.Visit(t.query)
@@ -1049,24 +1057,39 @@ func (self *Visitor) visitVQL(node *VQL) {
 
 		if node.Expression != nil || node.StoredQuery != nil {
 			self.push("LET ", node.Let)
-			if node.Parameters != nil {
+			parameters, defaults := node.getParameters()
+
+			if defaults != nil {
 				self.push("(")
-				parameters := node.getParameters()
 				if self.opts.CollectCallSites {
-					callsite := CallSite{
+					defsite := DefinitionSite{
 						Type: "definition",
 						Name: node.Let,
 					}
 
 					for _, p := range parameters {
-						callsite.Args = append(callsite.Args,
+						defsite.Args = append(defsite.Args,
 							utils.Unquote_ident(p))
 					}
-					self.Definitions = append(self.Definitions, callsite)
+
+					for k := range defaults {
+						defsite.Defaults = append(defsite.Defaults,
+							utils.Unquote_ident(k))
+					}
+					self.Definitions = append(self.Definitions, defsite)
 				}
 
 				for idx, p := range parameters {
-					self.push(p)
+					// Is it an arg with default?
+					def_value, pres := defaults[p]
+					if pres {
+						self.Visit(def_value)
+
+					} else {
+						// Otherwise just emit the plain name
+						self.push(p)
+					}
+
 					if idx < len(parameters)-1 {
 						self.push(",", " ")
 					}
@@ -1074,7 +1097,7 @@ func (self *Visitor) visitVQL(node *VQL) {
 				self.push(")")
 
 			} else if self.opts.CollectCallSites {
-				self.Definitions = append(self.Definitions, CallSite{
+				self.Definitions = append(self.Definitions, DefinitionSite{
 					Type: "definition",
 					Name: node.Let,
 				})
