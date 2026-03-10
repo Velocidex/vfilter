@@ -195,7 +195,7 @@ func (self _EncodeFunction) Call(
 	case string:
 		arg_string = t
 
-	case []byte, []uint8:
+	case []byte:
 		arg_string = string(t)
 
 	case error:
