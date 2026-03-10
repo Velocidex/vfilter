@@ -217,7 +217,7 @@ func stringParser(ctx context.Context, scope types.Scope,
 		return fmt.Sprintf("%v", arg), nil
 
 	default:
-		return fmt.Sprintf("%s", arg), nil
+		return fmt.Sprintf("%v", arg), nil
 	}
 }
 
