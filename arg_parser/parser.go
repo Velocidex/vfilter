@@ -216,6 +216,9 @@ func stringParser(ctx context.Context, scope types.Scope,
 		int16, uint8, int8, float64, float32, int:
 		return fmt.Sprintf("%v", arg), nil
 
+	case []uint8, []byte:
+		return string(t), nil
+
 	default:
 		return fmt.Sprintf("%v", arg), nil
 	}
