@@ -194,11 +194,15 @@ func (self _EncodeFunction) Call(
 	switch t := arg.String.(type) {
 	case string:
 		arg_string = t
+
 	case []byte:
 		arg_string = string(t)
 
+	case error:
+		return t.Error()
+
 	case fmt.Stringer:
-		arg_string = fmt.Sprintf("%s", t)
+		arg_string = t.String()
 
 	default:
 		arg_string = fmt.Sprintf("%v", t)
