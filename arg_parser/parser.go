@@ -94,6 +94,49 @@ func (self *Parser) Parse(
 	return nil
 }
 
+// Parses the args as free form args:
+// * Extract known fields into the target struct.
+// * Other fields will be returns as the kwargs dict.
+func (self *Parser) ParseAsFreeForm(
+	ctx context.Context, scope types.Scope, args *ordereddict.Dict, target reflect.Value) (*ordereddict.Dict, error) {
+	parsed := make([]string, 0, args.Len())
+	kwargs := ordereddict.NewDict()
+
+	for _, parser := range self.Fields {
+		value, pres := args.Get(parser.Field)
+		if !pres {
+			if parser.Required {
+				return nil, fmt.Errorf("Field %s is required", parser.Field)
+			}
+			continue
+		}
+
+		// Keep track of the fields we parsed.
+		parsed = append(parsed, parser.Field)
+
+		// Convert the value using the parser
+		new_value, err := parser.Parser(ctx, scope, args, value)
+		if err != nil {
+			return nil, fmt.Errorf("Field %s %w", parser.Field, err)
+		}
+
+		// Now set the field on the struct.
+		field_value := target.Field(parser.FieldIdx)
+		field_value.Set(reflect.ValueOf(new_value))
+	}
+
+	// Remaining fields are collected into the kwargs
+	if len(parsed) != args.Len() {
+		for _, item := range args.Items() {
+			if !utils.InString(&parsed, item.Key) {
+				kwargs.Set(item.Key, item.Value)
+			}
+		}
+	}
+
+	return dict.RowToDict(ctx, scope, kwargs), nil
+}
+
 // The plugin may specify the arg as being a LazyExpr, in which case
 // it is completely up to it to evaluate the expression (if at all).
 // Note: Reducing the lazy expression may yield a StoredQuery - it is

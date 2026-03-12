@@ -77,6 +77,28 @@ func ExtractArgsWithContext(
 	return err
 }
 
+func ExtractKWArgsWithContext(
+	ctx context.Context, scope types.Scope,
+	args *ordereddict.Dict, target interface{}) (*ordereddict.Dict, error) {
+
+	args = NormalizeArgs(args)
+
+	v := reflect.ValueOf(target)
+	if v.Type().Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	parser, err := GetParser(v)
+	if err != nil {
+		scope.Explainer().ParseArgs(args, target, err)
+		return nil, err
+	}
+
+	kw, err := parser.ParseAsFreeForm(ctx, scope, args, v)
+	scope.Explainer().ParseArgs(args, target, err)
+	return kw, err
+}
+
 // Try to retrieve an arg name from the Dict of args. Coerce the arg
 // into something resembling a list of strings.
 func _ExtractStringArray(
