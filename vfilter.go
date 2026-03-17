@@ -302,8 +302,10 @@ type LetParameter struct {
 
 // An opaque object representing the VQL expression.
 type VQL struct {
-	Let           string          `LET  @Ident `
-	LetParameters []*LetParameter ` [ "(" [ @@ { "," @@ } ] ")" ] `
+	Let string `LET  @Ident `
+	// Distinguish between `LET X = ...` and `LET X() = ...`
+	Called        string          ` [ @"(" `
+	LetParameters []*LetParameter ` [ @@ { "," @@ } ] ")" ] `
 	LetOperator   string          ` ( @"=" | @"<=" ) `
 	StoredQuery   *_Select        ` ( @@ |  `
 	Expression    *_AndExpression ` @@ ) |`
