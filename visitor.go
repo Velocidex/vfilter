@@ -32,6 +32,14 @@ var (
 	CollectCallSites = FormatOptions{
 		CollectCallSites: true,
 	}
+
+	CollectComments = FormatOptions{
+		CollectComments: true,
+	}
+
+	CollectDefinitionSites = FormatOptions{
+		CollectDefinitionSites: true,
+	}
 )
 
 type FormatOptions struct {
@@ -41,8 +49,10 @@ type FormatOptions struct {
 	MaxWidthThreshold    int
 
 	// Parameters are layed one on each line and indent at the first (
-	BreakLines       bool
-	CollectCallSites bool
+	BreakLines             bool
+	CollectCallSites       bool
+	CollectDefinitionSites bool
+	CollectComments        bool
 
 	// Set when we do a test reformat to try to lookahead.
 	test bool
@@ -70,6 +80,9 @@ type Visitor struct {
 
 	// A list of LET definitions
 	Definitions []DefinitionSite
+
+	// All the comments in the VQL
+	Comments []string
 
 	// Tokens added to the visitor as we encounter each token during
 	// parsing. Combining all the Fragments yields a reformatted
@@ -339,6 +352,10 @@ func (self *Visitor) visitStoredExpression(node *StoredExpression) {
 func (self *Visitor) visitComment(node *_Comment) {
 	// C Style comments start with // and follow the arg.
 	if node.Comment != nil {
+		if self.opts.CollectComments {
+			self.Comments = append(self.Comments, *node.Comment)
+		}
+
 		self.push(*node.Comment)
 		self.line_break()
 	}
@@ -347,6 +364,10 @@ func (self *Visitor) visitComment(node *_Comment) {
 	// are commenting. We must break line after wards to tell the
 	// parser to switch back to VQL mode.
 	if node.VQLComment != nil {
+		if self.opts.CollectComments {
+			self.Comments = append(self.Comments, *node.VQLComment)
+		}
+
 		self.push(*node.VQLComment)
 		self.line_break()
 	}
@@ -354,6 +375,10 @@ func (self *Visitor) visitComment(node *_Comment) {
 	// Multi line comments always start at column 0 and follow by a
 	// line break.
 	if node.MultiLine != nil {
+		if self.opts.CollectComments {
+			self.Comments = append(self.Comments, *node.MultiLine)
+		}
+
 		self.new_line(0)
 		defer self.pop_indent()
 
@@ -483,6 +508,12 @@ func (self *Visitor) visitSymbolRef(node *_SymbolRef) {
 
 	self.push(node.Symbol)
 	if !node.Called && node.Parameters == nil {
+		callsite := CallSite{
+			Type: "symbol",
+			Name: node.Symbol,
+		}
+
+		self.CallSites = append(self.CallSites, callsite)
 		return
 	}
 
@@ -1061,10 +1092,11 @@ func (self *Visitor) visitVQL(node *VQL) {
 
 			if defaults != nil {
 				self.push("(")
-				if self.opts.CollectCallSites {
+				if self.opts.CollectDefinitionSites {
 					defsite := DefinitionSite{
 						Type: "definition",
 						Name: node.Let,
+						Args: []string{},
 					}
 
 					for _, p := range parameters {
@@ -1096,11 +1128,17 @@ func (self *Visitor) visitVQL(node *VQL) {
 				}
 				self.push(")")
 
-			} else if self.opts.CollectCallSites {
-				self.Definitions = append(self.Definitions, DefinitionSite{
+			} else if self.opts.CollectDefinitionSites {
+				defsite := DefinitionSite{
 					Type: "definition",
 					Name: node.Let,
-				})
+				}
+
+				if node.Called != "" {
+					defsite.Args = []string{}
+				}
+
+				self.Definitions = append(self.Definitions, defsite)
 			}
 		}
 		self.push(" ", operator, " ")
