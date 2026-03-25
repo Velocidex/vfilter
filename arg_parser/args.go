@@ -186,21 +186,22 @@ func ToStoredQuery(ctx context.Context, arg types.Any) types.StoredQuery {
 
 	case types.StoredQuery:
 		return t
+
 	default:
-		return &storedQueryWrapper{arg}
+		return &StoredQueryWrapper{arg}
 	}
 }
 
-type storedQueryWrapper struct {
-	value types.Any
+type StoredQueryWrapper struct {
+	Value types.Any
 }
 
-func (self *storedQueryWrapper) Eval(ctx context.Context, scope types.Scope) <-chan types.Row {
+func (self *StoredQueryWrapper) Eval(ctx context.Context, scope types.Scope) <-chan types.Row {
 	output_chan := make(chan types.Row)
 	go func() {
 		defer close(output_chan)
 
-		slice := reflect.ValueOf(self.value)
+		slice := reflect.ValueOf(self.Value)
 		if slice.Type().Kind() == reflect.Slice {
 			for i := 0; i < slice.Len(); i++ {
 				value := slice.Index(i).Interface()
@@ -213,7 +214,7 @@ func (self *storedQueryWrapper) Eval(ctx context.Context, scope types.Scope) <-c
 				}
 			}
 		} else {
-			row_value := self.toRow(scope, self.value)
+			row_value := self.toRow(scope, self.Value)
 			if !types.IsNil(row_value) {
 				select {
 				case <-ctx.Done():
@@ -227,7 +228,7 @@ func (self *storedQueryWrapper) Eval(ctx context.Context, scope types.Scope) <-c
 	return output_chan
 }
 
-func (self *storedQueryWrapper) toRow(scope types.Scope, value types.Any) types.Row {
+func (self *StoredQueryWrapper) toRow(scope types.Scope, value types.Any) types.Row {
 	if types.IsNil(value) {
 		return types.Null{}
 	}

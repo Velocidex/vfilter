@@ -111,6 +111,9 @@ type Visitor struct {
 
 	// Flag set when a comment is encountered.
 	has_comments bool
+
+	// Set via the VFILTER_DEBUG env.
+	debug bool
 }
 
 func NewVisitor(scope types.Scope, options FormatOptions) *Visitor {
@@ -333,6 +336,9 @@ func (self *Visitor) Visit(node interface{}) {
 	case *arg_parser.StoredQueryWrapperLazyExpression:
 		self.Visit(t.Delegate())
 
+	case *arg_parser.StoredQueryWrapper:
+		self.Visit(t.Value)
+
 	case *arg_parser.LazyExpressionWrapper:
 		self.Visit(t.Delegate())
 
@@ -340,7 +346,9 @@ func (self *Visitor) Visit(node interface{}) {
 		return
 
 	default:
-		self.scope.Log("FormatToString: Unable to visit %T", node)
+		if self.debug {
+			self.scope.Log("FormatToString: Unable to visit %T", node)
+		}
 	}
 }
 
@@ -1251,6 +1259,10 @@ func (self *Visitor) is_better(other *Visitor) bool {
 
 func FormatToString(scope types.Scope, node interface{}) string {
 	visitor := NewVisitor(scope, ToStringOptions)
+	debug, pres := scope.Resolve("VFILTER_DEBUG")
+	if pres {
+		visitor.debug = scope.Bool(debug)
+	}
 	visitor.Visit(node)
 	return strings.TrimSpace(visitor.ToString())
 }
