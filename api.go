@@ -49,7 +49,7 @@ func GetResponseChannel(
 				Payload:   s,
 			}
 
-			// We dont know the columns but we have at
+			// We don't know the columns but we have at
 			// least one row. Set the columns from this
 			// row.
 			if len(rows) > 0 {

@@ -1,4 +1,4 @@
-// Immplements group by operation
+// Implements group by operation
 
 package grouper
 

@@ -18,12 +18,12 @@
 //  1. Each aggregate function instance in the AST carries a unique
 //     ID. This allows the function to store its own state in the
 //     aggregate context without interference from other instances of
-//     the same function (e.g. having two count() instaces is OK)
+//     the same function (e.g. having two count() instances is OK)
 
 //  2. The scope may contain a reference to an AggregatorCtx
 //     object. This object manages access to the aggregate
 //     context. The main method that should be used is Modify() which
-//     mofidies the context under lock.
+//     modifies the context under lock.
 
 //  3. When the scope spawns a child scope, the child scope does not
 //     have its own AggregatorCtx, instead chasing its parent to find

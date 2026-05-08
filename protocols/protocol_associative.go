@@ -64,7 +64,7 @@ func (self *AssociativeDispatcher) Associative(
 		case types.LazyRow:
 			return t.Get(b_str)
 
-			// Dereferencing a stroed query expands all
+			// Dereferencing a stored query expands all
 			// fields and extracts a single column
 		case types.StoredQuery:
 			result := []types.Row{}

@@ -51,7 +51,7 @@ func (self DivDispatcher) Div(scope types.Scope, a types.Any, b types.Any) types
 		}
 	}
 
-	// Always convert to float to not lose preceision.
+	// Always convert to float to not lose precision.
 	a_int, ok := utils.ToFloat(a)
 	if ok {
 		b_int, ok := utils.ToFloat(b)

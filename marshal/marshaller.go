@@ -40,7 +40,7 @@ func Marshal(scope types.Scope, item interface{}) (*types.MarshalItem, error) {
 
 		// The default marshaller is to just convert it into
 		// JSON and hope for the best - but we let the user
-		// know we dont know how to handle it.
+		// know we don't know how to handle it.
 	default:
 		serialized, err := json.Marshal(item)
 		if err != nil {

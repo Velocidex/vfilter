@@ -52,7 +52,7 @@ use.
 This is where velocifilter comes in. By using the library we can
 provide a single flag where the user may specify a flexible VQL query
 (Velocidex Query Language - a simplified SQL dialect) allowing the
-user to specify arbirarily complex filter expressions. For example:
+user to specify arbitrarily complex filter expressions. For example:
 
 SELECT file from glob(pattern=["*.go", "*.py"]) where file.Size < 5000
 and file.Mtime < now() - "5 days"
@@ -81,7 +81,7 @@ package to add an interface to an existing type without creating a new
 type which embeds it. Clients who need to handle the original third
 party types must have a way to attach new protocols to existing types
 defined outside their own codebase. Velocifilter achieves this by
-implementing a registration systen in the Scope{} object.
+implementing a registration system in the Scope{} object.
 
 For example, consider a client of the library wishing to pass custom
 types in queries:
@@ -331,7 +331,7 @@ type _ParameterListTerm struct {
 
 // Returns the type of statement it is:
 // LAZY_LET - A lazy stored query
-// MATERIALIZED_LET - A stored meterialized query.
+// MATERIALIZED_LET - A stored materialized query.
 // SELECT - A query
 func (self *VQL) Type() string {
 	if self.LetOperator == "=" {
@@ -966,7 +966,7 @@ func (self *_SelectExpression) Transform(
 
 	// If there is a * expression in addition to the column
 	// expressions, this is equivalent to adding all the columns as
-	// defined by the * as if they were explicitely defined.
+	// defined by the * as if they were explicitly defined.
 	if self.All {
 		for _, member := range scope.GetMembers(row) {
 			value, pres := scope.Associative(row, member)

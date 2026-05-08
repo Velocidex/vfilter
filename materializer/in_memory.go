@@ -47,7 +47,7 @@ func (self InMemoryMatrializer) Applicable(a types.Any, b types.Any) bool {
 	return true
 }
 
-// Just deletegate to our contained rows array.
+// Just delegate to our contained rows array.
 func (self InMemoryMatrializer) GetMembers(scope types.Scope, a types.Any) []string {
 	a_materializer, ok := a.(*InMemoryMatrializer)
 	if !ok {
@@ -78,10 +78,10 @@ func (self *InMemoryMatrializer) MarshalJSON() ([]byte, error) {
 }
 
 // An object implementing the ScopeMaterializer interface. This is the
-// default meterializer used in VQL to expand a LET query into the
+// default materializer used in VQL to expand a LET query into the
 // scope. It returns wrapper that contains the list of rows in
 // memory. Library users may register a more sophisticated
-// meterializer that backs data in more scalable storage to avoid
+// materializer that backs data in more scalable storage to avoid
 // memory costs.
 type DefaultMaterializer struct{}
 

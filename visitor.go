@@ -24,7 +24,7 @@ var (
 		IndentWidthThreshold: 50,
 		MaxWidthThreshold:    80,
 
-		// If false we dont break lines at all - all tokens are
+		// If false we don't break lines at all - all tokens are
 		// written on the same line.
 		BreakLines: true,
 	}
@@ -43,7 +43,7 @@ var (
 )
 
 type FormatOptions struct {
-	// Threshold above which we indent more aggresively on new
+	// Threshold above which we indent more aggressively on new
 	// lines. Below the threshold we try to keep lines together.
 	IndentWidthThreshold int
 	MaxWidthThreshold    int
@@ -197,7 +197,7 @@ func (self *Visitor) line_break() {
 		last_fragment = self.Fragments[len(self.Fragments)-1]
 	}
 
-	// Format all on the same line. Strictly we dont actually need
+	// Format all on the same line. Strictly we don't actually need
 	// spaces but we add them for readability.
 	if !self.opts.BreakLines {
 		switch last_fragment {
@@ -474,7 +474,7 @@ func (self *Visitor) visitAliasedExpression(node *_AliasedExpression) {
 	} else if node.SubSelect != nil {
 		self.push("{", " ")
 
-		// We prefer the subquery to start at the begining of the line
+		// We prefer the subquery to start at the beginning of the line
 		// with a little indent.
 		if self.opts.BreakLines {
 			self.new_line(2)
@@ -814,7 +814,7 @@ func (self *Visitor) visitArgs(node *_Args) {
 	} else if node.SubSelect != nil {
 		self.push(node.Left, "={")
 
-		// We prefer subquery to start at the begining of the line
+		// We prefer subquery to start at the beginning of the line
 		// with a small indent.
 		if self.opts.BreakLines {
 			self.new_line(2)
@@ -1195,7 +1195,7 @@ func (self *Visitor) abTest(
 			}
 		}
 
-		// When not in reformat mode we really dont care which option
+		// When not in reformat mode we really don't care which option
 		// we choose.
 		if !self.opts.BreakLines {
 			self.merge(test_visitor)
@@ -1221,7 +1221,7 @@ func (self *Visitor) abTest(
 
 // Is the other visitor better than this one?
 func (self *Visitor) is_better(other *Visitor) bool {
-	// Most important priority is to ensure we dont exceed the max
+	// Most important priority is to ensure we don't exceed the max
 	// width by much.
 	/*
 		fmt.Printf("self %v (%v lines)\n%v\n - other %v (%v lines)\n%v\n",
@@ -1230,7 +1230,7 @@ func (self *Visitor) is_better(other *Visitor) bool {
 	*/
 	max_width := self.opts.MaxWidthThreshold
 
-	// If the other formatting exceeds the max line number but we dont
+	// If the other formatting exceeds the max line number but we don't
 	// then reject it.
 	if other.max_width > max_width && self.max_width < max_width {
 		return false

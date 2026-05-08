@@ -51,7 +51,7 @@ fd.Close()
 ```
 
 However, our query above will just throw away Y and Z because only the
-X property is neded: `SELECT X FROM plugin()`.
+X property is needed: `SELECT X FROM plugin()`.
 
 How can we produce lazy objects?
 
@@ -80,7 +80,7 @@ output_chan <- row
 
 This solves the problem of evaluating Y and Z unnecessarily, but now
 it is not clear when we should close the file? We must do so only
-*after* the lazy function is evaulated but we do not know when that
+*after* the lazy function is evaluated but we do not know when that
 will be.
 
 If we immediately close the file after pushing the lazy row to the
@@ -183,7 +183,7 @@ not Y() or Z() avoiding the extra work.
 
 This is particularly important for parsers who can spend a lot of time
 and cpu parsing files - even if the query does not actually need that
-information. Writing parsers in a lazy fasion helps make them more
+information. Writing parsers in a lazy fashion helps make them more
 efficient.
 
 ## Alternative 2 - ordereddict based rows
@@ -193,7 +193,7 @@ plugin to forward an ordereddict based row with callables as values
 
 ```golang
 output_chan <- ordereddict.NewDict().
-       Set("X", func() {CalculateX(fd)}). <-- lazy functions evaulated on access.
+       Set("X", func() {CalculateX(fd)}). <-- lazy functions evaluated on access.
        Set("Y", func() {CalculateY(fd)}).
        Set("Z", func() {CalculateZ(fd)})
 ```

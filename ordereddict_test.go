@@ -18,7 +18,7 @@ type dictSerializationTest struct {
 var dictSerializationTests = []dictSerializationTest{
 	{ordereddict.NewDict().Set("Foo", "Bar"), `{"Foo":"Bar"}`},
 
-	// Test an unserilizable member - This should not prevent the
+	// Test an unserializable member - This should not prevent the
 	// entire dict from serializing - only that member should be
 	// ignored.
 	{ordereddict.NewDict().Set("Foo", "Bar").

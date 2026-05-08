@@ -174,7 +174,7 @@ type _EncodeFunction struct{}
 func (self _EncodeFunction) Info(scope types.Scope, type_map *types.TypeMap) *types.FunctionInfo {
 	return &types.FunctionInfo{
 		Name:    "encode",
-		Doc:     "Encodes a string as as different type. Currently supported types include 'hex', 'base64'.",
+		Doc:     "Encodes a string as a different type. Currently supported types include 'hex', 'base64'.",
 		ArgType: type_map.AddType(scope, _EncodeFunctionArgs{}),
 	}
 }
