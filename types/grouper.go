@@ -13,7 +13,7 @@ import (
 // grouper.
 type GroupbyActor interface {
 	// Just receive new rows. Return EOF when no more rows exist. Returns
-	// 1. The next trasformed row to group.
+	// 1. The next transformed row to group.
 	// 2. The original untransformed row (that can from the plugin).
 	// 3. The group by bin index
 	// 4. The scope over which the query is materialized.

@@ -63,7 +63,7 @@ func (self *GroupbyActor) GetNextRow(ctx context.Context, scope types.Scope) (
 		}
 
 		// Materialize the group by value as much as possible - we
-		// dont want a lazy item here.
+		// don't want a lazy item here.
 		gb_element := types.ToString(ctx, new_scope,
 			self.delegate.GroupBy.Reduce(ctx, new_scope))
 

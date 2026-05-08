@@ -9,14 +9,14 @@ import (
 // unquote either a " or ' delimited string.
 func Unquote(s string) string {
 	// If we start with ''' this is a literal string - do not
-	// interfer at all.
+	// interfere at all.
 	if strings.HasPrefix(s, "'''") {
 		if strings.HasSuffix(s, "'''") {
 			return s[3 : len(s)-3]
 		}
 	}
 
-	// This should not happen but in case it does do not interfer at all.
+	// This should not happen but in case it does do not interfere at all.
 	quote := s[0]
 	if quote != '"' && quote != '\'' {
 		return s

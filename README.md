@@ -46,7 +46,7 @@ use.
 This is where velocifilter comes in. By using the library we can provide
 a single flag where the user may specify a flexible VQL query (Velocidex
 Query Language - a simplified SQL dialect) allowing the user to specify
-arbirarily complex filter expressions. For example:
+arbitrarily complex filter expressions. For example:
 
     SELECT file from glob(pattern=["*.go", "*.py"]) where file.Size < 5000
     and file.Mtime < now() - "5 days"
@@ -74,7 +74,7 @@ package to add an interface to an existing type without creating a new
 type which embeds it. Clients who need to handle the original third
 party types must have a way to attach new protocols to existing types
 defined outside their own codebase. Velocifilter achieves this by
-implementing a registration systen in the Scope{} object.
+implementing a registration system in the Scope{} object.
 
 For example, consider a client of the library wishing to pass custom
 types in queries:

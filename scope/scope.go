@@ -531,7 +531,7 @@ func (self *Scope) Close() {
 	// the order the destructors are called on the same scope, we
 	// sometimes need to retry the destructors. This means the
 	// destructors will reschedule themselves to be called again. At
-	// the end of this function we prevent new detructors from being
+	// the end of this function we prevent new destructors from being
 	// added to this scope.
 
 	// Stop new destructors from appearing on this scope, once this
@@ -539,7 +539,7 @@ func (self *Scope) Close() {
 	defer self.destructors.SetDestroyed()
 
 	// Destructors are called in reverse order to their
-	// declerations.
+	// declarations.
 	for try := 0; try < 10; try++ {
 		// Remove destructors from list so they are not run again.
 		ds := self.destructors.RemoveDestructors()
@@ -578,7 +578,7 @@ func NewScope() *Scope {
 		id:         NextId(),
 	}
 
-	// Add Builtin protocols, functions, and plugins
+	// Add Built-in protocols, functions, and plugins
 	dispatcher.AddProtocolImpl(protocols.GetBuiltinTypes()...)
 	dispatcher.AppendFunctions(result, functions.GetBuiltinFunctions()...)
 	dispatcher.AppendPlugins(result, plugins.GetBuiltinPlugins()...)

@@ -34,7 +34,7 @@ type PluginInfo struct {
 	// versions of this plugin if needed.
 	Version int
 
-	// Arbitrary metadata attched to the plugin info
+	// Arbitrary metadata attached to the plugin info
 	Metadata *ordereddict.Dict
 
 	// Set to true if the plugin accepts free form args (i.e. any
@@ -58,7 +58,7 @@ type FunctionInfo struct {
 	// versions of this function if needed.
 	Version int
 
-	// Arbitrary metadata attched to the function info
+	// Arbitrary metadata attached to the function info
 	Metadata *ordereddict.Dict
 
 	// Set to true if the plugin accepts free form args (i.e. any

@@ -271,7 +271,7 @@ var execTestsSerialization = []execTest{
 	{"'Hello'[-2:300]", "lo"},
 	{"'Hello'[-3:]", "llo"},
 
-	// Rgexp operator
+	// Regexp operator
 	{"'Hello' =~ '.'", true},
 
 	// . matches anything including the empty string (it is optimized away).
@@ -564,7 +564,7 @@ var vqlTests = []vqlTest{
 
 	// The below query demonstrates that the query() function is
 	// run on every row returned from the filter, and then the
-	// output is filtered by the the where clause. Be aware that
+	// output is filtered by the where clause. Be aware that
 	// this may be expensive if test() returns many rows.
 	{"Subselect functions in filter.",
 		`select bar, {select * from dict(column=bar)} as Query
