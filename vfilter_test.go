@@ -1364,6 +1364,23 @@ LET F(X = 2, Y ) =
 
 SELECT * FROM F(Y=1)
 `},
+	{"Negative",
+		"LET X <= 1 + -2 SELECT X FROM scope()"},
+	{"Negative index",
+		`
+LET X <= 2
+LET Bar(X) = X + 3
+LET Foo <= (1, 2+X, 3, 4+ -5)
+LET Float <= 12.232
+LET StoredQuery = SELECT * FROM info()
+
+SELECT Foo[ -2 ], Foo[ -X ], -X, ` + "-`X`, " + `
+       -Bar(X=3), -Float, -StoredQuery,
+       Foo[-2:],
+       Foo[-X:],
+       Foo[-Bar(X=-1):]
+FROM scope()
+`},
 }
 
 type _RangeArgs struct {
@@ -1563,7 +1580,7 @@ func TestMultiVQLQueries(t *testing.T) {
 	// Store the result in ordered dict so we have a consistent golden file.
 	result := ordereddict.NewDict()
 	for i, testCase := range multiVQLTest {
-		if false && i != 66 {
+		if false && i != 93 {
 			continue
 		}
 		scope := makeTestScope()

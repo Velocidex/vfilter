@@ -681,11 +681,6 @@ func (self *Visitor) visitValue(node *_Value) {
 	self.Visit(node.Comments)
 	node.maybeParseStrNumber(self.scope)
 
-	factor := 1.0
-	if node.Negated {
-		factor = -1.0
-	}
-
 	symbolref := node.SymbolRef
 	if symbolref != nil {
 		node.mu.Unlock()
@@ -712,18 +707,14 @@ func (self *Visitor) visitValue(node *_Value) {
 	}
 
 	if node.Int != nil {
-		factor := int64(1)
-		if node.Negated {
-			factor = -1
-		}
-		self.push(strconv.FormatInt(factor**node.Int, 10))
+		self.push(strconv.FormatInt(*node.Int, 10))
 		node.mu.Unlock()
 		return
 
 	}
 
 	if node.Float != nil {
-		result := strconv.FormatFloat(factor**node.Float, 'f', -1, 64)
+		result := strconv.FormatFloat(*node.Float, 'f', -1, 64)
 		if !strings.Contains(result, ".") {
 			result = result + ".0"
 		}
