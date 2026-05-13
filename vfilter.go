@@ -168,11 +168,14 @@ var (
 			`|(?ims)(?P<ORDERBY>\bORDER\s+BY\b)` +
 			`|(?ims)(?P<BOOL>\bTRUE\b|\bFALSE\b)` +
 			`|(?ims)(?P<LET>\bLET\b)` +
+			`|(?P<Number>-?(0x[0-9a-f]+|\d*\.?\d+([eE][-+]?\d+)?))` +
 			"|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*|`[^`]+`)" +
+			"|(?P<SymbolIdent>-[a-zA-Z_][a-zA-Z0-9_]*|-`[^`]+`)" +
+			`|(?P<Operators><>|!=|<=|>=|=>|=~|[-]|[+]|[:*/%,.()=<>{}\[\]])` +
 			`|''(?P<MultilineString>'.*?')''` +
 			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")` +
-			`|(?P<Number>[-+]?(0x[0-9a-f]+|\d*\.?\d+([eE][-+]?\d+)?))` +
-			`|(?P<Operators><>|!=|<=|>=|=>|=~|[-:+*/%,.()=<>{}\[\]])`,
+
+			"",
 	))
 
 	vqlParser = participle.MustBuild(
@@ -404,15 +407,24 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 		// LET is for stored query: LET X = SELECT ...
 		switch self.LetOperator {
 		case "=":
-			stored_query := NewStoredQuery(self.StoredQuery, name)
-			stored_query.parameters, stored_query.defaults = self.getParameters()
+			if self.StoredQuery == nil {
+				scope.AppendVars(ordereddict.NewDict().Set(name, Null{}))
+			} else {
+				stored_query := NewStoredQuery(self.StoredQuery, name)
+				stored_query.parameters, stored_query.defaults = self.getParameters()
 
-			scope.AppendVars(ordereddict.NewDict().Set(name, stored_query))
+				scope.AppendVars(ordereddict.NewDict().Set(name, stored_query))
+			}
 		case "<=":
-			// Delegate to the scope's materializer to actually
-			// materialize this query.
-			scope.AppendVars(ordereddict.NewDict().Set(
-				name, scope.Materialize(ctx, name, self.StoredQuery)))
+			if self.StoredQuery == nil {
+				scope.AppendVars(ordereddict.NewDict().Set(name, Null{}))
+			} else {
+
+				// Delegate to the scope's materializer to actually
+				// materialize this query.
+				scope.AppendVars(ordereddict.NewDict().Set(
+					name, scope.Materialize(ctx, name, self.StoredQuery)))
+			}
 		}
 
 		close(output_chan)
@@ -426,6 +438,10 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 		go func() {
 			defer close(output_chan)
 			defer subscope.Close()
+
+			if self.Query == nil {
+				return
+			}
 
 			row_chan := self.Query.Eval(ctx, subscope)
 			for {
@@ -584,9 +600,14 @@ func (self *_Select) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	// be relayed. NOTE: We need to transform the row first in
 	// order to assign aliases.
 	go func() {
+		defer close(output_chan)
+
+		if self.From == nil {
+			return
+		}
+
 		from_chan := self.From.Eval(ctx, scope)
 
-		defer close(output_chan)
 		for {
 			select {
 			// Are we cancelled?
@@ -815,11 +836,6 @@ type _OpMembershipTerm struct {
 	Term     *string `  "." @Ident )`
 }
 
-type _SliceRange struct {
-	X             *string `( { @Number} ":" `
-	RangeRightStr *string ` { @Number } )`
-}
-
 // ---------------------------------------
 
 // The Top level precedence expression. Precedence table:
@@ -892,9 +908,10 @@ type _Term struct {
 
 type _SymbolRef struct {
 	Comments   []*_Comment ` [ @@ ] `
-	Symbol     string      `@Ident { @"." @Ident }`
-	Called     bool        `{ @"(" `
-	Parameters []*_Args    ` [ @@ { "," @@ } ] ")" } `
+	Negated    bool
+	Symbol     string   `(@SymbolIdent | @Ident) { @"." @Ident }`
+	Called     bool     `{ @"(" `
+	Parameters []*_Args ` [ @@ { "," @@ } ] ")" } `
 
 	mu           sync.Mutex
 	function     FunctionInterface
@@ -903,7 +920,6 @@ type _SymbolRef struct {
 
 type _Value struct {
 	Comments      []*_Comment       ` [ @@ ] `
-	Negated       bool              `[ "-" | "+" ]`
 	SymbolRef     *_SymbolRef       `( @@ `
 	Subexpression *_CommaExpression `| "(" @@ ")"`
 
@@ -1608,21 +1624,25 @@ func (self *_SymbolRef) IsAggregate(scope types.Scope) bool {
 	return value.Info(scope, types.NewTypeMap()).IsAggregate
 }
 
-func (self *_SymbolRef) getFunction(scope types.Scope) (types.Any, bool) {
+func (self *_SymbolRef) getFunction(scope types.Scope) (res types.Any, negated, pres bool) {
 
 	self.mu.Lock()
 	components := self.split_symbol
 	if components == nil {
 		components = utils.SplitIdent(self.Symbol)
+		if len(components) > 0 && strings.HasPrefix(components[0], "-") {
+			negated = true
+			components[0] = strings.TrimPrefix(components[0], "-")
+		}
 		self.split_symbol = components
 	}
 	self.mu.Unlock()
 
 	// Single item reference and called - call built in function.
 	if len(components) == 1 && self.Called {
-		res, pres := scope.GetFunction(self.Symbol)
+		res, pres := scope.GetFunction(components[0])
 		if pres {
-			return res, pres
+			return res, negated, pres
 		}
 	}
 
@@ -1645,13 +1665,46 @@ func (self *_SymbolRef) getFunction(scope types.Scope) (types.Any, bool) {
 				}
 			}
 
-			return nil, false
+			return nil, negated, false
 		}
 
 		result = subcomponent
 	}
 
-	return result, true
+	return result, negated, true
+}
+
+func (self *_SymbolRef) maybeNegate(
+	ctx context.Context, scope types.Scope,
+	negate bool, value Any) Any {
+	if !negate {
+		return value
+	}
+
+	switch t := value.(type) {
+	case StoredExpression:
+		return self.maybeNegate(ctx, scope, negate, t.Reduce(ctx, scope))
+
+	case LazyExpr:
+		return self.maybeNegate(ctx, scope, negate, t.ReduceWithScope(ctx, scope))
+
+	case bool:
+		return !t
+
+	case float64:
+		return -t
+
+	case float32:
+		return -t
+
+	default:
+		i, ok := utils.ToInt64(value)
+		if ok {
+			return -i
+		}
+	}
+
+	return Null{}
 }
 
 func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
@@ -1659,7 +1712,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 	// The symbol is just a constant in the scope. It may be a
 	// stored expression, a function or a stored query or just a
 	// plain value.
-	value, pres := self.getFunction(scope)
+	value, negated, pres := self.getFunction(scope)
 	if value != nil && pres {
 		switch t := value.(type) {
 		case FunctionInterface:
@@ -1670,7 +1723,8 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 			}
 
 			// The symbol is a function and this is a call site, e.g. Symbol(...)
-			return self.callFunction(ctx, scope, t)
+			return self.maybeNegate(ctx, scope, negated,
+				self.callFunction(ctx, scope, t))
 
 		// If the symbol is a stored expression we evaluated
 		// it.
@@ -1694,7 +1748,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 
 			scope.GetStats().IncFunctionsCalled()
 
-			return t.Reduce(ctx, subscope)
+			return self.maybeNegate(ctx, scope, negated, t.Reduce(ctx, subscope))
 
 		case StoredQuery:
 			// If the call site specifies parameters then
@@ -1724,10 +1778,11 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 				scope.GetStats().IncFunctionsCalled()
 
 				// Wrap the query with the captured scope.
-				return &StoredQueryCallSite{
-					query: t,
-					scope: subscope,
-				}
+				return self.maybeNegate(ctx, scope, negated,
+					&StoredQueryCallSite{
+						query: t,
+						scope: subscope,
+					})
 			}
 		}
 
@@ -1738,7 +1793,7 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 		}
 
 		// Every thing else is taken literally.
-		return value
+		return self.maybeNegate(ctx, scope, negated, value)
 	}
 
 	return Null{}

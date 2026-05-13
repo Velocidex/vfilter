@@ -1431,5 +1431,39 @@
     {
       "Total": 3
     }
+  ],
+  "092/000 Negative: LET X \u003c= 1 + -2": null,
+  "092/001 Negative: SELECT X FROM scope()": [
+    {
+      "X": -1
+    }
+  ],
+  "093/000 Negative index: LET X \u003c= 2": null,
+  "093/001 Negative index: LET Bar(X) = X + 3": null,
+  "093/002 Negative index: LET Foo \u003c= (1, 2 + X, 3, 4 + -5)": null,
+  "093/003 Negative index: LET Float \u003c= 12.232": null,
+  "093/004 Negative index: LET StoredQuery = SELECT * FROM info()": null,
+  "093/005 Negative index: SELECT Foo[-2], Foo[-X], -X, -`X`, -Bar(X=3), -Float, -StoredQuery, Foo[-2:], Foo[-X:], Foo[-Bar(X=-1):] FROM scope()": [
+    {
+      "Foo[-2]": 3,
+      "Foo[-X]": 3,
+      "-X": -2,
+      "-`X`": -2,
+      "-Bar(X=3)": -6,
+      "-Float": -12.232,
+      "-StoredQuery": null,
+      "Foo[-2:]": [
+        3,
+        -1
+      ],
+      "Foo[-X:]": [
+        3,
+        -1
+      ],
+      "Foo[-Bar(X=-1):]": [
+        3,
+        -1
+      ]
+    }
   ]
 }
