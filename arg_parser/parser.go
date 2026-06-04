@@ -288,7 +288,7 @@ func floatParser(ctx context.Context, scope types.Scope,
 	if ok {
 		return a, nil
 	}
-	return nil, errors.New(fmt.Sprintf("Should be a float not %T.", arg))
+	return nil, fmt.Errorf("should be a float not %T.", arg)
 }
 
 func int64Parser(ctx context.Context, scope types.Scope,
@@ -302,7 +302,7 @@ func int64Parser(ctx context.Context, scope types.Scope,
 	if ok {
 		return a, nil
 	}
-	return nil, fmt.Errorf("Should be an int not %T.", arg)
+	return nil, fmt.Errorf("should be an int not %T.", arg)
 }
 
 // The target field is an ordered dict type - just assign it directly.
@@ -320,6 +320,12 @@ func dictParser(ctx context.Context, scope types.Scope,
 		dict, ok := arg.(*ordereddict.Dict)
 		if ok {
 			return dict, nil
+		}
+
+		// Trap some common types to return an error.
+		switch arg.(type) {
+		case string, int64, uint64, types.Null, *types.Null, []byte:
+			return nil, fmt.Errorf("should be a dict not %T.", arg)
 		}
 
 		// Fallback for dict like things
@@ -343,7 +349,7 @@ func uInt64Parser(ctx context.Context, scope types.Scope,
 	if ok {
 		return uint64(a), nil
 	}
-	return nil, errors.New("Should be an int.")
+	return nil, fmt.Errorf("should be an int not %T.", arg)
 }
 
 func intParser(ctx context.Context, scope types.Scope,
@@ -357,7 +363,7 @@ func intParser(ctx context.Context, scope types.Scope,
 	if ok {
 		return int(a), nil
 	}
-	return nil, errors.New("should be an int.")
+	return nil, fmt.Errorf("should be an int not %T.", arg)
 }
 
 // Builds a cacheable parser that can parse into
@@ -416,8 +422,8 @@ func BuildParser(v reflect.Value) (*Parser, error) {
 		// the value output struct field.
 		field_value := v.Field(field_types_value.Index[0])
 		if !field_value.IsValid() || !field_value.CanSet() {
-			return nil, errors.New(fmt.Sprintf(
-				"Field %s is unsettable.", field_name))
+			return nil, fmt.Errorf(
+				"Field %s is unsettable.", field_name)
 		}
 
 		// Find a specialized parser for this type.
