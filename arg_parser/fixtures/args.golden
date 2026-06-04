@@ -27,7 +27,7 @@
   "003/001 Passing Stored query to int field: SELECT parse(r=1, int=Foo) FROM scope()": [
     {
       "parse(r=1, int=Foo)": {
-        "ParseError": "Field int should be an int."
+        "ParseError": "Field int should be an int not *vfilter._StoredQuery."
       }
     }
   ],
@@ -35,7 +35,7 @@
   "004/001 Passing string to int field: SELECT parse(r=1, int=Foo) FROM scope()": [
     {
       "parse(r=1, int=Foo)": {
-        "ParseError": "Field int should be an int."
+        "ParseError": "Field int should be an int not string."
       }
     }
   ],
