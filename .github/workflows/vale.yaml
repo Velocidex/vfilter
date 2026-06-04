@@ -10,12 +10,14 @@ jobs:
     name: Vale
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - name: Update submodules
         run: |
           git submodule update --init --recursive --remote
       - name: Run Vale
-        uses: vale-cli/vale-action@reviewdog
+        # https://github.com/vale-cli/vale-action/releases/tag/2.1.2
+        uses: vale-cli/vale-action@85f9f7f2c5f449ac0ae5b66662961bae3f77ca6a
         with:
           # Set to true when we want to start having errors fail the pipeline.
           fail_on_error: false
