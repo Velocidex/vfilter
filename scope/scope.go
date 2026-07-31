@@ -304,7 +304,7 @@ func (self *Scope) Div(a types.Any, b types.Any) types.Any {
 	return self.dispatcher.div.Div(self, a, b)
 }
 
-// Is a a member in b?
+// Check whether a is a member of b.
 func (self *Scope) Membership(a types.Any, b types.Any) bool {
 	return self.dispatcher.membership.Membership(self, a, b)
 }
