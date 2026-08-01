@@ -8,7 +8,7 @@ func GetBuiltinTypes() []types.Any {
 	return []types.Any{
 		// Commented out protocols below are inlined for performance.
 
-		// Most common objects come first to optimise O(n) algorithm.
+		// Most common objects come first to optimize O(n) algorithm.
 		// _ScopeAssociative{},	_Lazytypes.RowAssociative{}, _DictAssociative{}, _types.NullAssociative{},
 		_StoredQueryAssociative{},
 
