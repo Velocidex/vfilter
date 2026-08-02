@@ -359,6 +359,10 @@ type LetParameter struct {
 
 // An opaque object representing the VQL expression.
 type VQL struct {
+	// Source position of this statement (populated by participle v2).
+	Pos    lexer.Position
+	EndPos lexer.Position
+
 	Let string `LET  @Ident `
 	// Distinguish between `LET X = ...` and `LET X() = ...`
 	Called        string          ` [ @"(" `
@@ -553,6 +557,10 @@ func (self *VQL) getParameters() ([]string, map[string]*_Args) {
 }
 
 type _Select struct {
+	// Source position of this SELECT clause (populated by participle v2).
+	Pos    lexer.Position
+	EndPos lexer.Position
+
 	Comments         []*_Comment        ` { @@ } `
 	Explain          *bool              ` { @EXPLAIN }`
 	SelectExpression *_SelectExpression `SELECT @@`
@@ -745,6 +753,10 @@ type Plugin struct {
 	mu         sync.Mutex
 	split_name []string
 
+	// Source position of this plugin call (populated by participle v2).
+	Pos    lexer.Position
+	EndPos lexer.Position
+
 	Name string `@Ident { @"." @Ident } `
 
 	Call bool     `[ @"("`
@@ -752,6 +764,10 @@ type Plugin struct {
 }
 
 type _Args struct {
+	// Source position of this function arg (populated by participle v2).
+	Pos    lexer.Position
+	EndPos lexer.Position
+
 	Comments        []*_Comment       `[ @@ ] `
 	Left            string            `@Ident "=" `
 	SubSelect       *_Select          `( "{" @@ "}" | `
@@ -767,6 +783,10 @@ type _SelectExpression struct {
 }
 
 type _AliasedExpression struct {
+	// Source position of this SELECT column (populated by participle v2).
+	Pos    lexer.Position
+	EndPos lexer.Position
+
 	Comments   []*_Comment     ` { @@ } `
 	Star       *bool           ` ( @"*" | `
 	SubSelect  *_Select        ` "{" @@ "}" |`
@@ -878,6 +898,10 @@ type _OpFactor struct {
 // Expression for membership access (dot operator).
 // e.g. x.y.z
 type _MemberExpression struct {
+	// Source position of this member expression (populated by participle v2).
+	Pos    lexer.Position
+	EndPos lexer.Position
+
 	Comments []*_Comment          ` [ @@ ] `
 	Left     *_Value              `@@`
 	Right    []*_OpMembershipTerm `[{ @@ }] `
@@ -917,6 +941,10 @@ type _OpArrayTerm struct {
 
 // Expressions separated by AND.
 type _AndExpression struct {
+	// Source position of this expression (populated by participle v2).
+	Pos    lexer.Position
+	EndPos lexer.Position
+
 	Comments []*_Comment    ` [ @@ ] `
 	Left     *_OrExpression `( @@ `
 	Right    []*_OpAndTerm  `{ @@ })`

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Velocidex/ordereddict"
+	"github.com/alecthomas/participle/v2/lexer"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/sebdah/goldie/v2"
@@ -33,6 +34,13 @@ type execTest struct {
 var compareOptions = cmpopts.IgnoreUnexported(
 	_Value{}, Plugin{}, _SymbolRef{}, _AliasedExpression{}, VQL{},
 )
+
+// Source positions are populated by the parser and change as the query is
+// reformatted, so they are not part of semantic equivalence.
+var compareOptionsWithPos = cmp.Options{
+	compareOptions,
+	cmpopts.IgnoreTypes(lexer.Position{}),
+}
 
 var execTestsSerialization = []execTest{
 	{"1 or sleep(a=100)", true},
@@ -507,7 +515,7 @@ func TestSerializaition(t *testing.T) {
 
 		FormatToString(scope, parsed_vql)
 
-		diff := cmp.Diff(parsed_vql, vql, compareOptions)
+		diff := cmp.Diff(parsed_vql, vql, compareOptionsWithPos)
 		if diff != "" {
 			t.Fatalf("Parsed generated VQL not equivalent: %v vs %v: \n%v",
 				preamble+test.clause, vql_string, diff)
@@ -1631,7 +1639,7 @@ func TestVQLSerializaition(t *testing.T) {
 		}
 		FormatToString(scope, parsed_vql)
 
-		diff := cmp.Diff(parsed_vql, vql, compareOptions)
+		diff := cmp.Diff(parsed_vql, vql, compareOptionsWithPos)
 		if diff != "" {
 			t.Fatalf("Parsed generated VQL not equivalent: %v vs %v: \n%v",
 				test.vql, vql_string, diff)
