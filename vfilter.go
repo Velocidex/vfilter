@@ -133,9 +133,11 @@ import (
 	"strings"
 	"sync"
 
+	"io"
+
 	"github.com/Velocidex/ordereddict"
-	"github.com/alecthomas/participle"
-	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/v2"
+	"github.com/alecthomas/participle/v2/lexer"
 	errors "github.com/pkg/errors"
 	"www.velocidex.com/golang/vfilter/scope"
 	scope_module "www.velocidex.com/golang/vfilter/scope"
@@ -144,65 +146,110 @@ import (
 )
 
 var (
-	vqlLexer = lexer.Must(lexer.Regexp(
-		`(?ms)` +
-			`(\s+)` +
-			`|(?P<MLineComment>/[*].*?[*]/)` + // C Style comment.
-			`|(?P<VQLComment>^--.*?$)` + // SQL style one line comment.
-			`|(?P<Comment>^//.*?$)` + // C++ style one line comment.
-			`|(?ims)(?P<EXPLAIN>\bEXPLAIN\b)` +
-			`|(?ims)(?P<SELECT>\bSELECT\b)` +
-			`|(?ims)(?P<WHERE>\bWHERE\b)` +
-			`|(?ims)(?P<AND>\bAND\b)` +
-			`|(?ims)(?P<OR>\bOR\b)` +
-			`|(?ims)(?P<AlternativeOR>\|+)` +
-			`|(?ims)(?P<AlternativeAND>&&)` +
-			`|(?ims)(?P<FROM>\bFROM\b)` +
-			`|(?ims)(?P<NOT>\bNOT\b)` +
-			`|(?ims)(?P<AS>\bAS\b)` +
-			`|(?ims)(?P<IN>\bIN\b)` +
-			`|(?ims)(?P<LIMIT>\bLIMIT\b)` +
-			`|(?ims)(?P<NULL>\bNULL\b)` +
-			`|(?ims)(?P<DESC>\bDESC\b)` +
-			`|(?ims)(?P<GROUPBY>\bGROUP\s+BY\b)` +
-			`|(?ims)(?P<ORDERBY>\bORDER\s+BY\b)` +
-			`|(?ims)(?P<BOOL>\bTRUE\b|\bFALSE\b)` +
-			`|(?ims)(?P<LET>\bLET\b)` +
-			`|(?P<Number>-?(0x[0-9a-f]+|\d*\.?\d+([eE][-+]?\d+)?))` +
-			"|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*|`[^`]+`)" +
-			"|(?P<SymbolIdent>-[a-zA-Z_][a-zA-Z0-9_]*|-`[^`]+`)" +
-			`|(?P<Operators><>|!=|<=|>=|=>|=~|[-]|[+]|[:*/%,.()=<>{}\[\]])` +
-			`|''(?P<MultilineString>'.*?')''` +
-			`|(?P<String>'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)")` +
+	vqlLexer = lexer.MustSimple([]lexer.SimpleRule{
+		{Name: "whitespace", Pattern: `\s+`},
+		{Name: "MLineComment", Pattern: `(?s)/[*].*?[*]/`}, // C Style comment.
+		{Name: "VQLComment", Pattern: `(?m)^--.*?$`},       // SQL style one line comment.
+		{Name: "Comment", Pattern: `(?m)^//.*?$`},          // C++ style one line comment.
+		{Name: "EXPLAIN", Pattern: `(?i)\bEXPLAIN\b`},
+		{Name: "SELECT", Pattern: `(?i)\bSELECT\b`},
+		{Name: "WHERE", Pattern: `(?i)\bWHERE\b`},
+		{Name: "AND", Pattern: `(?i)\bAND\b`},
+		{Name: "OR", Pattern: `(?i)\bOR\b`},
+		{Name: "AlternativeOR", Pattern: `(?i)\|+`},
+		{Name: "AlternativeAND", Pattern: `(?i)&&`},
+		{Name: "FROM", Pattern: `(?i)\bFROM\b`},
+		{Name: "NOT", Pattern: `(?i)\bNOT\b`},
+		{Name: "AS", Pattern: `(?i)\bAS\b`},
+		{Name: "IN", Pattern: `(?i)\bIN\b`},
+		{Name: "LIMIT", Pattern: `(?i)\bLIMIT\b`},
+		{Name: "NULL", Pattern: `(?i)\bNULL\b`},
+		{Name: "DESC", Pattern: `(?i)\bDESC\b`},
+		{Name: "GROUPBY", Pattern: `(?i)\bGROUP\s+BY\b`},
+		{Name: "ORDERBY", Pattern: `(?i)\bORDER\s+BY\b`},
+		{Name: "BOOL", Pattern: `(?i)\bTRUE\b|\bFALSE\b`},
+		{Name: "LET", Pattern: `(?i)\bLET\b`},
+		{Name: "Number", Pattern: `-?(0x[0-9a-f]+|\d*\.?\d+([eE][-+]?\d+)?)`},
+		{Name: "Ident", Pattern: `[a-zA-Z_][a-zA-Z0-9_]*|` + "`[^`]+`"},
+		{Name: "SymbolIdent", Pattern: `-[a-zA-Z_][a-zA-Z0-9_]*|-` + "`[^`]+`"},
+		{Name: "Operators", Pattern: `<>|!=|<=|>=|=>|=~|[-]|[+]|[:*/%,.()=<>{}\[\]]`},
+		{Name: "MultilineString", Pattern: `(?s)'''.*?'''`},
+		{Name: "String", Pattern: `(?s)'([^'\\]*(\\.[^'\\]*)*)'|"([^"\\]*(\\.[^"\\]*)*)"`},
+	})
 
-			"",
-	))
+	// v0.7.1's participle.Elide dropped comment tokens at the lexer level,
+	// so explicit @Comment grammar references could never match. In v2 the
+	// Elide option keeps the tokens in the stream and explicit references
+	// still capture them. To preserve the exact v0.7.1 semantics (comments
+	// are stripped from Parse()/MultiParse() but captured by
+	// MultiParseWithComments()) we wrap the lexer to drop comment tokens at
+	// the lexer level for the two eliding parsers below.
+	vqlLexerNoComments = &droppingLexerDef{
+		Definition: vqlLexer,
+		drop:       []string{"Comment", "MLineComment", "VQLComment"},
+	}
 
-	vqlParser = participle.MustBuild(
-		&VQL{},
-		participle.Lexer(vqlLexer),
+	vqlParser = participle.MustBuild[VQL](
+		participle.Lexer(vqlLexerNoComments),
 		participle.Upper("IN", "DESC"),
-		participle.Elide("Comment", "MLineComment", "VQLComment"),
 	// Need to solve left recursion detection first, if possible.
 	// participle.UseLookahead(),
 	)
 
-	multiVQLParser = participle.MustBuild(
-		&MultiVQL{},
-		participle.Lexer(vqlLexer),
+	multiVQLParser = participle.MustBuild[MultiVQL](
+		participle.Lexer(vqlLexerNoComments),
 		participle.Upper("IN", "DESC"),
-		participle.Elide("Comment", "MLineComment", "VQLComment"),
 	)
 
-	multiVQLParserWithComments = participle.MustBuild(
-		&MultiVQL{},
+	multiVQLParserWithComments = participle.MustBuild[MultiVQL](
 		participle.Lexer(vqlLexer),
 		participle.Upper("IN", "DESC"),
 	)
 )
 
-func reportError(err error, t *lexer.Error, expression string) error {
-	end := t.Tok.Pos.Offset + 10
+// droppingLexerDef wraps a lexer.Definition and drops tokens of the given
+// symbol names at the lexer level. This replicates the behaviour of
+// participle v0.7.1's Elide() option, which was implemented as a lexer-level
+// Map that returned DropToken.
+type droppingLexerDef struct {
+	lexer.Definition
+	drop []string
+}
+
+type droppingLexer struct {
+	lexer.Lexer
+	drop map[lexer.TokenType]bool
+}
+
+func (self *droppingLexerDef) Lex(filename string, r io.Reader) (lexer.Lexer, error) {
+	lex, err := self.Definition.Lex(filename, r)
+	if err != nil {
+		return nil, err
+	}
+
+	drop := make(map[lexer.TokenType]bool)
+	symbols := self.Definition.Symbols()
+	for _, name := range self.drop {
+		drop[symbols[name]] = true
+	}
+
+	return &droppingLexer{Lexer: lex, drop: drop}, nil
+}
+
+func (self *droppingLexer) Next() (lexer.Token, error) {
+	for {
+		t, err := self.Lexer.Next()
+		if err != nil {
+			return t, err
+		}
+		if !self.drop[t.Type] {
+			return t, nil
+		}
+	}
+}
+
+func reportError(err error, pos lexer.Position, expression string) error {
+	end := pos.Offset + 10
 	if end >= len(expression) {
 		end = len(expression) - 1
 	}
@@ -210,33 +257,34 @@ func reportError(err error, t *lexer.Error, expression string) error {
 		end = 0
 	}
 
-	start := t.Tok.Pos.Offset - 10
+	start := pos.Offset - 10
 	if start < 0 {
 		start = 0
 	}
 
-	pos := t.Tok.Pos.Offset
-	if pos >= len(expression) {
-		pos = len(expression) - 1
+	offset := pos.Offset
+	if offset >= len(expression) {
+		offset = len(expression) - 1
 	}
 
-	if pos < 0 {
-		pos = 0
+	if offset < 0 {
+		offset = 0
 	}
 
 	return errors.Wrap(
 		err,
-		expression[start:pos]+"|"+expression[pos:end])
+		expression[start:offset]+"|"+expression[offset:end])
 }
 
 // Parse the VQL expression. Returns a VQL object which may be
 // evaluated.
 func Parse(expression string) (*VQL, error) {
-	vql := &VQL{}
-	err := vqlParser.ParseString(expression, vql)
+	vql, err := vqlParser.ParseString("", expression)
 	switch t := err.(type) {
 	case *lexer.Error:
-		return vql, reportError(err, t, expression)
+		return vql, reportError(err, t.Pos, expression)
+	case participle.Error:
+		return vql, reportError(err, t.Position(), expression)
 	default:
 		return vql, err
 	}
@@ -244,27 +292,33 @@ func Parse(expression string) (*VQL, error) {
 
 // Parse a string into multiple VQL statements.
 func MultiParse(expression string) ([]*VQL, error) {
-	vql := &MultiVQL{}
-	err := multiVQLParser.ParseString(expression, vql)
+	multi, err := multiVQLParser.ParseString("", expression)
 	switch t := err.(type) {
 	case *lexer.Error:
-		return nil, reportError(err, t, expression)
-
+		return nil, reportError(err, t.Pos, expression)
+	case participle.Error:
+		return nil, reportError(err, t.Position(), expression)
 	default:
-		return vql.GetStatements(), err
+		if multi != nil {
+			return multi.GetStatements(), err
+		}
+		return nil, err
 	}
 }
 
 // Parse a string into multiple VQL statements.
 func MultiParseWithComments(expression string) ([]*VQL, error) {
-	vql := &MultiVQL{}
-	err := multiVQLParserWithComments.ParseString(expression, vql)
+	multi, err := multiVQLParserWithComments.ParseString("", expression)
 	switch t := err.(type) {
 	case *lexer.Error:
-		return nil, reportError(err, t, expression)
-
+		return nil, reportError(err, t.Pos, expression)
+	case participle.Error:
+		return nil, reportError(err, t.Position(), expression)
 	default:
-		return vql.GetStatements(), err
+		if multi != nil {
+			return multi.GetStatements(), err
+		}
+		return nil, err
 	}
 }
 

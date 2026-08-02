@@ -3,7 +3,7 @@ module www.velocidex.com/golang/vfilter
 require (
 	github.com/Velocidex/ordereddict v0.0.0-20250821063524-02dc06e46238
 	github.com/alecthomas/assert v1.0.0
-	github.com/alecthomas/participle v0.7.1
+	github.com/alecthomas/participle/v2 v2.1.4
 	github.com/alecthomas/repr v0.5.2
 	github.com/google/go-cmp v0.6.0
 	github.com/pkg/errors v0.9.1
