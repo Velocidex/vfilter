@@ -989,6 +989,10 @@ type _Term struct {
 }
 
 type _SymbolRef struct {
+	// Source position of this symbol reference (populated by participle v2).
+	Pos    lexer.Position
+	EndPos lexer.Position
+
 	Comments   []*_Comment ` [ @@ ] `
 	Negated    bool
 	Symbol     string   `(@SymbolIdent | @Ident) { @"." @Ident }`
