@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/Velocidex/ordereddict"
-	"github.com/alecthomas/assert"
+	"github.com/alecthomas/assert/v2"
 	"www.velocidex.com/golang/vfilter"
 	"www.velocidex.com/golang/vfilter/scope"
 	"www.velocidex.com/golang/vfilter/types"
