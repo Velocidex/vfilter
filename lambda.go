@@ -4,13 +4,12 @@ import (
 	"context"
 
 	"github.com/Velocidex/ordereddict"
-	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/v2"
 	"www.velocidex.com/golang/vfilter/types"
 )
 
 var (
-	lambdaParser = participle.MustBuild(
-		&Lambda{},
+	lambdaParser = participle.MustBuild[Lambda](
 		participle.Lexer(vqlLexer),
 		participle.Elide("Comment", "MLineComment", "VQLComment"))
 )
@@ -58,7 +57,5 @@ func (self *Lambda) Reduce(ctx context.Context, scope types.Scope, parameters []
 }
 
 func ParseLambda(expression string) (*Lambda, error) {
-	lambda := &Lambda{}
-	err := lambdaParser.ParseString(expression, lambda)
-	return lambda, err
+	return lambdaParser.ParseString("", expression)
 }

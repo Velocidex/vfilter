@@ -64,9 +64,7 @@ type CallSite struct {
 	Type string
 	Name string
 	Args []string
-}
-
-// The DefinitionSite describes where a function is declared:
+}// The DefinitionSite describes where a function is declared:
 // For example: LET Foo(X, Y) = ....
 type DefinitionSite struct {
 	Type     string
