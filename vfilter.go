@@ -169,7 +169,7 @@ var (
 		{Name: "ORDERBY", Pattern: `(?i)\bORDER\s+BY\b`},
 		{Name: "BOOL", Pattern: `(?i)\bTRUE\b|\bFALSE\b`},
 		{Name: "LET", Pattern: `(?i)\bLET\b`},
-		{Name: "Number", Pattern: `-?(0x[0-9a-f]+|\d*\.?\d+([eE][-+]?\d+)?)`},
+		{Name: "Number", Pattern: `-?(0x[0-9a-fA-F]+|\d*\.?\d+([eE][-+]?\d+)?)`},
 		{Name: "Ident", Pattern: `[a-zA-Z_][a-zA-Z0-9_]*|` + "`[^`]+`"},
 		{Name: "SymbolIdent", Pattern: `-[a-zA-Z_][a-zA-Z0-9_]*|-` + "`[^`]+`"},
 		{Name: "Operators", Pattern: `<>|!=|<=|>=|=>|=~|[-]|[+]|[:*/%,.()=<>{}\[\]]`},
