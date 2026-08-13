@@ -111,8 +111,8 @@ func Inspect(vql *VQL) *Inspection {
 		CollectDefinitionSites: true,
 
 		// We only care about the analysis results, not the
-		// formatting. AnalysisOnly skips the formatter's
-		// look-ahead copies so each node is visited once.
+		// formatting. AnalysisOnly skips the look-ahead copies
+		// the formatter would make, so each node is visited once.
 		AnalysisOnly: true,
 	})
 	visitor.Visit(vql)

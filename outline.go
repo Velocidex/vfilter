@@ -70,7 +70,7 @@ type OutlineInfo struct {
 	// Children are nested symbols.
 	Children []*OutlineInfo
 
-	// isExpression marks the synthetic node the visitor creates for
+	// `isExpression` marks the synthetic node the visitor creates for
 	// a LET statement whose value is a plain expression rather than
 	// a query. Function calls are outlined beneath it just like they
 	// are beneath a column. This is an internal marker; callers never
@@ -94,8 +94,9 @@ func Outline(vql *VQL) *OutlineInfo {
 		CollectOutline: true,
 
 		// We only care about the outline, not the formatting.
-		// AnalysisOnly skips the formatter's look-ahead copies so
-		// the outline stack is maintained on the visitor itself.
+		// AnalysisOnly skips the look-ahead copies the formatter
+		// would make, so the outline stack is maintained on the
+		// visitor itself.
 		AnalysisOnly: true,
 	})
 	visitor.Visit(vql)

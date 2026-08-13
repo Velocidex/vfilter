@@ -60,11 +60,12 @@ type FormatOptions struct {
 	// (an OutlineInfo tree) while it walks the AST. See Outline().
 	CollectOutline bool
 
-	// AnalysisOnly skips the formatter's look-ahead machinery so
-	// that every node is visited exactly once, on this visitor,
-	// rather than on throw-away copies. Analysis traversals
-	// (Inspect() and Outline()) need this because they maintain
-	// state - like the outline stack - across the whole tree.
+	// AnalysisOnly skips the look-ahead machinery the formatter
+	// uses, so that every node is visited exactly once, on this
+	// visitor, rather than on throw-away copies. Analysis
+	// traversals (Inspect() and Outline()) need this because they
+	// maintain state - like the outline stack - across the whole
+	// tree.
 	AnalysisOnly bool
 
 	// Set when we do a test reformat to try to lookahead.
@@ -512,7 +513,8 @@ func (self *Visitor) visitAliasedExpression(node *_AliasedExpression) {
 	// Outline: each SELECT column becomes a "column" node in the
 	// document outline, holding any function calls in its expression
 	// as children. A column that is a subquery does not get its own
-	// node - the subquery's query node becomes the child directly.
+	// node - the query node of the subquery becomes the child
+	// directly.
 	if self.opts.CollectOutline && node.SubSelect == nil {
 		info := &OutlineInfo{
 			Kind:   OutlineKindColumn,

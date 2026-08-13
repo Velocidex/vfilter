@@ -208,7 +208,7 @@ var (
 )
 
 // droppingLexerDef wraps a lexer.Definition and drops tokens of the given
-// symbol names at the lexer level. This replicates the behaviour of
+// symbol names at the lexer level. This replicates the behavior of
 // participle v0.7.1's Elide() option, which was implemented as a lexer-level
 // Map that returned DropToken.
 type droppingLexerDef struct {
