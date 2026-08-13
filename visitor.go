@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alecthomas/participle/v2/lexer"
+
 	"www.velocidex.com/golang/vfilter/arg_parser"
 	"www.velocidex.com/golang/vfilter/materializer"
 	"www.velocidex.com/golang/vfilter/types"
@@ -54,23 +56,62 @@ type FormatOptions struct {
 	CollectDefinitionSites bool
 	CollectComments        bool
 
+	// CollectOutline makes the visitor build a document outline
+	// (an OutlineInfo tree) while it walks the AST. See Outline().
+	CollectOutline bool
+
+	// AnalysisOnly skips the formatter's look-ahead machinery so
+	// that every node is visited exactly once, on this visitor,
+	// rather than on throw-away copies. Analysis traversals
+	// (Inspect() and Outline()) need this because they maintain
+	// state - like the outline stack - across the whole tree.
+	AnalysisOnly bool
+
 	// Set when we do a test reformat to try to lookahead.
 	test bool
 }
 
 // The CallSite describes the place where a callable is called
 // from. For example, SELECT Foo(X=45) FROM scope()
+//
+// The position fields are populated when the visitor is used for
+// analysis (see Inspect()); consumers that only need the names
+// (Type/Name/Args) can ignore them.
 type CallSite struct {
 	Type string
 	Name string
 	Args []string
-}// The DefinitionSite describes where a function is declared:
+
+	// Pos/EndPos describe the span of the callable name (for bare
+	// symbols) or of the whole call including the closing paren (for
+	// functions and plugins).
+	Pos    lexer.Position
+	EndPos lexer.Position
+
+	// ArgPositions holds the source span of each argument in Args
+	// (parallel array). Populated for function and plugin calls.
+	ArgPositions []ArgPosition
+}
+
+// ArgPosition describes the source span of a single argument to a
+// function or plugin call.
+type ArgPosition struct {
+	Pos    lexer.Position
+	EndPos lexer.Position
+}
+
+// The DefinitionSite describes where a function is declared:
 // For example: LET Foo(X, Y) = ....
 type DefinitionSite struct {
 	Type     string
 	Name     string
 	Args     []string
 	Defaults []string
+
+	// Pos/EndPos describe the span of the LET statement. Populated
+	// when the visitor is used for analysis.
+	Pos    lexer.Position
+	EndPos lexer.Position
 }
 
 type Visitor struct {
@@ -110,6 +151,12 @@ type Visitor struct {
 	// Flag set when a comment is encountered.
 	has_comments bool
 
+	// Outline root and node stack, populated when opts.CollectOutline
+	// is set. The stack mirrors the nesting of LET statements, queries
+	// and columns as the visitor descends the AST.
+	outlineRoot  *OutlineInfo
+	outlineStack []*OutlineInfo
+
 	// Set via the VFILTER_DEBUG env.
 	debug bool
 }
@@ -121,6 +168,49 @@ func NewVisitor(scope types.Scope, options FormatOptions) *Visitor {
 		opts:        options,
 		indents:     []int{0},
 	}
+}
+
+// pushOutline adds an outline node as a child of the current node (or
+// as the root when the stack is empty) and makes it current.
+func (self *Visitor) pushOutline(node *OutlineInfo) {
+	if !self.opts.CollectOutline {
+		return
+	}
+	if len(self.outlineStack) > 0 {
+		parent := self.outlineStack[len(self.outlineStack)-1]
+		parent.Children = append(parent.Children, node)
+	} else {
+		self.outlineRoot = node
+	}
+	self.outlineStack = append(self.outlineStack, node)
+}
+
+// popOutline restores the previous outline node.
+func (self *Visitor) popOutline() {
+	if self.opts.CollectOutline && len(self.outlineStack) > 0 {
+		self.outlineStack = self.outlineStack[:len(self.outlineStack)-1]
+	}
+}
+
+// collectFunctionOutline records a function call as a child of the
+// current outline node when that node is one of the expression
+// containers (a SELECT column or a LET value). Calls inside a query's
+// FROM/WHERE clauses are intentionally not outlined - the outline
+// mirrors the SELECT column structure.
+func (self *Visitor) collectFunctionOutline(node *_SymbolRef) {
+	if len(self.outlineStack) == 0 {
+		return
+	}
+	parent := self.outlineStack[len(self.outlineStack)-1]
+	if parent.Kind != OutlineKindColumn && !parent.isExpression {
+		return
+	}
+	parent.Children = append(parent.Children, &OutlineInfo{
+		Name:   node.Symbol,
+		Kind:   OutlineKindFunction,
+		Pos:    node.Pos,
+		EndPos: node.EndPos,
+	})
 }
 
 // Merge results from the in visitor to this visitor.
@@ -419,6 +509,23 @@ func (self *Visitor) visitAliasedExpression(node *_AliasedExpression) {
 
 	self.Visit(node.Comments)
 
+	// Outline: each SELECT column becomes a "column" node in the
+	// document outline, holding any function calls in its expression
+	// as children. A column that is a subquery does not get its own
+	// node - the subquery's query node becomes the child directly.
+	if self.opts.CollectOutline && node.SubSelect == nil {
+		info := &OutlineInfo{
+			Kind:   OutlineKindColumn,
+			Pos:    node.Pos,
+			EndPos: node.EndPos,
+		}
+		if node.As != "" {
+			info.Name = node.As
+		}
+		self.pushOutline(info)
+		defer self.popOutline()
+	}
+
 	if node.Star != nil {
 		self.push("*")
 		return
@@ -515,8 +622,10 @@ func (self *Visitor) visitSymbolRef(node *_SymbolRef) {
 	self.push(node.Symbol)
 	if !node.Called && node.Parameters == nil {
 		callsite := CallSite{
-			Type: "symbol",
-			Name: node.Symbol,
+			Type:   "symbol",
+			Name:   node.Symbol,
+			Pos:    node.Pos,
+			EndPos: node.EndPos,
 		}
 
 		self.CallSites = append(self.CallSites, callsite)
@@ -525,15 +634,25 @@ func (self *Visitor) visitSymbolRef(node *_SymbolRef) {
 
 	if node.Called && self.opts.CollectCallSites {
 		callsite := CallSite{
-			Type: "function",
-			Name: node.Symbol,
+			Type:   "function",
+			Name:   node.Symbol,
+			Pos:    node.Pos,
+			EndPos: node.EndPos,
 		}
 
 		for _, p := range node.Parameters {
 			callsite.Args = append(callsite.Args,
 				utils.Unquote_ident(p.Left))
+			callsite.ArgPositions = append(callsite.ArgPositions,
+				ArgPosition{Pos: p.Pos, EndPos: p.EndPos})
 		}
 		self.CallSites = append(self.CallSites, callsite)
+	}
+
+	// Outline: called symbols inside a column (or a LET value) become
+	// function nodes in the document outline.
+	if node.Called && self.opts.CollectOutline {
+		self.collectFunctionOutline(node)
 	}
 
 	// No parameters anyway.
@@ -841,12 +960,16 @@ func (self *Visitor) visitPlugin(node *Plugin) {
 		// Collect callsites if needed.
 		if self.opts.CollectCallSites {
 			callsite := CallSite{
-				Type: "plugin",
-				Name: node.Name,
+				Type:   "plugin",
+				Name:   node.Name,
+				Pos:    node.Pos,
+				EndPos: node.EndPos,
 			}
 			for _, arg := range node.Args {
 				callsite.Args = append(callsite.Args,
 					utils.Unquote_ident(arg.Left))
+				callsite.ArgPositions = append(callsite.ArgPositions,
+					ArgPosition{Pos: arg.Pos, EndPos: arg.EndPos})
 			}
 			self.CallSites = append(self.CallSites, callsite)
 		}
@@ -956,6 +1079,22 @@ func (self *Visitor) visitSelectExpression(node *_SelectExpression) {
 
 func (self *Visitor) visitSelect(node *_Select) {
 	self.Visit(node.Comments)
+
+	// Outline: each SELECT statement (including subqueries) becomes a
+	// "query" node in the document outline, named after the FROM
+	// plugin.
+	if self.opts.CollectOutline {
+		info := &OutlineInfo{
+			Kind:   OutlineKindQuery,
+			Pos:    node.Pos,
+			EndPos: node.EndPos,
+		}
+		if node.From != nil && node.From.Plugin.Name != "" {
+			info.Name = node.From.Plugin.Name
+		}
+		self.pushOutline(info)
+		defer self.popOutline()
+	}
 
 	if node.Explain != nil {
 		self.push("EXPLAIN ")
@@ -1078,6 +1217,18 @@ func (self *Visitor) visitVQL(node *VQL) {
 	}()
 
 	if node.Let != "" {
+		// Outline: a LET statement becomes a "let" node in the
+		// document outline, with its value as a child.
+		if self.opts.CollectOutline {
+			self.pushOutline(&OutlineInfo{
+				Name:   node.Let,
+				Kind:   OutlineKindLet,
+				Pos:    node.Pos,
+				EndPos: node.EndPos,
+			})
+			defer self.popOutline()
+		}
+
 		operator := " = "
 		if node.LetOperator != "" {
 			operator = node.LetOperator
@@ -1091,9 +1242,11 @@ func (self *Visitor) visitVQL(node *VQL) {
 				self.push("(")
 				if self.opts.CollectDefinitionSites {
 					defsite := DefinitionSite{
-						Type: "definition",
-						Name: node.Let,
-						Args: []string{},
+						Type:   "definition",
+						Name:   node.Let,
+						Args:   []string{},
+						Pos:    node.Pos,
+						EndPos: node.EndPos,
 					}
 
 					for _, p := range parameters {
@@ -1127,8 +1280,10 @@ func (self *Visitor) visitVQL(node *VQL) {
 
 			} else if self.opts.CollectDefinitionSites {
 				defsite := DefinitionSite{
-					Type: "definition",
-					Name: node.Let,
+					Type:   "definition",
+					Name:   node.Let,
+					Pos:    node.Pos,
+					EndPos: node.EndPos,
 				}
 
 				if node.Called != "" {
@@ -1143,6 +1298,19 @@ func (self *Visitor) visitVQL(node *VQL) {
 		defer self.pop_indent()
 
 		if node.Expression != nil {
+			// Outline: a LET assigned a plain value gets a synthetic
+			// expression node so nested function calls can be outlined
+			// beneath it, mirroring the query structure.
+			if self.opts.CollectOutline {
+				self.pushOutline(&OutlineInfo{
+					Kind:         OutlineKindQuery,
+					Pos:          node.Expression.Pos,
+					EndPos:       node.Expression.EndPos,
+					isExpression: true,
+				})
+				defer self.popOutline()
+			}
+
 			self.Visit(node.Expression)
 			return
 		}
@@ -1165,6 +1333,17 @@ func (self *Visitor) abTest(
 	cbs ...func(self *Visitor),
 ) {
 	var res *Visitor
+
+	// Analysis-only traversals do not care about formatting. Visit
+	// the first alternative directly on this visitor so that analysis
+	// state (call sites, the outline stack) is collected exactly once
+	// on the real visitor instead of on throw-away copies.
+	if self.opts.AnalysisOnly {
+		if len(cbs) > 0 {
+			cbs[0](self)
+		}
+		return
+	}
 
 	if utils.IsDebug() {
 		fmt.Printf("%v: Performing abTest on %v\n", name, self.ToString())

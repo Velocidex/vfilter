@@ -27,8 +27,18 @@ import (
 // editor's symbol navigator).
 //
 // Like Inspect() it is exported because the grammar node types are
-// unexported; Outline() is the sanctioned way for tooling to learn about
-// the structure of a query.
+// unexported; Outline() is the sanctioned way for tooling to learn
+// about the structure of a query.
+//
+// Outline() does not walk the grammar itself. It is a thin adapter
+// over the package's single traversal mechanism (the Visitor): when
+// constructed with CollectOutline, the visitor builds the OutlineInfo
+// tree incrementally as it descends the AST - LET statements, queries
+// and columns push nodes, and function calls inside column
+// expressions become children - and Outline() returns the root it
+// produced. Keeping one descent of the grammar - instead of one per
+// analysis - is what allows Outline() and Inspect() to stay in sync
+// with the parser without duplicating its tree walk.
 
 // OutlineKind classifies an outline entry.
 type OutlineKind string
@@ -59,6 +69,13 @@ type OutlineInfo struct {
 	EndPos lexer.Position
 	// Children are nested symbols.
 	Children []*OutlineInfo
+
+	// isExpression marks the synthetic node the visitor creates for
+	// a LET statement whose value is a plain expression rather than
+	// a query. Function calls are outlined beneath it just like they
+	// are beneath a column. This is an internal marker; callers never
+	// need to set it.
+	isExpression bool
 }
 
 // Outline walks a parsed VQL statement and returns the root outline node.
@@ -73,196 +90,15 @@ func Outline(vql *VQL) *OutlineInfo {
 		return nil
 	}
 
-	if vql.Let != "" {
-		root := &OutlineInfo{
-			Name:   vql.Let,
-			Kind:   OutlineKindLet,
-			Pos:    vql.Pos,
-			EndPos: vql.EndPos,
-		}
-		if vql.StoredQuery != nil {
-			root.Children = append(root.Children, outlineSelect(vql.StoredQuery))
-		}
-		if vql.Expression != nil {
-			root.Children = append(root.Children, outlineExpression(vql.Expression))
-		}
-		return root
-	}
+	visitor := NewVisitor(NewScope(), FormatOptions{
+		CollectOutline: true,
 
-	if vql.Query != nil {
-		return outlineSelect(vql.Query)
-	}
-	return nil
-}
+		// We only care about the outline, not the formatting.
+		// AnalysisOnly skips the formatter's look-ahead copies so
+		// the outline stack is maintained on the visitor itself.
+		AnalysisOnly: true,
+	})
+	visitor.Visit(vql)
 
-func outlineSelect(select_ *_Select) *OutlineInfo {
-	if select_ == nil {
-		return nil
-	}
-
-	root := &OutlineInfo{
-		Kind:   OutlineKindQuery,
-		Pos:    select_.Pos,
-		EndPos: select_.EndPos,
-	}
-	if select_.From != nil && select_.From.Plugin.Name != "" {
-		root.Name = select_.From.Plugin.Name
-	}
-
-	if select_.SelectExpression != nil {
-		for _, column := range select_.SelectExpression.Expressions {
-			child := outlineColumn(column)
-			if child != nil {
-				root.Children = append(root.Children, child)
-			}
-		}
-	}
-	return root
-}
-
-func outlineColumn(expr *_AliasedExpression) *OutlineInfo {
-	if expr == nil {
-		return nil
-	}
-
-	// A subquery used directly as a column (SELECT (SELECT ...)).
-	if expr.SubSelect != nil {
-		return outlineSelect(expr.SubSelect)
-	}
-
-	entry := &OutlineInfo{
-		Kind:   OutlineKindColumn,
-		Pos:    expr.Pos,
-		EndPos: expr.EndPos,
-	}
-	if expr.As != "" {
-		entry.Name = expr.As
-	}
-	if expr.Expression != nil {
-		entry.Children = outlineExpressionChildren(expr.Expression)
-	}
-	return entry
-}
-
-// outlineExpression builds an entry for a bare expression (used when a
-// LET is assigned a non-query value). It carries any nested function calls
-// as children.
-func outlineExpression(expr *_AndExpression) *OutlineInfo {
-	if expr == nil {
-		return nil
-	}
-	entry := &OutlineInfo{
-		Kind:   OutlineKindQuery,
-		Pos:    expr.Pos,
-		EndPos: expr.EndPos,
-	}
-	entry.Children = outlineExpressionChildren(expr)
-	return entry
-}
-
-// outlineExpressionChildren returns the function calls nested inside an
-// expression tree.
-func outlineExpressionChildren(expr *_AndExpression) []*OutlineInfo {
-	children := []*OutlineInfo{}
-	collectExpressionFunctions(expr, &children)
-	return children
-}
-
-func collectExpressionFunctions(expr *_AndExpression, children *[]*OutlineInfo) {
-	if expr == nil {
-		return
-	}
-	collectOrFunctions(expr.Left, children)
-	for _, term := range expr.Right {
-		collectOrFunctions(term.Term, children)
-	}
-}
-
-func collectOrFunctions(expr *_OrExpression, children *[]*OutlineInfo) {
-	if expr == nil {
-		return
-	}
-	collectConditionFunctions(expr.Left, children)
-	for _, term := range expr.Right {
-		collectConditionFunctions(term.Term, children)
-	}
-}
-
-func collectConditionFunctions(expr *_ConditionOperand, children *[]*OutlineInfo) {
-	if expr == nil {
-		return
-	}
-	if expr.Not != nil {
-		collectConditionFunctions(expr.Not, children)
-	}
-	collectAdditionFunctions(expr.Left, children)
-	if expr.Right != nil {
-		collectAdditionFunctions(expr.Right.Right, children)
-	}
-}
-
-func collectAdditionFunctions(expr *_AdditionExpression, children *[]*OutlineInfo) {
-	if expr == nil {
-		return
-	}
-	collectMultiplicationFunctions(expr.Left, children)
-	for _, term := range expr.Right {
-		collectMultiplicationFunctions(term.Term, children)
-	}
-}
-
-func collectMultiplicationFunctions(expr *_MultiplicationExpression, children *[]*OutlineInfo) {
-	if expr == nil {
-		return
-	}
-	collectMemberFunctions(expr.Left, children)
-	for _, term := range expr.Right {
-		collectValueFunctions(term.Factor, children)
-	}
-}
-
-func collectMemberFunctions(expr *_MemberExpression, children *[]*OutlineInfo) {
-	if expr == nil {
-		return
-	}
-	collectValueFunctions(expr.Left, children)
-	for _, term := range expr.Right {
-		if term.Index != nil {
-			collectValueFunctions(term.Index, children)
-		}
-		if term.RangeEnd != nil {
-			collectValueFunctions(term.RangeEnd, children)
-		}
-	}
-}
-
-func collectValueFunctions(value *_Value, children *[]*OutlineInfo) {
-	if value == nil {
-		return
-	}
-	if value.SymbolRef != nil && value.SymbolRef.Called {
-		*children = append(*children, &OutlineInfo{
-			Name:   value.SymbolRef.Symbol,
-			Kind:   OutlineKindFunction,
-			Pos:    value.SymbolRef.Pos,
-			EndPos: value.SymbolRef.EndPos,
-		})
-	}
-	if value.Subexpression != nil {
-		collectCommaFunctions(value.Subexpression, children)
-	}
-}
-
-func collectCommaFunctions(expr *_CommaExpression, children *[]*OutlineInfo) {
-	if expr == nil {
-		return
-	}
-	collectAndFunctions(expr.Left, children)
-	for _, term := range expr.Right {
-		collectAndFunctions(term.Term, children)
-	}
-}
-
-func collectAndFunctions(expr *_AndExpression, children *[]*OutlineInfo) {
-	collectExpressionFunctions(expr, children)
+	return visitor.outlineRoot
 }

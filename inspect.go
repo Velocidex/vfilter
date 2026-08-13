@@ -22,13 +22,24 @@ import (
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
-// This file provides an exported, position-aware walker over the VQL AST.
+// This file provides an exported, position-aware analysis of the VQL
+// AST: the plugin calls, function calls, symbol references and LET
+// definitions in a parsed query.
 //
-// The grammar node types (like _Select, _AndExpression and _SymbolRef) are
-// unexported, which makes it impossible for external packages to traverse
-// the AST directly. The Inspect() function below is the sanctioned way for
-// tooling (for example the VQL language server) to walk a parsed query and
+// The grammar node types (like _Select, _AndExpression and _SymbolRef)
+// are unexported, which makes it impossible for external packages to
+// traverse the AST directly. The Inspect() function below is the
+// sanctioned way for tooling (for example the VQL language server) to
 // learn about plugin calls, function calls and argument positions.
+//
+// Inspect() does not walk the grammar itself. It is a thin adapter
+// over the package's single traversal mechanism (the Visitor): the
+// visitor collects call sites, definition sites and symbol references
+// as it descends the tree, and Inspect() translates its (now
+// position-aware) collections into the exported analysis types below.
+// Keeping one descent of the grammar - instead of one per analysis -
+// is what allows Inspect() and Outline() to stay in sync with the
+// parser without duplicating its tree walk.
 
 // ArgInfo describes a single keyword argument to a plugin or function call.
 type ArgInfo struct {
@@ -41,9 +52,6 @@ type ArgInfo struct {
 }
 
 // CallInfo describes a plugin or function invocation.
-//
-// Note: this shadows nothing in the package; the reformat-oriented
-// CallInfo lives in visitor.go and is unrelated.
 type CallInfo struct {
 	// Name is the full dotted name (e.g. "Artifact.Windows.Sys.Users").
 	Name string
@@ -56,7 +64,8 @@ type CallInfo struct {
 	EndPos lexer.Position
 	// Args holds the keyword arguments.
 	Args []ArgInfo
-	// FreeForm is set if the callable accepts arbitrary keyword args.
+	// FreeForm is reserved; it is always false for parsed queries (the
+	// registry decides whether a callable accepts arbitrary args).
 	FreeForm bool
 }
 
@@ -97,209 +106,54 @@ func Inspect(vql *VQL) *Inspection {
 		return result
 	}
 
-	if vql.Let != "" {
-		result.Lets = append(result.Lets, LetInfo{
-			Name: vql.Let,
-			Pos:  vql.Pos,
-		})
+	visitor := NewVisitor(NewScope(), FormatOptions{
+		CollectCallSites:       true,
+		CollectDefinitionSites: true,
+
+		// We only care about the analysis results, not the
+		// formatting. AnalysisOnly skips the formatter's
+		// look-ahead copies so each node is visited once.
+		AnalysisOnly: true,
+	})
+	visitor.Visit(vql)
+
+	// The visitor records every callable it meets in a single
+	// list, tagged with its Type ("symbol", "function" or
+	// "plugin"). Split it into the two exported collections.
+	for _, cs := range visitor.CallSites {
+		switch cs.Type {
+		case "symbol":
+			result.Symbols = append(result.Symbols, SymbolInfo{
+				Name:   cs.Name,
+				Pos:    cs.Pos,
+				EndPos: cs.EndPos,
+			})
+
+		case "function", "plugin":
+			call := CallInfo{
+				Name:     cs.Name,
+				IsPlugin: cs.Type == "plugin",
+				Pos:      cs.Pos,
+				EndPos:   cs.EndPos,
+			}
+			for i, arg := range cs.Args {
+				info := ArgInfo{Name: arg}
+				if i < len(cs.ArgPositions) {
+					info.Pos = cs.ArgPositions[i].Pos
+					info.EndPos = cs.ArgPositions[i].EndPos
+				}
+				call.Args = append(call.Args, info)
+			}
+			result.Calls = append(result.Calls, call)
+		}
 	}
 
-	// LET X = SELECT ... or LET X = <expr>
-	if vql.StoredQuery != nil {
-		result.inspectSelect(vql.StoredQuery)
-	}
-	if vql.Expression != nil {
-		result.inspectAndExpression(vql.Expression)
-	}
-	// Plain SELECT statement.
-	if vql.Query != nil {
-		result.inspectSelect(vql.Query)
+	for _, def := range visitor.Definitions {
+		result.Lets = append(result.Lets, LetInfo{
+			Name: def.Name,
+			Pos:  def.Pos,
+		})
 	}
 
 	return result
-}
-
-func (self *Inspection) inspectSelect(select_ *_Select) {
-	if select_ == nil {
-		return
-	}
-
-	// Column expressions.
-	if select_.SelectExpression != nil {
-		for _, column := range select_.SelectExpression.Expressions {
-			self.inspectAliasedExpression(column)
-		}
-	}
-
-	// FROM clause plugin.
-	if select_.From != nil {
-		plugin := &select_.From.Plugin
-		if plugin.Name != "" {
-			call := CallInfo{
-				Name:     plugin.Name,
-				IsPlugin: true,
-				Pos:      plugin.Pos,
-				EndPos:   plugin.EndPos,
-			}
-			for _, arg := range plugin.Args {
-				call.Args = append(call.Args, self.argToSite(arg))
-			}
-			self.Calls = append(self.Calls, call)
-		}
-	}
-
-	// WHERE clause.
-	if select_.Where != nil {
-		self.inspectCommaExpression(select_.Where)
-	}
-
-	// GROUP BY clause.
-	if select_.GroupBy != nil {
-		self.inspectCommaExpression(select_.GroupBy)
-	}
-}
-
-func (self *Inspection) inspectAliasedExpression(expr *_AliasedExpression) {
-	if expr == nil {
-		return
-	}
-	if expr.SubSelect != nil {
-		self.inspectSelect(expr.SubSelect)
-	}
-	if expr.Expression != nil {
-		self.inspectAndExpression(expr.Expression)
-	}
-}
-
-func (self *Inspection) argToSite(arg *_Args) ArgInfo {
-	site := ArgInfo{
-		Name:   arg.Left,
-		Pos:    arg.Pos,
-		EndPos: arg.EndPos,
-	}
-	if arg.SubSelect != nil {
-		self.inspectSelect(arg.SubSelect)
-	}
-	if arg.Right != nil {
-		self.inspectAndExpression(arg.Right)
-	}
-	if arg.Array != nil {
-		self.inspectCommaExpression(arg.Array)
-	}
-	return site
-}
-
-func (self *Inspection) inspectCommaExpression(expr *_CommaExpression) {
-	if expr == nil {
-		return
-	}
-	self.inspectAndExpression(expr.Left)
-	for _, term := range expr.Right {
-		self.inspectAndExpression(term.Term)
-	}
-}
-
-func (self *Inspection) inspectAndExpression(expr *_AndExpression) {
-	if expr == nil {
-		return
-	}
-	self.inspectOrExpression(expr.Left)
-	for _, term := range expr.Right {
-		self.inspectOrExpression(term.Term)
-	}
-}
-
-func (self *Inspection) inspectOrExpression(expr *_OrExpression) {
-	if expr == nil {
-		return
-	}
-	self.inspectConditionOperand(expr.Left)
-	for _, term := range expr.Right {
-		self.inspectConditionOperand(term.Term)
-	}
-}
-
-func (self *Inspection) inspectConditionOperand(expr *_ConditionOperand) {
-	if expr == nil {
-		return
-	}
-	if expr.Not != nil {
-		self.inspectConditionOperand(expr.Not)
-	}
-	self.inspectAdditionExpression(expr.Left)
-	if expr.Right != nil {
-		self.inspectAdditionExpression(expr.Right.Right)
-	}
-}
-
-func (self *Inspection) inspectAdditionExpression(expr *_AdditionExpression) {
-	if expr == nil {
-		return
-	}
-	self.inspectMultiplicationExpression(expr.Left)
-	for _, term := range expr.Right {
-		self.inspectMultiplicationExpression(term.Term)
-	}
-}
-
-func (self *Inspection) inspectMultiplicationExpression(expr *_MultiplicationExpression) {
-	if expr == nil {
-		return
-	}
-	self.inspectMemberExpression(expr.Left)
-	for _, term := range expr.Right {
-		self.inspectValue(term.Factor)
-	}
-}
-
-func (self *Inspection) inspectMemberExpression(expr *_MemberExpression) {
-	if expr == nil {
-		return
-	}
-	self.inspectValue(expr.Left)
-	for _, term := range expr.Right {
-		if term.Index != nil {
-			self.inspectValue(term.Index)
-		}
-		if term.RangeEnd != nil {
-			self.inspectValue(term.RangeEnd)
-		}
-	}
-}
-
-func (self *Inspection) inspectValue(value *_Value) {
-	if value == nil {
-		return
-	}
-	if value.SymbolRef != nil {
-		self.inspectSymbolRef(value.SymbolRef)
-	}
-	if value.Subexpression != nil {
-		self.inspectCommaExpression(value.Subexpression)
-	}
-}
-
-func (self *Inspection) inspectSymbolRef(ref *_SymbolRef) {
-	if ref == nil {
-		return
-	}
-	if ref.Called {
-		// A function call.
-		call := CallInfo{
-			Name:   ref.Symbol,
-			Pos:    ref.Pos,
-			EndPos: ref.EndPos,
-		}
-		for _, arg := range ref.Parameters {
-			call.Args = append(call.Args, self.argToSite(arg))
-		}
-		self.Calls = append(self.Calls, call)
-	} else {
-		// A bare symbol reference (column, LET var, or unknown).
-		self.Symbols = append(self.Symbols, SymbolInfo{
-			Name:   ref.Symbol,
-			Pos:    ref.Pos,
-			EndPos: ref.EndPos,
-		})
-	}
 }
