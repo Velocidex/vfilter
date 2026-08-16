@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alecthomas/participle/v2/lexer"
 	"www.velocidex.com/golang/vfilter/arg_parser"
 	"www.velocidex.com/golang/vfilter/materializer"
 	"www.velocidex.com/golang/vfilter/types"
@@ -40,6 +41,12 @@ var (
 	CollectDefinitionSites = FormatOptions{
 		CollectDefinitionSites: true,
 	}
+
+	CollectAllInfo = FormatOptions{
+		CollectDefinitionSites: true,
+		CollectComments:        true,
+		CollectCallSites:       true,
+	}
 )
 
 type FormatOptions struct {
@@ -63,14 +70,37 @@ type FormatOptions struct {
 type CallSite struct {
 	Type string
 	Name string
-	Args []string
-}// The DefinitionSite describes where a function is declared:
+	Args []ArgDesc
+
+	// Pos describe the span of the callable name (for bare symbols)
+	// or of the whole call including the closing paren (for functions
+	// and plugins).
+	Pos RangePosition
+}
+
+// ArgDesc describes a single keyword argument to a plugin or function call.
+type ArgDesc struct {
+	Name string
+	Pos  RangePosition
+}
+
+// RangePosition describes the span of a single region.
+type RangePosition struct {
+	Pos    lexer.Position
+	EndPos lexer.Position
+}
+
+// The DefinitionSite describes where a function is declared:
 // For example: LET Foo(X, Y) = ....
 type DefinitionSite struct {
 	Type     string
 	Name     string
-	Args     []string
+	Args     []ArgDesc
 	Defaults []string
+
+	// Pos describe the span of the LET statement. Populated
+	// when the visitor is used for analysis.
+	Pos RangePosition
 }
 
 type Visitor struct {
@@ -517,6 +547,10 @@ func (self *Visitor) visitSymbolRef(node *_SymbolRef) {
 		callsite := CallSite{
 			Type: "symbol",
 			Name: node.Symbol,
+			Pos: RangePosition{
+				Pos:    node.Pos,
+				EndPos: node.EndPos,
+			},
 		}
 
 		self.CallSites = append(self.CallSites, callsite)
@@ -527,11 +561,20 @@ func (self *Visitor) visitSymbolRef(node *_SymbolRef) {
 		callsite := CallSite{
 			Type: "function",
 			Name: node.Symbol,
+			Pos: RangePosition{
+				Pos:    node.Pos,
+				EndPos: node.EndPos,
+			},
 		}
 
 		for _, p := range node.Parameters {
-			callsite.Args = append(callsite.Args,
-				utils.Unquote_ident(p.Left))
+			callsite.Args = append(callsite.Args, ArgDesc{
+				Name: utils.Unquote_ident(p.Left),
+				Pos: RangePosition{
+					Pos:    p.Pos,
+					EndPos: p.EndPos,
+				},
+			})
 		}
 		self.CallSites = append(self.CallSites, callsite)
 	}
@@ -843,10 +886,19 @@ func (self *Visitor) visitPlugin(node *Plugin) {
 			callsite := CallSite{
 				Type: "plugin",
 				Name: node.Name,
+				Pos: RangePosition{
+					Pos:    node.Pos,
+					EndPos: node.EndPos,
+				},
 			}
 			for _, arg := range node.Args {
-				callsite.Args = append(callsite.Args,
-					utils.Unquote_ident(arg.Left))
+				callsite.Args = append(callsite.Args, ArgDesc{
+					Name: utils.Unquote_ident(arg.Left),
+					Pos: RangePosition{
+						Pos:    arg.Pos,
+						EndPos: arg.EndPos,
+					},
+				})
 			}
 			self.CallSites = append(self.CallSites, callsite)
 		}
@@ -1093,12 +1145,14 @@ func (self *Visitor) visitVQL(node *VQL) {
 					defsite := DefinitionSite{
 						Type: "definition",
 						Name: node.Let,
-						Args: []string{},
+						Pos: RangePosition{
+							Pos:    node.Pos,
+							EndPos: node.EndPos,
+						},
 					}
 
 					for _, p := range parameters {
-						defsite.Args = append(defsite.Args,
-							utils.Unquote_ident(p))
+						defsite.Args = append(defsite.Args, p)
 					}
 
 					for k := range defaults {
@@ -1110,13 +1164,13 @@ func (self *Visitor) visitVQL(node *VQL) {
 
 				for idx, p := range parameters {
 					// Is it an arg with default?
-					def_value, pres := defaults[p]
+					def_value, pres := defaults[p.Name]
 					if pres {
 						self.Visit(def_value)
 
 					} else {
 						// Otherwise just emit the plain name
-						self.push(p)
+						self.push(p.Name)
 					}
 
 					if idx < len(parameters)-1 {
@@ -1129,10 +1183,14 @@ func (self *Visitor) visitVQL(node *VQL) {
 				defsite := DefinitionSite{
 					Type: "definition",
 					Name: node.Let,
+					Pos: RangePosition{
+						Pos:    node.Pos,
+						EndPos: node.EndPos,
+					},
 				}
 
 				if node.Called != "" {
-					defsite.Args = []string{}
+					defsite.Args = []ArgDesc{}
 				}
 
 				self.Definitions = append(self.Definitions, defsite)

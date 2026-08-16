@@ -1,0 +1,193 @@
+
+0: LET X = 5 SELECT * FROM info(Foo=1, Bar='Hello')
+
+CallSites: [
+ {
+  "Type": "plugin",
+  "Name": "info",
+  "Args": [
+   {
+    "Name": "Foo",
+    "Pos": {
+     "Pos": {
+      "Filename": "",
+      "Offset": 29,
+      "Line": 1,
+      "Column": 30
+     },
+     "EndPos": {
+      "Filename": "",
+      "Offset": 34,
+      "Line": 1,
+      "Column": 35
+     }
+    }
+   },
+   {
+    "Name": "Bar",
+    "Pos": {
+     "Pos": {
+      "Filename": "",
+      "Offset": 36,
+      "Line": 1,
+      "Column": 37
+     },
+     "EndPos": {
+      "Filename": "",
+      "Offset": 47,
+      "Line": 1,
+      "Column": 48
+     }
+    }
+   }
+  ],
+  "Pos": {
+   "Pos": {
+    "Filename": "",
+    "Offset": 24,
+    "Line": 1,
+    "Column": 25
+   },
+   "EndPos": {
+    "Filename": "",
+    "Offset": 48,
+    "Line": 1,
+    "Column": 49
+   }
+  }
+ }
+]
+Definitions: [
+ {
+  "Type": "definition",
+  "Name": "X",
+  "Args": null,
+  "Defaults": null,
+  "Pos": {
+   "Pos": {
+    "Filename": "",
+    "Offset": 0,
+    "Line": 1,
+    "Column": 1
+   },
+   "EndPos": {
+    "Filename": "",
+    "Offset": 10,
+    "Line": 1,
+    "Column": 11
+   }
+  }
+ }
+]
+Comments: null
+1: LET Func(X=1) = 5
+
+CallSites: null
+Definitions: [
+ {
+  "Type": "definition",
+  "Name": "Func",
+  "Args": [
+   {
+    "Name": "X",
+    "Pos": {
+     "Pos": {
+      "Filename": "",
+      "Offset": 9,
+      "Line": 1,
+      "Column": 10
+     },
+     "EndPos": {
+      "Filename": "",
+      "Offset": 12,
+      "Line": 1,
+      "Column": 13
+     }
+    }
+   }
+  ],
+  "Defaults": [
+   "X"
+  ],
+  "Pos": {
+   "Pos": {
+    "Filename": "",
+    "Offset": 0,
+    "Line": 1,
+    "Column": 1
+   },
+   "EndPos": {
+    "Filename": "",
+    "Offset": 17,
+    "Line": 1,
+    "Column": 18
+   }
+  }
+ }
+]
+Comments: null
+2: LET X <= 1 SELECT 1 + X FROM scope()
+
+CallSites: [
+ {
+  "Type": "symbol",
+  "Name": "X",
+  "Args": null,
+  "Pos": {
+   "Pos": {
+    "Filename": "",
+    "Offset": 22,
+    "Line": 1,
+    "Column": 23
+   },
+   "EndPos": {
+    "Filename": "",
+    "Offset": 24,
+    "Line": 1,
+    "Column": 25
+   }
+  }
+ },
+ {
+  "Type": "plugin",
+  "Name": "scope",
+  "Args": null,
+  "Pos": {
+   "Pos": {
+    "Filename": "",
+    "Offset": 29,
+    "Line": 1,
+    "Column": 30
+   },
+   "EndPos": {
+    "Filename": "",
+    "Offset": 36,
+    "Line": 1,
+    "Column": 37
+   }
+  }
+ }
+]
+Definitions: [
+ {
+  "Type": "definition",
+  "Name": "X",
+  "Args": null,
+  "Defaults": null,
+  "Pos": {
+   "Pos": {
+    "Filename": "",
+    "Offset": 0,
+    "Line": 1,
+    "Column": 1
+   },
+   "EndPos": {
+    "Filename": "",
+    "Offset": 11,
+    "Line": 1,
+    "Column": 12
+   }
+  }
+ }
+]
+Comments: null

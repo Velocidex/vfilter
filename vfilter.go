@@ -353,6 +353,9 @@ type _Comment struct {
 }
 
 type LetParameter struct {
+	Pos    lexer.Position
+	EndPos lexer.Position
+
 	DefaultArg *_Args  ` (  @@ | `
 	Name       *string ` @Ident )`
 }
@@ -376,7 +379,7 @@ type VQL struct {
 	// JIT Compile these for faster execution
 	mu              sync.Mutex
 	argsCache       map[string]*_Args
-	parametersCache []string
+	parametersCache []ArgDesc
 }
 
 type _ParameterList struct {
@@ -415,7 +418,7 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	// If this is a Let expression we need to create a stored
 	// query and assign to the scope.
 	if len(self.Let) > 0 {
-		parameters, defaults := self.getParameters()
+		parameters, defaults := self.getParameterNames()
 
 		if parameters != nil && self.LetOperator == "<=" {
 			scope.Log("WARN:Expression %v takes parameters but is "+
@@ -469,7 +472,7 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 				scope.AppendVars(ordereddict.NewDict().Set(name, Null{}))
 			} else {
 				stored_query := NewStoredQuery(self.StoredQuery, name)
-				stored_query.parameters, stored_query.defaults = self.getParameters()
+				stored_query.parameters, stored_query.defaults = self.getParameterNames()
 
 				scope.AppendVars(ordereddict.NewDict().Set(name, stored_query))
 			}
@@ -524,7 +527,16 @@ func (self *VQL) Eval(ctx context.Context, scope types.Scope) <-chan Row {
 	}
 }
 
-func (self *VQL) getParameters() ([]string, map[string]*_Args) {
+func (self *VQL) getParameterNames() ([]string, map[string]*_Args) {
+	var res []string
+	descriptors, defaults := self.getParameters()
+	for _, d := range descriptors {
+		res = append(res, d.Name)
+	}
+	return res, defaults
+}
+
+func (self *VQL) getParameters() ([]ArgDesc, map[string]*_Args) {
 	if self.Let == "" || len(self.LetParameters) == 0 {
 		return nil, nil
 	}
@@ -544,10 +556,22 @@ func (self *VQL) getParameters() ([]string, map[string]*_Args) {
 		if arg.Name != nil {
 			name := utils.Unquote_ident(*arg.Name)
 
-			self.parametersCache = append(self.parametersCache, name)
+			self.parametersCache = append(self.parametersCache, ArgDesc{
+				Name: name,
+				Pos: RangePosition{
+					Pos:    arg.Pos,
+					EndPos: arg.EndPos,
+				},
+			})
 		} else if arg.DefaultArg != nil {
 			name := utils.Unquote_ident(arg.DefaultArg.Left)
-			self.parametersCache = append(self.parametersCache, name)
+			self.parametersCache = append(self.parametersCache, ArgDesc{
+				Name: name,
+				Pos: RangePosition{
+					Pos:    arg.Pos,
+					EndPos: arg.EndPos,
+				},
+			})
 
 			self.argsCache[name] = arg.DefaultArg
 		}
