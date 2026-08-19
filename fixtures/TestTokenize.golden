@@ -1,0 +1,546 @@
+[
+ {
+  "Type": "Comment",
+  "Value": "// A comment",
+  "Pos": {
+   "Filename": "",
+   "Offset": 1,
+   "Line": 2,
+   "Column": 1
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 13,
+   "Line": 2,
+   "Column": 13
+  }
+ },
+ {
+  "Type": "LET",
+  "Value": "LET",
+  "Pos": {
+   "Filename": "",
+   "Offset": 14,
+   "Line": 3,
+   "Column": 1
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 17,
+   "Line": 3,
+   "Column": 4
+  }
+ },
+ {
+  "Type": "Ident",
+  "Value": "X",
+  "Pos": {
+   "Filename": "",
+   "Offset": 18,
+   "Line": 3,
+   "Column": 5
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 19,
+   "Line": 3,
+   "Column": 6
+  }
+ },
+ {
+  "Type": "Operators",
+  "Value": "=",
+  "Pos": {
+   "Filename": "",
+   "Offset": 20,
+   "Line": 3,
+   "Column": 7
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 21,
+   "Line": 3,
+   "Column": 8
+  }
+ },
+ {
+  "Type": "String",
+  "Value": "\"hello\"",
+  "Pos": {
+   "Filename": "",
+   "Offset": 22,
+   "Line": 3,
+   "Column": 9
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 29,
+   "Line": 3,
+   "Column": 16
+  }
+ },
+ {
+  "Type": "Operators",
+  "Value": "+",
+  "Pos": {
+   "Filename": "",
+   "Offset": 30,
+   "Line": 3,
+   "Column": 17
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 31,
+   "Line": 3,
+   "Column": 18
+  }
+ },
+ {
+  "Type": "Number",
+  "Value": "42",
+  "Pos": {
+   "Filename": "",
+   "Offset": 32,
+   "Line": 3,
+   "Column": 19
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 34,
+   "Line": 3,
+   "Column": 21
+  }
+ },
+ {
+  "Type": "LET",
+  "Value": "LET",
+  "Pos": {
+   "Filename": "",
+   "Offset": 36,
+   "Line": 5,
+   "Column": 1
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 39,
+   "Line": 5,
+   "Column": 4
+  }
+ },
+ {
+  "Type": "Ident",
+  "Value": "Y",
+  "Pos": {
+   "Filename": "",
+   "Offset": 40,
+   "Line": 5,
+   "Column": 5
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 41,
+   "Line": 5,
+   "Column": 6
+  }
+ },
+ {
+  "Type": "Operators",
+  "Value": "=",
+  "Pos": {
+   "Filename": "",
+   "Offset": 42,
+   "Line": 5,
+   "Column": 7
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 43,
+   "Line": 5,
+   "Column": 8
+  }
+ },
+ {
+  "Type": "MultilineString",
+  "Value": "'''\nMultiline\nString\n'''",
+  "Pos": {
+   "Filename": "",
+   "Offset": 44,
+   "Line": 5,
+   "Column": 9
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 68,
+   "Line": 8,
+   "Column": 4
+  }
+ },
+ {
+  "Type": "MLineComment",
+  "Value": "/* Multiline\ncomment\n*/",
+  "Pos": {
+   "Filename": "",
+   "Offset": 70,
+   "Line": 10,
+   "Column": 1
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 93,
+   "Line": 12,
+   "Column": 3
+  }
+ },
+ {
+  "Type": "SELECT",
+  "Value": "SELECT",
+  "Pos": {
+   "Filename": "",
+   "Offset": 94,
+   "Line": 13,
+   "Column": 1
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 100,
+   "Line": 13,
+   "Column": 7
+  }
+ },
+ {
+  "Type": "Ident",
+  "Value": "A",
+  "Pos": {
+   "Filename": "",
+   "Offset": 101,
+   "Line": 13,
+   "Column": 8
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 102,
+   "Line": 13,
+   "Column": 9
+  }
+ },
+ {
+  "Type": "Operators",
+  "Value": ".",
+  "Pos": {
+   "Filename": "",
+   "Offset": 102,
+   "Line": 13,
+   "Column": 9
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 103,
+   "Line": 13,
+   "Column": 10
+  }
+ },
+ {
+  "Type": "Ident",
+  "Value": "B",
+  "Pos": {
+   "Filename": "",
+   "Offset": 103,
+   "Line": 13,
+   "Column": 10
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 104,
+   "Line": 13,
+   "Column": 11
+  }
+ },
+ {
+  "Type": "Operators",
+  "Value": ",",
+  "Pos": {
+   "Filename": "",
+   "Offset": 104,
+   "Line": 13,
+   "Column": 11
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 105,
+   "Line": 13,
+   "Column": 12
+  }
+ },
+ {
+  "Type": "Ident",
+  "Value": "lower",
+  "Pos": {
+   "Filename": "",
+   "Offset": 106,
+   "Line": 13,
+   "Column": 13
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 111,
+   "Line": 13,
+   "Column": 18
+  }
+ },
+ {
+  "Type": "Operators",
+  "Value": "(",
+  "Pos": {
+   "Filename": "",
+   "Offset": 111,
+   "Line": 13,
+   "Column": 18
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 112,
+   "Line": 13,
+   "Column": 19
+  }
+ },
+ {
+  "Type": "Ident",
+  "Value": "X",
+  "Pos": {
+   "Filename": "",
+   "Offset": 112,
+   "Line": 13,
+   "Column": 19
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 113,
+   "Line": 13,
+   "Column": 20
+  }
+ },
+ {
+  "Type": "Operators",
+  "Value": ")",
+  "Pos": {
+   "Filename": "",
+   "Offset": 113,
+   "Line": 13,
+   "Column": 20
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 114,
+   "Line": 13,
+   "Column": 21
+  }
+ },
+ {
+  "Type": "AS",
+  "Value": "AS",
+  "Pos": {
+   "Filename": "",
+   "Offset": 115,
+   "Line": 13,
+   "Column": 22
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 117,
+   "Line": 13,
+   "Column": 24
+  }
+ },
+ {
+  "Type": "Ident",
+  "Value": "L",
+  "Pos": {
+   "Filename": "",
+   "Offset": 118,
+   "Line": 13,
+   "Column": 25
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 119,
+   "Line": 13,
+   "Column": 26
+  }
+ },
+ {
+  "Type": "FROM",
+  "Value": "FROM",
+  "Pos": {
+   "Filename": "",
+   "Offset": 120,
+   "Line": 13,
+   "Column": 27
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 124,
+   "Line": 13,
+   "Column": 31
+  }
+ },
+ {
+  "Type": "Ident",
+  "Value": "pslist",
+  "Pos": {
+   "Filename": "",
+   "Offset": 125,
+   "Line": 13,
+   "Column": 32
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 131,
+   "Line": 13,
+   "Column": 38
+  }
+ },
+ {
+  "Type": "Operators",
+  "Value": "(",
+  "Pos": {
+   "Filename": "",
+   "Offset": 131,
+   "Line": 13,
+   "Column": 38
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 132,
+   "Line": 13,
+   "Column": 39
+  }
+ },
+ {
+  "Type": "Ident",
+  "Value": "pid",
+  "Pos": {
+   "Filename": "",
+   "Offset": 132,
+   "Line": 13,
+   "Column": 39
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 135,
+   "Line": 13,
+   "Column": 42
+  }
+ },
+ {
+  "Type": "Operators",
+  "Value": "=",
+  "Pos": {
+   "Filename": "",
+   "Offset": 135,
+   "Line": 13,
+   "Column": 42
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 136,
+   "Line": 13,
+   "Column": 43
+  }
+ },
+ {
+  "Type": "Number",
+  "Value": "1",
+  "Pos": {
+   "Filename": "",
+   "Offset": 136,
+   "Line": 13,
+   "Column": 43
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 137,
+   "Line": 13,
+   "Column": 44
+  }
+ },
+ {
+  "Type": "Operators",
+  "Value": ")",
+  "Pos": {
+   "Filename": "",
+   "Offset": 137,
+   "Line": 13,
+   "Column": 44
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 138,
+   "Line": 13,
+   "Column": 45
+  }
+ },
+ {
+  "Type": "WHERE",
+  "Value": "WHERE",
+  "Pos": {
+   "Filename": "",
+   "Offset": 139,
+   "Line": 13,
+   "Column": 46
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 144,
+   "Line": 13,
+   "Column": 51
+  }
+ },
+ {
+  "Type": "Ident",
+  "Value": "Foo",
+  "Pos": {
+   "Filename": "",
+   "Offset": 145,
+   "Line": 13,
+   "Column": 52
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 148,
+   "Line": 13,
+   "Column": 55
+  }
+ },
+ {
+  "Type": "Operators",
+  "Value": "=~",
+  "Pos": {
+   "Filename": "",
+   "Offset": 149,
+   "Line": 13,
+   "Column": 56
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 151,
+   "Line": 13,
+   "Column": 58
+  }
+ },
+ {
+  "Type": "Ident",
+  "Value": "Bar",
+  "Pos": {
+   "Filename": "",
+   "Offset": 152,
+   "Line": 13,
+   "Column": 59
+  },
+  "EndPos": {
+   "Filename": "",
+   "Offset": 155,
+   "Line": 13,
+   "Column": 62
+  }
+ }
+]
