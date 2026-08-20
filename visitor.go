@@ -981,6 +981,16 @@ func (self *Visitor) visitPlugin(node *Plugin) {
 
 				self.push(")")
 			})
+	} else if self.opts.CollectCallSites {
+		callsite := CallSite{
+			Type: "plugin",
+			Name: node.Name,
+			Pos: RangePosition{
+				Pos:    node.Pos,
+				EndPos: node.EndPos,
+			},
+		}
+		self.CallSites = append(self.CallSites, callsite)
 	}
 }
 
