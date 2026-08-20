@@ -983,7 +983,7 @@ func (self *Visitor) visitPlugin(node *Plugin) {
 			})
 	} else if self.opts.CollectCallSites {
 		callsite := CallSite{
-			Type: "plugin",
+			Type: "symbol",
 			Name: node.Name,
 			Pos: RangePosition{
 				Pos:    node.Pos,
