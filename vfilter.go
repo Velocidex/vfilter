@@ -2006,8 +2006,16 @@ func (self *_SymbolRef) callFunction(
 	// reference in the AST is unique.
 	func_obj = CopyFunction(func_obj)
 
+	// The same AST node can be evaluated concurrently (e.g. by
+	// foreach workers). If another caller cached its copy since we
+	// checked above, use that one instead: replacing it would split
+	// an aggregate's state between two copies.
 	self.mu.Lock()
-	self.function = func_obj
+	if self.function == nil {
+		self.function = func_obj
+	} else {
+		func_obj = self.function
+	}
 	self.mu.Unlock()
 
 	// Call the function now.
