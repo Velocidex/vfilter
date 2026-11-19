@@ -1389,6 +1389,32 @@ SELECT Foo[ -2 ], Foo[ -X ], -X, ` + "-`X`, " + `
        Foo[-Bar(X=-1):]
 FROM scope()
 `},
+
+	// The subquery is returned by if() and only evaluated later, so
+	// it must still see the function's parameters (Y=1 gives 3, the
+	// outer Y=6 would give 8).
+	{"VQL function returning a subquery sees its parameters", `
+LET X = 1
+LET Y = 6
+LET F(Y) = if(condition=TRUE, then={ SELECT Y + 2 AS A FROM scope() })
+LET G(Y) = if(condition=FALSE, else={ SELECT Y + 2 AS A FROM scope() })
+LET H(Y=4) = if(condition=TRUE, then={ SELECT Y + 2 AS A FROM scope() })
+LET Materialized <= F(Y=X)
+
+SELECT F(Y=X) AS Then, G(Y=X) AS Else, H() AS Default,
+       Materialized
+FROM scope()
+
+SELECT * FROM G(Y=X)
+`},
+
+	// Without parameters the returned subquery is not bound, so the
+	// query still sees variables added by foreach().
+	{"VQL expression returning a subquery without parameters", `
+LET Q = if(condition=TRUE, then={ SELECT _value AS V FROM scope() })
+
+SELECT * FROM foreach(row=[1, 2], query=Q)
+`},
 }
 
 type _RangeArgs struct {

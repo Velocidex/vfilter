@@ -1276,7 +1276,8 @@ func (self *Plugin) evalSymbolWithArgs(
 		types.MaybeApplyDefaultArgs(t, ctx, scope, args)
 
 		subscope.AppendVars(args)
-		return self.evalSymbol(ctx, scope, t.Reduce(ctx, subscope), name)
+		result := bindToCallSite(t.Reduce(ctx, subscope), args, subscope)
+		return self.evalSymbol(ctx, scope, result, name)
 
 		// A plugin like item
 	case PluginGeneratorInterface:
@@ -1858,7 +1859,8 @@ func (self *_SymbolRef) Reduce(ctx context.Context, scope types.Scope) Any {
 
 			scope.GetStats().IncFunctionsCalled()
 
-			return self.maybeNegate(ctx, scope, negated, t.Reduce(ctx, subscope))
+			result := bindToCallSite(t.Reduce(ctx, subscope), args, subscope)
+			return self.maybeNegate(ctx, scope, negated, result)
 
 		case StoredQuery:
 			// If the call site specifies parameters then
