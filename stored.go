@@ -275,3 +275,24 @@ func (self *StoredQueryCallSite) Eval(ctx context.Context, scope Scope) <-chan R
 	// Use our embedded scope instead.
 	return self.query.Eval(ctx, self.scope)
 }
+
+// A stored expression called with parameters may return a subquery
+// without running it, e.g. LET F(X) = if(condition=..., then={ SELECT
+// X FROM ... }). The caller evaluates that subquery later in its own
+// scope, where X is either missing or refers to a different
+// variable. Bind it to the scope holding the parameters instead.
+func bindToCallSite(value Any, args *ordereddict.Dict, scope Scope) Any {
+	if args.Len() == 0 {
+		return value
+	}
+
+	stored_query, ok := value.(StoredQuery)
+	if !ok {
+		return value
+	}
+
+	return &StoredQueryCallSite{
+		query: stored_query,
+		scope: scope,
+	}
+}
