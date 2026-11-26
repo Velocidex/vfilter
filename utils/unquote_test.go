@@ -31,7 +31,7 @@ func TestUnquote(t *testing.T) {
 	res := make([]string, 0)
 	for _, testcase := range testcases {
 		decoded := Unquote(testcase)
-		decoded += fmt.Sprintf(" Hex: % x", decoded)
+		decoded = testcase + fmt.Sprintf(" Hex: % x", decoded)
 		res = append(res, decoded)
 	}
 
