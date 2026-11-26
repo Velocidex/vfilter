@@ -106,6 +106,13 @@ func (self *_StoredQuery) Call(ctx context.Context,
 	for _, k := range args.Keys() {
 		v, _ := args.Get(k)
 		switch t := v.(type) {
+		case types.StoredQuery:
+			// The arg is a stored query. Bind the current scope to it
+			// and pass it raw.
+			v = &StoredQueryCallSite{
+				query: t,
+				scope: scope,
+			}
 
 		case types.LazyExpr:
 			v = t.Reduce(ctx)
@@ -113,8 +120,6 @@ func (self *_StoredQuery) Call(ctx context.Context,
 		case types.Materializer:
 			v = t.Materialize(ctx, sub_scope)
 
-		case types.StoredQuery:
-			v = types.Materialize(ctx, sub_scope, t)
 		}
 		vars.Set(k, v)
 	}
@@ -269,6 +274,14 @@ func (self *StoredExpression) checkCallingArgs(scope types.Scope, args *orderedd
 type StoredQueryCallSite struct {
 	query StoredQuery
 	scope Scope
+}
+
+func (self *StoredQueryCallSite) GoString() string {
+	return types.ToString(context.Background(), self.scope, self.query)
+}
+
+func (self *StoredQueryCallSite) String() string {
+	return types.ToString(context.Background(), self.scope, self.query)
 }
 
 func (self *StoredQueryCallSite) Eval(ctx context.Context, scope Scope) <-chan Row {

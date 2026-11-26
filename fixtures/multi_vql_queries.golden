@@ -1509,5 +1509,33 @@
     {
       "V": 2
     }
+  ],
+  "096/000 Overflow String: LET Initial \u003c= counter()": null,
+  "096/001 Overflow String: LET F(Rows) = SELECT *, format(format=\"%v\", args=Rows) FROM Rows WHERE counter()": null,
+  "096/002 Overflow String: SELECT * FROM F(Rows={ SELECT * FROM range(start=1, end=10001) }) LIMIT 1": [
+    {
+      "value": 1,
+      "format(format=\"%v\", args=Rows)": "SELECT * FROM range(start=1, end=10001)"
+    }
+  ],
+  "096/003 Overflow String: SELECT counter() - Initial \u003c 10 FROM scope()": [
+    {
+      "counter() - Initial \u003c 10": true
+    }
+  ],
+  "097/000 Stored Query as arg: LET F(Rows, Foo) = SELECT Rows, Foo FROM scope()": null,
+  "097/001 Stored Query as arg: LET Foo \u003c= \"Foo\"": null,
+  "097/002 Stored Query as arg: SELECT * FROM F(Foo=\"Bar\", Rows={ SELECT Foo FROM range(start=1, end=2) }) LIMIT 1": [
+    {
+      "Rows": [
+        {
+          "Foo": "Foo"
+        },
+        {
+          "Foo": "Foo"
+        }
+      ],
+      "Foo": "Bar"
+    }
   ]
 }

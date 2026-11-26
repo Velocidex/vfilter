@@ -1415,6 +1415,25 @@ LET Q = if(condition=TRUE, then={ SELECT _value AS V FROM scope() })
 
 SELECT * FROM foreach(row=[1, 2], query=Q)
 `},
+
+	// https://github.com/Velocidex/velociraptor/issues/5161 - Pass
+	// the stored query as an arg to avoid materializing it
+	// completely. The counter() should be evaluated only a few times.
+	{"Overflow String", `
+LET Initial <= counter()
+LET F(Rows) = SELECT *, format(format="%v", args=Rows) FROM Rows WHERE counter()
+SELECT * FROM F(Rows={ SELECT * FROM range(start=1, end=10001) }) LIMIT 1
+SELECT counter() - Initial < 10 FROM scope()
+`},
+
+	// Pass the raw query into the callable, but bind its scope to the
+	// callsite:
+	{"Stored Query as arg", `
+LET F(Rows, Foo) = SELECT Rows, Foo FROM scope()
+
+LET Foo <= "Foo"
+SELECT * FROM F(Foo="Bar", Rows={ SELECT Foo FROM range(start=1, end=2) }) LIMIT 1
+`},
 }
 
 type _RangeArgs struct {

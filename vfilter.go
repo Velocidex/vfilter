@@ -290,19 +290,20 @@ func Parse(expression string) (*VQL, error) {
 	}
 }
 
-// Parse a string into multiple VQL statements.
-func MultiParse(expression string) ([]*VQL, error) {
+// Parse a string into multiple VQL statements. Even if a parse error
+// occurs return as much as we can.
+func MultiParse(expression string) (res []*VQL, err error) {
 	multi, err := multiVQLParser.ParseString("", expression)
+	if multi != nil {
+		res = multi.GetStatements()
+	}
 	switch t := err.(type) {
 	case *lexer.Error:
-		return nil, reportError(err, t.Pos, expression)
+		return res, reportError(err, t.Pos, expression)
 	case participle.Error:
-		return nil, reportError(err, t.Position(), expression)
+		return res, reportError(err, t.Position(), expression)
 	default:
-		if multi != nil {
-			return multi.GetStatements(), err
-		}
-		return nil, err
+		return res, err
 	}
 }
 

@@ -13,8 +13,16 @@ type StringProtocol interface {
 func ToString(ctx context.Context,
 	scope Scope, x interface{}) string {
 	switch t := x.(type) {
+
+	// Does the type support stringifying itself?
+	case StringProtocol:
+		return t.ToString(scope)
+
 	case fmt.Stringer:
 		return t.String()
+
+	case fmt.GoStringer:
+		return t.GoString()
 
 		// Reduce any LazyExpr to materialized types
 	case LazyExpr:
@@ -31,9 +39,6 @@ func ToString(ctx context.Context,
 		// call it lazily if it is here.
 	case func() Any:
 		return ToString(ctx, scope, t())
-
-	case StringProtocol:
-		return t.ToString(scope)
 
 	case string:
 		return t
