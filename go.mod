@@ -26,4 +26,4 @@ require (
 
 // replace github.com/Velocidex/ordereddict => /home/mic/projects/ordereddict
 
-go 1.25.0
+go 1.26.8
